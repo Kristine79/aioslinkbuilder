@@ -1,6 +1,7 @@
 # ADR-003: Provider-Based External Integrations
 
 ## Status
+
 Accepted
 
 ## Decision

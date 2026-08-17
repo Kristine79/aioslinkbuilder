@@ -5,3 +5,15 @@ pnpm-lock.yaml
 .env
 .env.*.local
 *.log
+# Original repository documentation is kept as-is (not reformatted by Prettier)
+AGENTS.md
+AI_WORKFLOWS.md
+ARCHITECTURE.md
+DOMAIN_MODEL.md
+INTEGRATIONS.md
+LIMITATIONS.md
+PRD.md
+SCORING.md
+SEOFLOW_REFERENCE.md
+STATE_MACHINE.md
+TESTING.md

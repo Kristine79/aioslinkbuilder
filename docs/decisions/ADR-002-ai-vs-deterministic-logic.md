@@ -1,6 +1,7 @@
 # ADR-002: Separate AI Intelligence from Deterministic Business Logic
 
 ## Status
+
 Accepted
 
 ## Decision
@@ -12,6 +13,7 @@ Use AI for semantic analysis and recommendations. Use deterministic application/
 LLMs are useful for semantic interpretation but should not control critical business state.
 
 This improves:
+
 - reproducibility
 - testability
 - explainability

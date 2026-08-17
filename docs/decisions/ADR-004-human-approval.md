@@ -1,6 +1,7 @@
 # ADR-004: Human Approval Before External Actions
 
 ## Status
+
 Accepted
 
 ## Decision

@@ -1,7 +1,4 @@
-import type {
-  AIAnalysisType,
-  AIAnalysisValidationStatus,
-} from '../enums/ai-analysis.js';
+import type { AIAnalysisType, AIAnalysisValidationStatus } from '../enums/ai-analysis.js';
 
 export interface AIAnalysis {
   id: string;

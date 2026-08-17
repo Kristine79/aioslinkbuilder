@@ -4,13 +4,13 @@ packages:
 # pnpm 11 moved allow-build policy to `allowBuilds`; `onlyBuiltDependencies`
 # is kept for compatibility with pnpm 10.
 allowBuilds:
-  "@prisma/client": true
-  "@prisma/engines": true
+  '@prisma/client': true
+  '@prisma/engines': true
   prisma: true
   esbuild: true
 
 onlyBuiltDependencies:
-  - "@prisma/client"
-  - "@prisma/engines"
+  - '@prisma/client'
+  - '@prisma/engines'
   - prisma
   - esbuild

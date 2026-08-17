@@ -29,6 +29,8 @@ Key fields:
 - createdAt
 - updatedAt
 
+Campaign status: `DRAFT`, `ACTIVE`, `COMPLETED` (defined in Phase 0; see ADR-007).
+
 ## PlacementCategory
 
 A reusable classification such as:
@@ -40,6 +42,14 @@ A reusable classification such as:
 - social
 
 Categories are reusable platform data.
+
+## Platform
+
+A catalog record of an external platform (name, URL, country, category, notes). Reusable research data; a platform being listed does not imply that automated publication is supported.
+
+## PlacementProvider
+
+A concrete integration binding for a platform: provider type (API / BROWSER / MANUAL / MOCK), explicit capability set and a `capabilitiesVerified` flag. One provider record per platform per type. See ADR-006.
 
 ## PlacementOpportunity
 
@@ -67,8 +77,8 @@ Represents an actual placement execution.
 Key fields:
 - id
 - opportunityId
-- provider
-- status
+- providerId
+- status (starts at `READY` for a new execution)
 - externalId
 - submittedAt
 - publishedAt
@@ -137,5 +147,6 @@ Company
 
 PlacementOpportunity
   ├── PlacementCategory
-  └── Platform / Provider
+  ├── Platform
+  └── PlacementProvider (via Placement)
 ```

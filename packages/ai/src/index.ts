@@ -10,11 +10,7 @@ export {
   opportunityClassificationSchema,
   contentDraftSchema,
 } from './schemas.js';
-export type {
-  CompanyAnalysis,
-  OpportunityClassification,
-  ContentDraft,
-} from './schemas.js';
+export type { CompanyAnalysis, OpportunityClassification, ContentDraft } from './schemas.js';
 
 export type { AIProvider } from './provider.js';
 

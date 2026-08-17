@@ -1,9 +1,4 @@
-import type {
-  CapabilitySet,
-  PlacementType,
-  ProviderCapability,
-  ProviderType,
-} from '@aios/domain';
+import type { CapabilitySet, PlacementType, ProviderCapability, ProviderType } from '@aios/domain';
 
 export interface DiscoverInput {
   companyName: string;

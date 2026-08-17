@@ -59,6 +59,7 @@ QUALIFIED → VERIFIED
 ## Rules
 
 - UI cannot directly mutate status.
-- Database writes cannot bypass transition validation.
+- Application-level placement status changes are only allowed through the domain state machine.
+- The database is the persistence layer and does not independently enforce domain transitions; no database triggers or database-level state enforcement are used in this prototype.
 - Every transition should be testable.
 - State changes should produce audit events where appropriate.

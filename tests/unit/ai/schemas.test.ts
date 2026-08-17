@@ -83,9 +83,9 @@ describe('AI output schema validation', () => {
       geographicRelevance: 60,
       recommendationReason: 'x',
     };
-    expect(() => validateAIOutput(opportunityClassificationSchema, output, 'classifyOpportunity')).toThrow(
-      AIOutputValidationError,
-    );
+    expect(() =>
+      validateAIOutput(opportunityClassificationSchema, output, 'classifyOpportunity'),
+    ).toThrow(AIOutputValidationError);
   });
 
   it('rejects classification scores outside 0-100', () => {
@@ -97,15 +97,15 @@ describe('AI output schema validation', () => {
       geographicRelevance: 60,
       recommendationReason: 'x',
     };
-    expect(() => validateAIOutput(opportunityClassificationSchema, output, 'classifyOpportunity')).toThrow(
-      AIOutputValidationError,
-    );
+    expect(() =>
+      validateAIOutput(opportunityClassificationSchema, output, 'classifyOpportunity'),
+    ).toThrow(AIOutputValidationError);
   });
 
   it('rejects non-object AI output', () => {
-    expect(() => validateAIOutput(companyAnalysisSchema, 'not-an-object', 'analyzeCompany')).toThrow(
-      AIOutputValidationError,
-    );
+    expect(() =>
+      validateAIOutput(companyAnalysisSchema, 'not-an-object', 'analyzeCompany'),
+    ).toThrow(AIOutputValidationError);
   });
 
   it('reports validation context and issues', () => {

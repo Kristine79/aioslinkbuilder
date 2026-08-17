@@ -5,6 +5,7 @@ import type {
   CreateInput,
   CreateResult,
   DiscoverInput,
+  DiscoverResult,
   PlacementProvider,
   ProviderDescriptor,
   StatusInput,
@@ -76,8 +77,12 @@ describe('placement provider contract', () => {
 
   it('supports the declared capability', async () => {
     const provider = new DiscoverOnlyMock();
-    expect(() => requireCapability(provider.capabilities, 'DISCOVER', 'discover-only-mock')).not.toThrow();
-    await expect(provider.discover({ companyName: 'x', geography: [], categoryCode: null })).resolves.toEqual({
+    expect(() =>
+      requireCapability(provider.capabilities, 'DISCOVER', 'discover-only-mock'),
+    ).not.toThrow();
+    await expect(
+      provider.discover({ companyName: 'x', geography: [], categoryCode: null }),
+    ).resolves.toEqual({
       opportunities: [],
     });
   });

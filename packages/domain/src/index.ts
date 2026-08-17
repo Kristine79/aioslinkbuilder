@@ -29,10 +29,7 @@ export { PROVIDER_CAPABILITIES } from './enums/provider-capability.js';
 export { VERIFICATION_STATUSES } from './enums/verification-status.js';
 export { EVIDENCE_TYPES } from './enums/evidence-type.js';
 export { CAMPAIGN_STATUSES } from './enums/campaign-status.js';
-export {
-  AI_ANALYSIS_TYPES,
-  AI_ANALYSIS_VALIDATION_STATUSES,
-} from './enums/ai-analysis.js';
+export { AI_ANALYSIS_TYPES, AI_ANALYSIS_VALIDATION_STATUSES } from './enums/ai-analysis.js';
 
 export {
   DomainError,
@@ -41,39 +38,17 @@ export {
   UnsupportedCapabilityError,
 } from './errors.js';
 
-export type {
-  Company,
-} from './entities/company.js';
-export type {
-  Campaign,
-} from './entities/campaign.js';
-export type {
-  PlacementCategory,
-} from './entities/placement-category.js';
-export type {
-  Platform,
-} from './entities/platform.js';
-export type {
-  PlacementProvider,
-} from './entities/placement-provider.js';
-export type {
-  PlacementOpportunity,
-} from './entities/placement-opportunity.js';
-export type {
-  Placement,
-} from './entities/placement.js';
-export type {
-  Verification,
-} from './entities/verification.js';
-export type {
-  Evidence,
-} from './entities/evidence.js';
-export type {
-  AIAnalysis,
-} from './entities/ai-analysis.js';
-export type {
-  AuditLogEntry,
-} from './entities/audit-log.js';
+export type { Company } from './entities/company.js';
+export type { Campaign } from './entities/campaign.js';
+export type { PlacementCategory } from './entities/placement-category.js';
+export type { Platform } from './entities/platform.js';
+export type { PlacementProvider } from './entities/placement-provider.js';
+export type { PlacementOpportunity } from './entities/placement-opportunity.js';
+export type { Placement } from './entities/placement.js';
+export type { Verification } from './entities/verification.js';
+export type { Evidence } from './entities/evidence.js';
+export type { AIAnalysis } from './entities/ai-analysis.js';
+export type { AuditLogEntry } from './entities/audit-log.js';
 
 export {
   PLACEMENT_TRANSITIONS,
@@ -81,10 +56,7 @@ export {
   assertTransitionPlacement,
 } from './state-machine/placement-state-machine.js';
 
-export {
-  supportsCapability,
-  requireCapability,
-} from './capabilities.js';
+export { supportsCapability, requireCapability } from './capabilities.js';
 export type { CapabilitySet } from './capabilities.js';
 
 export {

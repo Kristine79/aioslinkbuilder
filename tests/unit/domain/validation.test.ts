@@ -46,9 +46,9 @@ describe('company validation', () => {
   });
 
   it('rejects empty array entries', () => {
-    expect(() =>
-      validateCompany({ ...validCompany, products: ['kitchens', '  '] }),
-    ).toThrow(ValidationError);
+    expect(() => validateCompany({ ...validCompany, products: ['kitchens', '  '] })).toThrow(
+      ValidationError,
+    );
   });
 
   it('accepts a minimal company with only a name', () => {
@@ -85,21 +85,21 @@ describe('score validation', () => {
   });
 
   it('rejects a component below the minimum', () => {
-    expect(() =>
-      validateScoreBreakdown({ ...validBreakdown, topicalRelevance: -1 }),
-    ).toThrow(ValidationError);
+    expect(() => validateScoreBreakdown({ ...validBreakdown, topicalRelevance: -1 })).toThrow(
+      ValidationError,
+    );
   });
 
   it('rejects a component above the maximum', () => {
-    expect(() =>
-      validateScoreBreakdown({ ...validBreakdown, audienceMatch: 101 }),
-    ).toThrow(ValidationError);
+    expect(() => validateScoreBreakdown({ ...validBreakdown, audienceMatch: 101 })).toThrow(
+      ValidationError,
+    );
   });
 
   it('rejects a NaN component', () => {
-    expect(() =>
-      validateScoreBreakdown({ ...validBreakdown, authority: Number.NaN }),
-    ).toThrow(ValidationError);
+    expect(() => validateScoreBreakdown({ ...validBreakdown, authority: Number.NaN })).toThrow(
+      ValidationError,
+    );
   });
 
   it('rejects a total score outside the range', () => {

@@ -1,6 +1,7 @@
 # ADR-001: Use a Modular Monolith
 
 ## Status
+
 Accepted
 
 ## Decision
@@ -14,6 +15,7 @@ The prototype needs clear domain boundaries but does not justify microservice de
 ## Consequences
 
 Positive:
+
 - simple deployment
 - simple local development
 - clear internal boundaries
@@ -21,5 +23,6 @@ Positive:
 - future extraction remains possible
 
 Negative:
+
 - modules share a deployment unit
 - boundaries are enforced by code structure rather than network isolation

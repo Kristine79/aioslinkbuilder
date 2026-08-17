@@ -93,7 +93,13 @@ describe('placement state machine', () => {
 
   describe('failure and manual states', () => {
     it('FAILED, BLOCKED, NEEDS_MANUAL, VERIFICATION_FAILED and REJECTED have no outgoing transitions yet', () => {
-      for (const state of ['FAILED', 'BLOCKED', 'NEEDS_MANUAL', 'VERIFICATION_FAILED', 'REJECTED'] as const) {
+      for (const state of [
+        'FAILED',
+        'BLOCKED',
+        'NEEDS_MANUAL',
+        'VERIFICATION_FAILED',
+        'REJECTED',
+      ] as const) {
         expect(PLACEMENT_TRANSITIONS[state]).toEqual([]);
       }
     });

@@ -3,7 +3,10 @@ import { UnsupportedCapabilityError } from './errors.js';
 
 export type CapabilitySet = readonly ProviderCapability[];
 
-export function supportsCapability(supported: CapabilitySet, capability: ProviderCapability): boolean {
+export function supportsCapability(
+  supported: CapabilitySet,
+  capability: ProviderCapability,
+): boolean {
   return supported.includes(capability);
 }
 

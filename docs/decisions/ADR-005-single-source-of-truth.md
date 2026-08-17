@@ -1,6 +1,7 @@
 # ADR-005: PostgreSQL as the Operational Source of Truth
 
 ## Status
+
 Accepted
 
 ## Decision

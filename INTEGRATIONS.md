@@ -7,7 +7,7 @@ Never invent provider capabilities.
 Separate:
 
 - discovery
-- read
+- validation
 - create
 - update
 - status
@@ -17,15 +17,27 @@ A provider may support only some of these.
 
 ## Provider capability model
 
+Canonical capability names (aligned with ARCHITECTURE.md and the PRD):
+
+```text
+discover
+validate
+create
+update
+getStatus
+verify
+```
+
 Example:
 
 ```text
 Provider: ExampleDirectory
 
 discover: true
-read: true
+validate: true
 create: false
 update: false
+getStatus: false
 verify: true
 ```
 

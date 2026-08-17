@@ -12,6 +12,21 @@ importers:
         specifier: 6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
+      '@aios/ai':
+        specifier: workspace:*
+        version: link:packages/ai
+      '@aios/application':
+        specifier: workspace:*
+        version: link:packages/application
+      '@aios/domain':
+        specifier: workspace:*
+        version: link:packages/domain
+      '@aios/infrastructure':
+        specifier: workspace:*
+        version: link:packages/infrastructure
+      '@aios/integrations':
+        specifier: workspace:*
+        version: link:packages/integrations
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5

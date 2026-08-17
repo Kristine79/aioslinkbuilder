@@ -10,21 +10,22 @@ import { InvalidPlacementTransitionError } from '../errors.js';
  * REJECTED exist as states but have no incoming transitions until the complete
  * failure table and recovery actions are specified.
  */
-export const PLACEMENT_TRANSITIONS: Readonly<Record<PlacementStatus, readonly PlacementStatus[]>> = {
-  DISCOVERED: ['QUALIFIED'],
-  QUALIFIED: ['SELECTED'],
-  SELECTED: ['READY'],
-  READY: ['SUBMITTED', 'FAILED'],
-  SUBMITTED: ['PENDING_PUBLICATION', 'PUBLISHED', 'FAILED'],
-  PENDING_PUBLICATION: ['PUBLISHED'],
-  PUBLISHED: ['VERIFIED', 'VERIFICATION_FAILED'],
-  VERIFIED: [],
-  FAILED: [],
-  BLOCKED: [],
-  NEEDS_MANUAL: [],
-  VERIFICATION_FAILED: [],
-  REJECTED: [],
-};
+export const PLACEMENT_TRANSITIONS: Readonly<Record<PlacementStatus, readonly PlacementStatus[]>> =
+  {
+    DISCOVERED: ['QUALIFIED'],
+    QUALIFIED: ['SELECTED'],
+    SELECTED: ['READY'],
+    READY: ['SUBMITTED', 'FAILED'],
+    SUBMITTED: ['PENDING_PUBLICATION', 'PUBLISHED', 'FAILED'],
+    PENDING_PUBLICATION: ['PUBLISHED'],
+    PUBLISHED: ['VERIFIED', 'VERIFICATION_FAILED'],
+    VERIFIED: [],
+    FAILED: [],
+    BLOCKED: [],
+    NEEDS_MANUAL: [],
+    VERIFICATION_FAILED: [],
+    REJECTED: [],
+  };
 
 export function canTransitionPlacement(from: PlacementStatus, to: PlacementStatus): boolean {
   return PLACEMENT_TRANSITIONS[from].includes(to);
