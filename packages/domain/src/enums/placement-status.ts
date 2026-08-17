@@ -1,0 +1,17 @@
+export const PLACEMENT_STATUSES = [
+  'DISCOVERED',
+  'QUALIFIED',
+  'SELECTED',
+  'READY',
+  'SUBMITTED',
+  'PENDING_PUBLICATION',
+  'PUBLISHED',
+  'VERIFIED',
+  'FAILED',
+  'BLOCKED',
+  'NEEDS_MANUAL',
+  'VERIFICATION_FAILED',
+  'REJECTED',
+] as const;
+
+export type PlacementStatus = (typeof PLACEMENT_STATUSES)[number];

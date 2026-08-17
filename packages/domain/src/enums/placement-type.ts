@@ -1,0 +1,12 @@
+export const PLACEMENT_TYPES = [
+  'BACKLINK',
+  'BRAND_MENTION',
+  'BUSINESS_PROFILE',
+  'DIRECTORY_LISTING',
+  'PRODUCT_LISTING',
+  'EDITORIAL_PUBLICATION',
+  'SOCIAL_PROFILE',
+  'REFERRAL_TRAFFIC',
+] as const;
+
+export type PlacementType = (typeof PLACEMENT_TYPES)[number];

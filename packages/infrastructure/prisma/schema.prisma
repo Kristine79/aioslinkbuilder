@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlacementStatus {
+  DISCOVERED
+  QUALIFIED
+  SELECTED
+  READY
+  SUBMITTED
+  PENDING_PUBLICATION
+  PUBLISHED
+  VERIFIED
+  FAILED
+  BLOCKED
+  NEEDS_MANUAL
+  VERIFICATION_FAILED
+  REJECTED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum PlacementType {
+  BACKLINK
+  BRAND_MENTION
+  BUSINESS_PROFILE
+  DIRECTORY_LISTING
+  PRODUCT_LISTING
+  EDITORIAL_PUBLICATION
+  SOCIAL_PROFILE
+  REFERRAL_TRAFFIC
+}
+
+enum PlacementMethod {
+  API
+  SEMI_AUTOMATED
+  BROWSER
+  MANUAL
+  OUTREACH
+  UNKNOWN
+}
+
+enum ProviderType {
+  API
+  BROWSER
+  MANUAL
+  MOCK
+}
+
+enum VerificationStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
+enum EvidenceType {
+  LIVE_URL
+  SCREENSHOT
+  PAGE_CONTENT
+  COMPANY_MATCH
+  WEBSITE_MATCH
+  BACKLINK_MATCH
+}
+
+enum AIAnalysisType {
+  COMPANY_ANALYSIS
+  OPPORTUNITY_CLASSIFICATION
+  CONTENT_PREPARATION
+}
+
+enum AIAnalysisValidationStatus {
+  VALID
+  INVALID
+}
+
+model Company {
+  id             String     @id @default(cuid())
+  name           String
+  description    String?
+  industry       String?
+  geography      String[]
+  locations      String[]
+  products       String[]
+  targetAudience String[]
+  website        String?
+  metadata       Json?
+  campaigns      Campaign[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Campaign {
+  id            String               @id @default(cuid())
+  companyId     String
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  goals         String[]
+  status        CampaignStatus       @default(DRAFT)
+  opportunities PlacementOpportunity[]
+  aiAnalyses    AIAnalysis[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([companyId])
+}
+
+model PlacementCategory {
+  id            String                @id @default(cuid())
+  code          String                @unique
+  name          String
+  description   String?
+  sortOrder     Int                   @default(0)
+  platforms     Platform[]
+  opportunities PlacementOpportunity[]
+
+  @@index([sortOrder])
+}
+
+model Platform {
+  id             String               @id @default(cuid())
+  name           String
+  url            String?
+  country        String?
+  categoryId     String?
+  category       PlacementCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  notes          String?
+  metadata       Json?
+  providers      PlacementProvider[]
+  opportunities  PlacementOpportunity[]
+
+  @@index([categoryId])
+}
+
+model PlacementProvider {
+  id                   String             @id @default(cuid())
+  platformId           String
+  platform             Platform           @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  name                 String
+  providerType         ProviderType
+  capabilities         Json               @default("[]")
+  capabilitiesVerified Boolean            @default(false)
+  notes                String?
+  placements           Placement[]
+
+  @@unique([platformId, providerType])
+  @@index([platformId])
+}
+
+model PlacementOpportunity {
+  id                   String                @id @default(cuid())
+  campaignId           String
+  campaign             Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  platformId           String
+  platform             Platform              @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  categoryId           String?
+  category             PlacementCategory?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  placementType        PlacementType
+  relevance            String?
+  score                Int?
+  scoreBreakdown       Json?
+  recommendation       String?
+  whyRecommended       String?
+  placementMethod      PlacementMethod       @default(UNKNOWN)
+  providerCapabilities Json                  @default("[]")
+  status               PlacementStatus       @default(DISCOVERED)
+  metadata             Json?
+  placements           Placement[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@unique([campaignId, platformId])
+  @@index([campaignId])
+  @@index([platformId])
+  @@index([status])
+}
+
+model Placement {
+  id            String         @id @default(cuid())
+  opportunityId String
+  opportunity   PlacementOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  providerId    String?
+  provider      PlacementProvider?   @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  status        PlacementStatus @default(READY)
+  externalId    String?
+  submittedAt   DateTime?
+  publishedAt   DateTime?
+  liveUrl       String?
+  metadata      Json?
+  verifications Verification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([opportunityId])
+  @@index([providerId])
+  @@index([status])
+}
+
+model Verification {
+  id            String             @id @default(cuid())
+  placementId   String
+  placement     Placement          @relation(fields: [placementId], references: [id], onDelete: Cascade)
+  status        VerificationStatus @default(PENDING)
+  checkedAt     DateTime?
+  result        Json?
+  failureReason String?
+  evidence      Evidence[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([placementId])
+}
+
+model Evidence {
+  id             String       @id @default(cuid())
+  verificationId String
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  type           EvidenceType
+  url            String?
+  content        String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  @@index([verificationId])
+}
+
+model AIAnalysis {
+  id               String                   @id @default(cuid())
+  campaignId       String?
+  campaign         Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  analysisType     AIAnalysisType
+  provider         String
+  model            String?
+  inputReference   Json?
+  structuredOutput Json
+  schemaVersion    String
+  validationStatus AIAnalysisValidationStatus @default(VALID)
+  createdAt        DateTime                 @default(now())
+
+  @@index([campaignId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  actor      String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
