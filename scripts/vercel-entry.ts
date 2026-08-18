@@ -1,6 +1,11 @@
 /**
  * Vercel serverless entry for the delivery API.
  *
+ * This file is bundled to `api/[[route]].mjs` by `pnpm build:vercel:api`
+ * (esbuild). The bundle is required because Vercel leaves workspace
+ * dependencies external, and their package exports point at TypeScript
+ * sources, which the Node.js runtime cannot import.
+ *
  * All /api/* requests land here and run the exact same Hono application as
  * the local single-port server (`pnpm start`, apps/api/src/server.ts). The
  * Nordhaus bootstrap runs once per warm function instance, so the remote
