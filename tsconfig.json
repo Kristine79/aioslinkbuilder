@@ -27,6 +27,7 @@
     }
   },
   "include": [
+    "api/**/*.ts",
     "apps/api/src/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/infrastructure/prisma/**/*.ts",

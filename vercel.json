@@ -1,5 +1,13 @@
 {
-  "buildCommand": "",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build:web",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "functions": {
     "api/health.mjs": {
       "maxDuration": 60
