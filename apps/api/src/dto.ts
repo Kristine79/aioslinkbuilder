@@ -55,9 +55,12 @@ export interface ApiCompanyDto {
 }
 
 export interface ApiStrategyItemDto {
+  categoryId: string;
   categoryCode: string;
   categoryName: string;
   placementType: string;
+  /** Opportunities already discovered for this category in the campaign. */
+  opportunityCount: number;
 }
 
 export interface ApiProviderDto {
@@ -124,6 +127,8 @@ export interface ApiOpportunityDto {
   placementMethod: string;
   providerCapabilities: string[];
   provider: ApiProviderDto | null;
+  /** Which discovery source found this opportunity (catalog, search, …). */
+  discoverySource: string | null;
   status: PlacementStatus;
   createdAt: string;
   updatedAt: string;
@@ -149,6 +154,25 @@ export interface ApiManualActionDto {
   reason: string;
 }
 
+export interface ApiCampaignListItemDto {
+  id: string;
+  companyId: string;
+  name: string;
+  goals: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface ApiCompanyListItemDto {
+  id: string;
+  name: string;
+  industry: string | null;
+  website: string | null;
+  description: string | null;
+  createdAt: string;
+  campaigns: ApiCampaignListItemDto[];
+}
+
 export interface ApiOverviewDto {
   company: { id: string; name: string; industry: string | null; website: string | null };
   campaign: { id: string; name: string; goals: string[]; status: string };
@@ -156,6 +180,7 @@ export interface ApiOverviewDto {
     opportunities: number;
     recommended: number;
     approved: number;
+    ready: number;
     executed: number;
     published: number;
     verified: number;
@@ -320,6 +345,9 @@ export function mapOpportunity(
       ? undefined
       : context.maps.categoryById.get(opportunity.categoryId);
   const candidateProvider = candidateForDisplay(opportunity, context);
+  const metadata = opportunity.metadata ?? {};
+  const discoverySource =
+    typeof metadata.discoverySource === 'string' ? metadata.discoverySource : null;
   return {
     id: opportunity.id,
     campaignId: opportunity.campaignId,
@@ -339,6 +367,7 @@ export function mapOpportunity(
     placementMethod: opportunity.placementMethod,
     providerCapabilities: [...opportunity.providerCapabilities],
     provider: candidateProvider,
+    discoverySource,
     status: opportunity.status,
     createdAt: toIso(opportunity.createdAt),
     updatedAt: toIso(opportunity.updatedAt),

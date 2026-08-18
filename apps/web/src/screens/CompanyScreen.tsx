@@ -1,14 +1,16 @@
 /**
  * Компания и AI-анализ: company profile, the schema-validated AI analysis
- * (with a real re-run action) and the derived placement strategy.
+ * (with a real re-run action) and the derived placement strategy, presented
+ * as a chain: AI analysis → placement strategy → opportunities.
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-import { api } from '../api/client';
+import { api, ApiError } from '../api/client';
 import type { CompanyDto, StrategyItemDto } from '../api/types';
 import { Alert, Card, Chip, ChipList, ErrorState, LoadingState } from '../components/ui';
-import { formatDateTime, TYPE_LABELS } from '../ru';
+import { AI_PROVIDER_LABELS, formatDateTime, TYPE_LABELS } from '../ru';
 
 export function CompanyScreen() {
   const [company, setCompany] = useState<CompanyDto | null>(null);
@@ -19,13 +21,21 @@ export function CompanyScreen() {
 
   const load = useCallback(() => {
     setError(null);
-    Promise.all([api.company(), api.strategy()])
-      .then(([companyData, strategyData]) => {
+    api
+      .company()
+      .then((companyData) => {
         setCompany(companyData);
-        setStrategy(strategyData);
+        return api.strategy();
       })
+      .then(setStrategy)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : String(err));
+        // The strategy is unavailable until the company analysis exists —
+        // that is a normal empty state, not an error.
+        if (err instanceof ApiError && err.code === 'NO_ANALYSIS') {
+          setStrategy({ items: [] });
+        } else {
+          setError(err instanceof Error ? err.message : String(err));
+        }
       });
   }, []);
 
@@ -40,8 +50,11 @@ export function CompanyScreen() {
     try {
       const updated = await api.analyzeCompany();
       setCompany(updated);
+      setStrategy(null);
+      const analysis = await api.strategy();
+      setStrategy(analysis);
       setAnalyzeMessage(
-        `Анализ выполнен: провайдер ${updated.analysis?.provider ?? '—'}, ${formatDateTime(updated.analysis?.createdAt ?? null)}`,
+        `Анализ выполнен: ${AI_PROVIDER_LABELS[updated.analysis?.provider ?? ''] ?? updated.analysis?.provider ?? '—'}, ${formatDateTime(updated.analysis?.createdAt ?? null)}`,
       );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -56,6 +69,9 @@ export function CompanyScreen() {
   if (company === null) {
     return <ErrorState message={error ?? 'Неизвестная ошибка'} onRetry={load} />;
   }
+
+  const totalOpportunities =
+    strategy?.items.reduce((sum, item) => sum + item.opportunityCount, 0) ?? 0;
 
   return (
     <div>
@@ -72,6 +88,31 @@ export function CompanyScreen() {
           <Alert tone="success">{analyzeMessage}</Alert>
         </div>
       )}
+
+      <div className="chain mt-16">
+        <div className="chain-step">
+          <div className="chain-step-title">1 · AI-анализ</div>
+          <div className="chain-step-sub">
+            {company.analysis === null
+              ? 'ещё не выполнен'
+              : `определено категорий: ${company.analysis.relevantCategories.length}`}
+          </div>
+        </div>
+        <div className="chain-arrow">↓</div>
+        <div className="chain-step">
+          <div className="chain-step-title">2 · Стратегия размещений</div>
+          <div className="chain-step-sub">
+            {strategy === null ? 'ещё не сформирована' : `направлений: ${strategy.items.length}`}
+          </div>
+        </div>
+        <div className="chain-arrow">↓</div>
+        <div className="chain-step">
+          <div className="chain-step-title">3 · Возможности</div>
+          <div className="chain-step-sub">
+            {totalOpportunities === 0 ? 'ещё не найдены' : `найдено: ${totalOpportunities}`}
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-2 mt-16">
         <Card title="Профиль компании">
@@ -109,11 +150,33 @@ export function CompanyScreen() {
             <span className="kv-key">Локации</span>
             <span className="kv-value">{company.locations.join(', ') || '—'}</span>
           </div>
+          {company.products.length > 0 && (
+            <div className="kv">
+              <span className="kv-key">Продукты и услуги</span>
+              <span className="kv-value">{company.products.join(', ')}</span>
+            </div>
+          )}
+          {company.targetAudience.length > 0 && (
+            <div className="kv">
+              <span className="kv-key">Целевая аудитория</span>
+              <span className="kv-value">{company.targetAudience.join(', ')}</span>
+            </div>
+          )}
         </Card>
 
-        <Card title="AI-анализ" actions={<span className="chip">схема-валидация пройдена</span>}>
+        <Card
+          title="AI-анализ"
+          actions={
+            company.analysis !== null ? (
+              <span className="chip">структура результата проверена</span>
+            ) : undefined
+          }
+        >
           {company.analysis === null ? (
-            <div className="empty-note">Анализ ещё не выполнялся.</div>
+            <div className="empty-note">
+              Анализ ещё не выполнялся. Запустите его — модель определит тематику, аудитории и
+              релевантные категории площадок.
+            </div>
           ) : (
             <div>
               <div className="kv">
@@ -121,8 +184,10 @@ export function CompanyScreen() {
                 <span className="kv-value">{company.analysis.businessType || '—'}</span>
               </div>
               <div className="kv">
-                <span className="kv-key">Модель</span>
-                <span className="kv-value mono">{company.analysis.provider}</span>
+                <span className="kv-key">Провайдер</span>
+                <span className="kv-value">
+                  {AI_PROVIDER_LABELS[company.analysis.provider] ?? company.analysis.provider}
+                </span>
               </div>
               <div className="kv">
                 <span className="kv-key">Выполнен</span>
@@ -189,7 +254,14 @@ export function CompanyScreen() {
       </div>
 
       <div className="mt-16">
-        <Card title="Стратегия размещений">
+        <Card
+          title="Стратегия размещений"
+          actions={
+            <span className="text-tertiary" style={{ fontSize: 12 }}>
+              на основе релевантных категорий из AI-анализа
+            </span>
+          }
+        >
           {strategy === null ? (
             <div className="empty-note">Стратегия не рассчитана.</div>
           ) : strategy.items.length === 0 ? (
@@ -202,13 +274,31 @@ export function CompanyScreen() {
                 <div className="row" key={item.categoryCode}>
                   <div className="row-main">
                     <div className="row-title">{item.categoryName}</div>
-                    <div className="row-sub mono">{item.categoryCode}</div>
+                    <div className="row-sub">
+                      <span className="chip">
+                        {TYPE_LABELS[item.placementType] ?? item.placementType}
+                      </span>
+                      <span className="text-tertiary" style={{ fontSize: 12.5 }}>
+                        {item.opportunityCount > 0
+                          ? `найдено возможностей: ${item.opportunityCount}`
+                          : 'возможности не найдены — запустите поиск'}
+                      </span>
+                    </div>
                   </div>
-                  <Chip>{TYPE_LABELS[item.placementType] ?? item.placementType}</Chip>
                 </div>
               ))}
             </div>
           )}
+          <div className="mt-16">
+            <Link className="btn btn-secondary" to="/opportunities">
+              К возможностям →
+            </Link>
+            {totalOpportunities === 0 && (
+              <span className="text-tertiary" style={{ fontSize: 12, marginLeft: 10 }}>
+                нажмите «Найти площадки», чтобы система подобрала площадки по категориям стратегии
+              </span>
+            )}
+          </div>
         </Card>
       </div>
     </div>

@@ -4,13 +4,17 @@
  * every placement attempt with state-gated actions. All transitions go
  * through the backend use cases; the UI only offers what the backend
  * reports as allowed for the current state.
+ *
+ * Two signals are displayed separately: «Публикация» (submitted → published)
+ * and «Проверка» (verification with evidence) — a placement can be published
+ * while its verification is still pending.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { api } from '../api/client';
-import type { OpportunityDto, PlacementDto } from '../api/types';
+import type { ActivityDto, EvidenceType, OpportunityDto, PlacementDto } from '../api/types';
 import {
   Alert,
   Card,
@@ -23,7 +27,10 @@ import {
 import { ScoreBadge, ScoreBreakdown } from '../components/Score';
 import {
   ACTION_LABELS,
+  AUDIT_ACTION_LABELS,
   CAPABILITY_LABELS,
+  DISCOVERY_SOURCE_LABELS,
+  EVIDENCE_LABELS,
   METHOD_LABELS,
   PROVIDER_TYPE_LABELS,
   TYPE_LABELS,
@@ -33,6 +40,7 @@ import {
 export function OpportunityScreen() {
   const { id } = useParams<{ id: string }>();
   const [opportunity, setOpportunity] = useState<OpportunityDto | null>(null);
+  const [audit, setAudit] = useState<ActivityDto['audit']>([]);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -41,9 +49,11 @@ export function OpportunityScreen() {
   const load = useCallback(() => {
     if (id === undefined) return;
     setError(null);
-    api
-      .opportunity(id)
-      .then(setOpportunity)
+    Promise.all([api.opportunity(id), api.activity()])
+      .then(([detail, activity]) => {
+        setOpportunity(detail);
+        setAudit(activity.audit);
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : String(err));
       });
@@ -81,6 +91,14 @@ export function OpportunityScreen() {
   const canRequestManual = opportunity.allowedActions.includes('requestManual');
   const canExecute = opportunity.allowedActions.includes('execute');
   const canApprove = opportunity.allowedActions.includes('approve');
+  const isDemoProvider = opportunity.provider?.type === 'MOCK';
+
+  const placementIds = new Set(opportunity.placements.map((placement) => placement.id));
+  const opportunityAudit = audit.filter(
+    (entry) =>
+      (entry.entityType === 'PlacementOpportunity' && entry.entityId === opportunity.id) ||
+      (entry.entityType === 'Placement' && placementIds.has(entry.entityId)),
+  );
 
   return (
     <div>
@@ -141,6 +159,15 @@ export function OpportunityScreen() {
               <span className="kv-value">{opportunity.country ?? '—'}</span>
             </div>
             <div className="kv">
+              <span className="kv-key">Источник обнаружения</span>
+              <span className="kv-value">
+                {opportunity.discoverySource !== null
+                  ? (DISCOVERY_SOURCE_LABELS[opportunity.discoverySource] ??
+                    opportunity.discoverySource)
+                  : '—'}
+              </span>
+            </div>
+            <div className="kv">
               <span className="kv-key">Способ выполнения</span>
               <span className="kv-value">
                 {METHOD_LABELS[opportunity.placementMethod] ?? opportunity.placementMethod}
@@ -171,13 +198,16 @@ export function OpportunityScreen() {
           <Card
             title="Исполнение"
             actions={
-              <span className="chip">
-                {opportunity.provider !== null
-                  ? `${opportunity.provider.name} · ${
-                      PROVIDER_TYPE_LABELS[opportunity.provider.type] ?? opportunity.provider.type
-                    }`
-                  : 'провайдер не выбран'}
-              </span>
+              opportunity.provider !== null ? (
+                <span className="chip">
+                  {opportunity.provider.name}
+                  {' · '}
+                  {PROVIDER_TYPE_LABELS[opportunity.provider.type] ?? opportunity.provider.type}
+                  {isDemoProvider ? ' · демо' : ''}
+                </span>
+              ) : (
+                <span className="chip">провайдер не выбран</span>
+              )
             }
           >
             {opportunity.providerCapabilities.length > 0 && (
@@ -190,6 +220,12 @@ export function OpportunityScreen() {
                     <Chip unverified>возможности не проверены</Chip>
                   )}
                 </ChipList>
+                {isDemoProvider && (
+                  <div className="text-tertiary" style={{ fontSize: 12, marginTop: 6 }}>
+                    Демо-провайдер: размещение выполняется через симулятор без реального внешнего
+                    сервиса.
+                  </div>
+                )}
               </div>
             )}
             {canApprove && (
@@ -254,7 +290,7 @@ export function OpportunityScreen() {
 
       <div className="mt-16">
         <Card
-          title="Размещения (попытки)"
+          title="Попытки размещения"
           actions={
             <span className="text-tertiary" style={{ fontSize: 12 }}>
               каждая ошибка — отдельная попытка со своим журналом
@@ -265,10 +301,12 @@ export function OpportunityScreen() {
             <div className="empty-note">Размещение ещё не запускалось.</div>
           ) : (
             <div className="timeline">
-              {opportunity.placements.map((placement) => (
+              {opportunity.placements.map((placement, index) => (
                 <PlacementAttempt
                   key={placement.id}
                   placement={placement}
+                  attemptNumber={index + 1}
+                  totalAttempts={opportunity.placements.length}
                   busy={busy}
                   onAction={async (task) => {
                     await runAction(task, 'Операция выполнена.');
@@ -279,16 +317,38 @@ export function OpportunityScreen() {
           )}
         </Card>
       </div>
+
+      {opportunityAudit.length > 0 && (
+        <div className="mt-16">
+          <Card title="Журнал по этой возможности">
+            <div className="audit-list">
+              {opportunityAudit.map((entry) => (
+                <div className="audit-row" key={entry.id}>
+                  <span className="audit-time">{formatDateTime(entry.timestamp)}</span>
+                  <span className="audit-action">
+                    {AUDIT_ACTION_LABELS[entry.action] ?? entry.action}
+                  </span>
+                  <span className="audit-meta mono">{entry.entityType}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
 
 function PlacementAttempt({
   placement,
+  attemptNumber,
+  totalAttempts,
   busy,
   onAction,
 }: {
   placement: PlacementDto;
+  attemptNumber: number;
+  totalAttempts: number;
   busy: boolean;
   onAction: (task: () => Promise<unknown>) => Promise<void>;
 }) {
@@ -308,14 +368,22 @@ function PlacementAttempt({
           ? 'current'
           : '';
 
+  const published = ['PUBLISHED', 'VERIFIED'].includes(placement.status);
+  const verified = placement.verification !== null && placement.verification.status === 'PASSED';
+
   return (
     <div className={`timeline-item ${attemptClass}`}>
       <div className="flex-between">
         <div className="flex">
+          <span className="attempt-number">
+            Попытка №{attemptNumber}
+            {totalAttempts > 1 ? ` из ${totalAttempts}` : ''}
+          </span>
           <StatusBadge status={placement.status} />
           <span className="text-secondary" style={{ fontSize: 13 }}>
             {placement.providerName ?? '—'}
           </span>
+          {placement.providerType === 'MOCK' && <span className="chip">демо-провайдер</span>}
         </div>
         <span className="text-tertiary" style={{ fontSize: 12 }}>
           {formatDateTime(placement.createdAt)}
@@ -337,6 +405,19 @@ function PlacementAttempt({
           </a>
         </div>
       )}
+
+      <div className="placement-checks">
+        <div className={`placement-check ${published ? 'ok' : ''}`}>
+          <span className="placement-check-mark">
+            {published ? '✓' : placement.status === 'FAILED' ? '✕' : '…'}
+          </span>
+          Публикация: {published ? 'опубликовано' : 'ожидает'}
+        </div>
+        <div className={`placement-check ${verified ? 'ok' : ''}`}>
+          <span className="placement-check-mark">{verified ? '✓' : '…'}</span>
+          Проверка: {verified ? 'проверено' : 'не проведена'}
+        </div>
+      </div>
 
       <div className="row-actions">
         {placement.allowedActions.includes('monitor') && (
@@ -435,18 +516,18 @@ function EvidenceRow({
   payload: { metadata: Record<string, unknown> | null; url: string | null; content: string | null };
 }) {
   const metadata = payload.metadata ?? {};
-  const summary =
+  const matched =
     type === 'COMPANY_MATCH' || type === 'WEBSITE_MATCH' || type === 'BACKLINK_MATCH'
-      ? metadata.matched === true
-        ? 'совпадение подтверждено'
-        : metadata.matched === false
-          ? 'без совпадения'
-          : null
+      ? metadata.matched
       : null;
+
   return (
     <div className="evidence-item">
-      <span>{summary ?? '·'}</span>
-      <span className="chip">{type}</span>
+      <span>
+        {EVIDENCE_LABELS[type as EvidenceType] ?? type}
+        {matched === true ? ' — совпадение подтверждено ✓' : ''}
+        {matched === false ? ' — без совпадения' : ''}
+      </span>
       {payload.url !== null && (
         <a href={payload.url} target="_blank" rel="noreferrer">
           {payload.url}

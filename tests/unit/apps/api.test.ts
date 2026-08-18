@@ -66,9 +66,10 @@ describe('API delivery layer (Nordhaus scenario)', () => {
     }>(app, '/api/overview');
 
     expect(overview.company.name).toBe('Nordhaus');
-    expect(overview.counts.opportunities).toBe(7);
-    expect(overview.counts.recommended).toBe(2);
+    expect(overview.counts.opportunities).toBe(16);
+    expect(overview.counts.recommended).toBe(11);
     expect(overview.counts.approved).toBe(5);
+    expect(overview.counts.ready).toBe(3);
     expect(overview.counts.executed).toBe(4);
     expect(overview.counts.published).toBe(1);
     expect(overview.counts.verified).toBe(1);
@@ -81,7 +82,7 @@ describe('API delivery layer (Nordhaus scenario)', () => {
     const { app } = await setup();
     const result = await get<{ items: ApiOpportunityDto[] }>(app, '/api/opportunities');
 
-    expect(result.items).toHaveLength(7);
+    expect(result.items).toHaveLength(16);
     expect(result.items[0]?.platformName).toBe('Яндекс Бизнес');
     const scores = result.items.map((item) => item.score ?? 0);
     expect([...scores].sort((a, b) => b - a)).toEqual(scores);
@@ -94,11 +95,31 @@ describe('API delivery layer (Nordhaus scenario)', () => {
       '/api/opportunities?status=QUALIFIED',
     );
 
-    expect(result.items).toHaveLength(2);
-    expect(result.items.map((item) => item.platformName).sort()).toEqual([
-      'Houzz',
-      'SALON-interior',
-    ]);
+    expect(result.items.length).toBeGreaterThanOrEqual(2);
+    expect(result.items.every((item: ApiOpportunityDto) => item.status === 'QUALIFIED')).toBe(true);
+    const names = result.items.map((item: ApiOpportunityDto) => item.platformName);
+    expect(names).toContain('Houzz');
+    expect(names).toContain('SALON-interior');
+  });
+
+  it('filters opportunities by discovery source', async () => {
+    const { app } = await setup();
+    const catalog = await get<{ items: ApiOpportunityDto[] }>(
+      app,
+      '/api/opportunities?source=catalog',
+    );
+    const search = await get<{ items: ApiOpportunityDto[] }>(
+      app,
+      '/api/opportunities?source=search',
+    );
+
+    expect(
+      catalog.items.every((item: ApiOpportunityDto) => item.discoverySource === 'catalog'),
+    ).toBe(true);
+    expect(search.items.every((item: ApiOpportunityDto) => item.discoverySource === 'search')).toBe(
+      true,
+    );
+    expect(catalog.items.length + search.items.length).toBe(16);
   });
 
   it('returns opportunity detail with placements, verification and allowed actions', async () => {
@@ -254,5 +275,123 @@ describe('API delivery layer (Nordhaus scenario)', () => {
 
     expect(activity.verifications.length).toBeGreaterThanOrEqual(1);
     expect(activity.audit.length).toBeGreaterThan(10);
+  });
+});
+
+describe('API delivery layer (generic company/campaign flow)', () => {
+  it('creates a company and a campaign through the API', async () => {
+    const { app } = await setup();
+    const response = await post(app, '/api/companies', {
+      name: 'Тестовая компания',
+      website: 'https://example.ru',
+      industry: 'it',
+      description: 'Разработка программного обеспечения',
+      geography: ['Санкт-Петербург'],
+      products: ['разработка', 'поддержка'],
+      targetAudience: ['СМБ', 'корпорации'],
+    });
+    expect(response.status).toBe(201);
+    const company = await json<{ id: string; name: string; industry: string | null }>(response);
+    expect(company.name).toBe('Тестовая компания');
+    expect(company.industry).toBe('it');
+
+    const invalid = await post(app, '/api/companies', { name: '' });
+    expect(await errorShape(invalid)).toEqual({ status: 400, code: 'VALIDATION' });
+
+    const campaignResponse = await post(app, `/api/companies/${company.id}/campaigns`, {
+      name: 'Тестовая кампания',
+      goals: ['Продвижение в медиа'],
+    });
+    expect(campaignResponse.status).toBe(201);
+    const campaign = await json<{ id: string; companyId: string; name: string }>(campaignResponse);
+    expect(campaign.companyId).toBe(company.id);
+    expect(campaign.name).toBe('Тестовая кампания');
+
+    const companies = await get<{
+      items: Array<{ id: string; name: string; campaigns: unknown[] }>;
+    }>(app, '/api/companies');
+    const created = companies.items.find((entry) => entry.id === company.id);
+    expect(created?.campaigns).toHaveLength(1);
+  });
+
+  it('analyzes a generic company deterministically and builds a strategy', async () => {
+    const { app } = await setup();
+    const company = await json<{ id: string }>(
+      await post(app, '/api/companies', { name: 'Айти-студия «Пиксель»', industry: 'it' }),
+    );
+    const campaign = await json<{ id: string; companyId: string }>(
+      await post(app, `/api/companies/${company.id}/campaigns`, {
+        name: 'Кампания Пикселя',
+        goals: ['Привлечение клиентов'],
+      }),
+    );
+
+    const analyzedResponse = await post(app, `/api/company/analyze?campaignId=${campaign.id}`);
+    expect(analyzedResponse.status).toBe(200);
+    const analyzed = await json<{
+      name: string;
+      analysis: { businessType: string; relevantCategories: string[] };
+    }>(analyzedResponse);
+    expect(analyzed.analysis).not.toBeNull();
+    expect(analyzed.analysis.businessType.length).toBeGreaterThan(0);
+    expect(analyzed.analysis.relevantCategories.length).toBeGreaterThan(0);
+
+    const strategy = await get<{ items: unknown[] }>(
+      app,
+      `/api/strategy?campaignId=${campaign.id}`,
+    );
+    expect(strategy.items.length).toBeGreaterThan(0);
+  });
+
+  it('runs discovery for a new campaign: sources, classification and scoring', async () => {
+    const { app } = await setup();
+    const company = await json<{ id: string }>(
+      await post(app, '/api/companies', {
+        name: 'Мебельная фабрика «Дуб»',
+        industry: 'furniture',
+        geography: ['Москва'],
+      }),
+    );
+    const campaign = await json<{ id: string }>(
+      await post(app, `/api/companies/${company.id}/campaigns`, {
+        name: 'Фабрика Дуб: продвижение',
+        goals: ['Каталоги и карты'],
+      }),
+    );
+
+    const withoutAnalysis = await post(app, `/api/discover?campaignId=${campaign.id}`);
+    expect(await errorShape(withoutAnalysis)).toEqual({ status: 409, code: 'NO_ANALYSIS' });
+
+    const analyzed = await post(app, `/api/company/analyze?campaignId=${campaign.id}`);
+    expect(analyzed.status).toBe(200);
+
+    const discovery = await post(app, `/api/discover?campaignId=${campaign.id}`);
+    expect(discovery.status).toBe(200);
+    const result = await json<{
+      discovered: number;
+      classified: number;
+      sources: string[];
+      items: ApiOpportunityDto[];
+    }>(discovery);
+    expect(result.discovered).toBeGreaterThan(0);
+    expect(result.classified).toBe(result.discovered);
+    expect(result.sources).toContain('catalog');
+    expect(result.sources).toContain('search');
+    expect(result.items.every((item) => item.score !== null)).toBe(true);
+    expect(result.items.every((item) => item.whyRecommended !== null)).toBe(true);
+    expect(result.items.some((item) => item.discoverySource === 'catalog')).toBe(true);
+    expect(result.items.some((item) => item.discoverySource === 'search')).toBe(true);
+
+    const overview = await get<{ counts: Record<string, number> }>(
+      app,
+      `/api/overview?campaignId=${campaign.id}`,
+    );
+    expect(overview.counts.opportunities).toBe(result.discovered);
+  });
+
+  it('rejects an unknown campaign id with 404', async () => {
+    const { app } = await setup();
+    const response = await app.request('/api/opportunities?campaignId=does-not-exist');
+    expect(await errorShape(response)).toEqual({ status: 404, code: 'NOT_FOUND' });
   });
 });

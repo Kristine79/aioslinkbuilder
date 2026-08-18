@@ -1,18 +1,25 @@
 /**
  * Typed API client. Thin fetch wrapper — no business logic here.
  * The backend is the source of truth for state and allowed actions.
+ * Campaign-scoped endpoints receive the active campaign id (?campaignId=)
+ * so the product supports multiple companies/campaigns; when no campaign is
+ * selected the backend falls back to the default one.
  */
 
 import type {
   ActivityDto,
   ApiErrorDto,
+  CampaignListItemDto,
   CategoryDto,
   CompanyDto,
+  CompanyListItemDto,
+  DiscoverResultDto,
   OpportunityDto,
   OverviewDto,
   PlacementDto,
   StrategyItemDto,
 } from './types';
+import { getActiveCampaignId } from '../state';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -42,11 +49,45 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+/** Appends the active campaign id and the given query params to a path. */
+function campaignPath(path: string, query?: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (typeof value !== 'string' && typeof value !== 'number') continue;
+    if (value !== '' && value !== 'all') {
+      params.set(key, String(value));
+    }
+  }
+  const activeCampaignId = getActiveCampaignId();
+  if (activeCampaignId !== null) {
+    params.set('campaignId', activeCampaignId);
+  }
+  const suffix = params.toString();
+  return suffix === '' ? path : `${path}?${suffix}`;
+}
+
 export interface OpportunitiesQuery {
   category?: string;
   method?: string;
   status?: string;
+  source?: string;
   minScore?: number;
+}
+
+export interface CompanyDraft {
+  name: string;
+  website?: string;
+  industry?: string;
+  description?: string;
+  geography?: string[];
+  locations?: string[];
+  products?: string[];
+  targetAudience?: string[];
+}
+
+export interface CampaignDraft {
+  name: string;
+  goals: string[];
 }
 
 export interface ActionResult {
@@ -67,20 +108,13 @@ export interface VerifyResult extends ActionResult {
 
 export const api = {
   meta: (): Promise<{ categories: CategoryDto[] }> => request('/api/meta'),
-  overview: (): Promise<OverviewDto> => request('/api/overview'),
-  company: (): Promise<CompanyDto> => request('/api/company'),
-  analyzeCompany: (): Promise<CompanyDto> => request('/api/company/analyze', { method: 'POST' }),
-  strategy: (): Promise<{ items: StrategyItemDto[] }> => request('/api/strategy'),
-  opportunities: (query: OpportunitiesQuery): Promise<{ items: OpportunityDto[] }> => {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined && value !== '' && value !== 'all') {
-        params.set(key, String(value));
-      }
-    }
-    const suffix = params.size === 0 ? '' : `?${params.toString()}`;
-    return request(`/api/opportunities${suffix}`);
-  },
+  overview: (): Promise<OverviewDto> => request(campaignPath('/api/overview')),
+  company: (): Promise<CompanyDto> => request(campaignPath('/api/company')),
+  analyzeCompany: (): Promise<CompanyDto> =>
+    request(campaignPath('/api/company/analyze'), { method: 'POST' }),
+  strategy: (): Promise<{ items: StrategyItemDto[] }> => request(campaignPath('/api/strategy')),
+  opportunities: (query: OpportunitiesQuery): Promise<{ items: OpportunityDto[] }> =>
+    request(campaignPath('/api/opportunities', query)),
   opportunity: (id: string): Promise<OpportunityDto> => request(`/api/opportunities/${id}`),
   approve: (id: string): Promise<OpportunityDto> =>
     request(`/api/opportunities/${id}/approve`, { method: 'POST' }),
@@ -103,7 +137,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  activity: (): Promise<ActivityDto> => request('/api/activity'),
+  activity: (): Promise<ActivityDto> => request(campaignPath('/api/activity')),
+  discover: (): Promise<DiscoverResultDto> =>
+    request(campaignPath('/api/discover'), { method: 'POST' }),
+  companies: (): Promise<{ items: CompanyListItemDto[] }> => request('/api/companies'),
+  createCompany: (draft: CompanyDraft): Promise<CompanyDto> =>
+    request('/api/companies', { method: 'POST', body: JSON.stringify(draft) }),
+  createCampaign: (companyId: string, draft: CampaignDraft): Promise<CampaignListItemDto> =>
+    request(`/api/companies/${companyId}/campaigns`, {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    }),
 };
 
 export type { PlacementDto };

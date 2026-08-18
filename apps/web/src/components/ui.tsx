@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import type { PlacementStatus, VerificationStatus } from '../api/types';
 import { STATUS_LABELS, VERIFICATION_LABELS } from '../ru';
@@ -99,9 +100,9 @@ export function StatCard({
       <div className="stat-label">{label}</div>
       {hint !== undefined && <div className="stat-hint">{hint}</div>}
       {link !== undefined && (
-        <a className="stat-link" href={link.to}>
-          {link.text}
-        </a>
+        <Link className="stat-link" to={link.to}>
+          {link.text} →
+        </Link>
       )}
     </div>
   );

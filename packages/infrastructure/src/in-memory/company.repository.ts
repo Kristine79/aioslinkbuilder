@@ -15,6 +15,10 @@ export class InMemoryCompanyRepository implements CompanyRepository {
     return Promise.resolve(this.companies.get(id) ?? null);
   }
 
+  all(): Promise<Company[]> {
+    return Promise.resolve([...this.companies.values()]);
+  }
+
   create(draft: CompanyDraft): Promise<Company> {
     const now = new Date();
     const company: Company = {

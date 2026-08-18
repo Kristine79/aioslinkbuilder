@@ -14,10 +14,11 @@ describe('Nordhaus end-to-end demo', () => {
       { categoryCode: 'architecture', placementType: 'EDITORIAL_PUBLICATION' },
     ]);
 
-    // Opportunities: 7 discovered (vk excluded by the category filter);
+    // Opportunities: 16 discovered for the relevant categories (catalog 7 +
+    // search 9; vk/profi/vc/dzen excluded by the category filter);
     // alignment branches are deterministic.
     const byPlatform = new Map(report.opportunities.map((o) => [o.platformId, o]));
-    expect(byPlatform.size).toBe(7);
+    expect(byPlatform.size).toBe(16);
     expect(byPlatform.get('platform-yandex-business')).toMatchObject({
       method: 'API',
       status: 'READY',
@@ -58,8 +59,8 @@ describe('Nordhaus end-to-end demo', () => {
     // The audit trail covers the whole lifecycle.
     const actions = report.auditActions;
     expect(actions).toContain('COMPANY_ANALYZED');
-    expect(actions.filter((action) => action === 'OPPORTUNITY_DISCOVERED')).toHaveLength(7);
-    expect(actions.filter((action) => action === 'OPPORTUNITY_CLASSIFIED')).toHaveLength(7);
+    expect(actions.filter((action) => action === 'OPPORTUNITY_DISCOVERED')).toHaveLength(16);
+    expect(actions.filter((action) => action === 'OPPORTUNITY_CLASSIFIED')).toHaveLength(16);
     expect(actions.filter((action) => action === 'OPPORTUNITY_SELECTED')).toHaveLength(5);
     expect(actions.filter((action) => action === 'OPPORTUNITY_READY')).toHaveLength(4);
     expect(actions).toContain('PLACEMENT_NEEDS_MANUAL');

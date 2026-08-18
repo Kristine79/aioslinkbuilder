@@ -16,6 +16,7 @@ import {
   GeneratePlacementStrategyUseCase,
   MonitorPlacementUseCase,
   RequestManualPlacementUseCase,
+  SearchPlatformDiscoverySource,
   VerifyPlacementUseCase,
 } from '@aios/application';
 import type {
@@ -42,8 +43,10 @@ import {
 import {
   NORDHAUS_CATEGORIES,
   NORDHAUS_COMPANY_ANALYSIS_FIXTURE,
+  NORDHAUS_CORE_PLATFORM_IDS,
   NORDHAUS_PLATFORMS,
   NORDHAUS_PROVIDERS,
+  NORDHAUS_SEARCH_PLATFORM_IDS,
   ScenarioAIProvider,
   createNordhausRegistry,
 } from './nordhaus-fixtures.js';
@@ -157,7 +160,13 @@ export async function seedNordhausScenario(
     env.lookups,
     env.opportunities,
     env.auditLog,
-    [new CatalogPlatformDiscoverySource(env.lookups)],
+    [
+      new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
+      new SearchPlatformDiscoverySource(
+        NORDHAUS_PLATFORMS.filter((platform) => NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id)),
+        NORDHAUS_CATEGORIES,
+      ),
+    ],
   );
   const discovered = await discover.execute({
     campaignId: campaign.id,

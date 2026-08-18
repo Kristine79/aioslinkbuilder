@@ -1,20 +1,53 @@
 /**
- * Экран активности — проверки и журнал аудита.
+ * Экран активности — проверки и журнал аудита, разделённые на два блока.
  * Placement status and verification status are two distinct signals:
  * a placement can be PUBLISHED with verification still PENDING, and
  * only a passed check moves the placement to VERIFIED.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../api/client';
 import type { ActivityDto } from '../api/types';
 import { ErrorState, LoadingState, StatusBadge, VerificationBadge } from '../components/ui';
-import { AUDIT_ACTION_LABELS, EVIDENCE_LABELS, formatDateTime } from '../ru';
+import { AUDIT_ACTION_LABELS, AUDIT_FILTER_LABELS, EVIDENCE_LABELS, formatDateTime } from '../ru';
+
+type AuditFilter = 'all' | 'placements' | 'opportunities' | 'analysis' | 'errors' | 'manual';
+
+const AUDIT_FILTERS: readonly AuditFilter[] = [
+  'all',
+  'placements',
+  'opportunities',
+  'analysis',
+  'errors',
+  'manual',
+];
+
+function matchesAuditFilter(filter: AuditFilter, entry: ActivityDto['audit'][number]): boolean {
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'placements':
+      return entry.entityType === 'Placement';
+    case 'opportunities':
+      return entry.entityType === 'PlacementOpportunity';
+    case 'analysis':
+      return entry.action === 'COMPANY_ANALYZED' || entry.action === 'OPPORTUNITY_CLASSIFIED';
+    case 'errors':
+      return (
+        entry.action === 'PLACEMENT_FAILED' || entry.action === 'PLACEMENT_VERIFICATION_FAILED'
+      );
+    case 'manual':
+      return (
+        entry.action === 'PLACEMENT_NEEDS_MANUAL' || entry.action === 'PLACEMENT_MANUALLY_PUBLISHED'
+      );
+  }
+}
 
 export function ActivityScreen() {
   const [data, setData] = useState<ActivityDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<AuditFilter>('all');
 
   const load = useCallback(() => {
     setError(null);
@@ -30,6 +63,11 @@ export function ActivityScreen() {
     load();
   }, [load]);
 
+  const filteredAudit = useMemo(
+    () => data?.audit.filter((entry) => matchesAuditFilter(filter, entry)) ?? [],
+    [data, filter],
+  );
+
   if (data === null && error === null) {
     return <LoadingState text="Загружаем журнал…" />;
   }
@@ -41,8 +79,7 @@ export function ActivityScreen() {
     <div>
       <h1 className="page-title">Проверка и журнал</h1>
       <p className="page-subtitle">
-        Статус размещения и статус проверки — два разных сигнала: публикация может быть
-        подтверждена, а проверка ещё не проведена
+        Проверки с доказательствами и полный журнал действий — от поиска площадок до верификации
       </p>
 
       <div className="grid">
@@ -97,21 +134,34 @@ export function ActivityScreen() {
         </div>
 
         <div className="card">
-          <h2 className="card-title">Журнал аудита ({data.audit.length})</h2>
-          {data.audit.length === 0 ? (
-            <div className="empty-note">Журнал пуст.</div>
+          <div className="card-header">
+            <h2 className="card-title" style={{ flex: 1 }}>
+              Журнал аудита ({data.audit.length})
+            </h2>
+          </div>
+          <div className="filter-tabs">
+            {AUDIT_FILTERS.map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                className={`filter-tab ${filter === entry ? 'active' : ''}`}
+                onClick={() => setFilter(entry)}
+              >
+                {AUDIT_FILTER_LABELS[entry]}
+              </button>
+            ))}
+          </div>
+          {filteredAudit.length === 0 ? (
+            <div className="empty-note">Событий по выбранному фильтру нет.</div>
           ) : (
             <div className="audit-list">
-              {data.audit.map((entry) => (
+              {filteredAudit.map((entry) => (
                 <div className="audit-row" key={entry.id}>
+                  <span className="audit-time">{formatDateTime(entry.timestamp)}</span>
                   <span className="audit-action">
                     {AUDIT_ACTION_LABELS[entry.action] ?? entry.action}
                   </span>
-                  <span className="audit-actor">{entry.actor}</span>
-                  <span className="text-tertiary">
-                    {entry.entityType} #{entry.entityId}
-                  </span>
-                  <span className="text-tertiary right">{formatDateTime(entry.timestamp)}</span>
+                  <span className="audit-meta mono">{entry.entityType}</span>
                 </div>
               ))}
             </div>

@@ -4,6 +4,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
 import { ActivityScreen } from './screens/ActivityScreen';
+import { CompaniesScreen } from './screens/CompaniesScreen';
 import { CompanyScreen } from './screens/CompanyScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { OpportunityScreen } from './screens/OpportunityScreen';
@@ -37,6 +38,7 @@ createRoot(rootElement).render(
           <Route path="/opportunities" element={<OpportunitiesScreen />} />
           <Route path="/opportunities/:id" element={<OpportunityScreen />} />
           <Route path="/activity" element={<ActivityScreen />} />
+          <Route path="/companies" element={<CompaniesScreen />} />
           <Route path="*" element={<NotFoundScreen />} />
         </Route>
       </Routes>

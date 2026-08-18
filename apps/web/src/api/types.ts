@@ -55,10 +55,31 @@ export interface CompanyDto {
   analysis: CompanyAnalysisDto | null;
 }
 
+export interface CampaignListItemDto {
+  id: string;
+  companyId: string;
+  name: string;
+  goals: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface CompanyListItemDto {
+  id: string;
+  name: string;
+  industry: string | null;
+  website: string | null;
+  description: string | null;
+  createdAt: string;
+  campaigns: CampaignListItemDto[];
+}
+
 export interface StrategyItemDto {
+  categoryId: string;
   categoryCode: string;
   categoryName: string;
   placementType: string;
+  opportunityCount: number;
 }
 
 export interface ScoreBreakdownDto {
@@ -135,6 +156,7 @@ export interface OpportunityDto {
   placementMethod: string;
   providerCapabilities: string[];
   provider: ProviderDto | null;
+  discoverySource: string | null;
   status: PlacementStatus;
   createdAt: string;
   updatedAt: string;
@@ -159,6 +181,7 @@ export interface OverviewDto {
     opportunities: number;
     recommended: number;
     approved: number;
+    ready: number;
     executed: number;
     published: number;
     verified: number;
@@ -193,6 +216,13 @@ export interface VerificationListItemDto {
 export interface ActivityDto {
   verifications: VerificationListItemDto[];
   audit: AuditEventDto[];
+}
+
+export interface DiscoverResultDto {
+  discovered: number;
+  classified: number;
+  sources: string[];
+  items: OpportunityDto[];
 }
 
 export interface ApiErrorDto {

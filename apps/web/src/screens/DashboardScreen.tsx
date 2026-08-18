@@ -82,7 +82,7 @@ export function DashboardScreen() {
         />
         <StatCard
           value={counts.recommended}
-          label="Ждут решения"
+          label="Рекомендовано"
           hint="AI рекомендовал, нужно одобрить"
           link={{ to: '/opportunities?status=QUALIFIED', text: 'К рекомендациям' }}
         />
@@ -90,11 +90,31 @@ export function DashboardScreen() {
           value={counts.approved}
           label="Одобрено"
           hint="готово к запуску или уже в работе"
+          link={{ to: '/opportunities?status=SELECTED', text: 'Одобренные' }}
+        />
+        <StatCard
+          value={counts.ready}
+          label="Готово к запуску"
+          hint="включая повтор после ошибки"
+          link={{ to: '/opportunities?status=READY', text: 'К запуску' }}
+        />
+        <StatCard
+          value={counts.executed}
+          label="Запущено"
+          hint="размещение отправлено на площадку"
+          link={{ to: '/opportunities', text: 'Все размещения' }}
+        />
+        <StatCard
+          value={counts.published}
+          label="Опубликовано"
+          hint="подтверждено площадкой"
+          link={{ to: '/opportunities', text: 'Список' }}
         />
         <StatCard
           value={counts.verified}
           label="Проверено"
           hint="результат подтверждён доказательствами"
+          link={{ to: '/activity', text: 'Доказательства' }}
         />
         <StatCard
           value={counts.failed}
@@ -106,6 +126,7 @@ export function DashboardScreen() {
           value={counts.manual}
           label="Требуется ручная работа"
           hint="выполните действие и подтвердите"
+          link={{ to: '/opportunities?status=NEEDS_MANUAL', text: 'К действиям' }}
         />
       </div>
 
@@ -177,8 +198,8 @@ export function DashboardScreen() {
       {counts.failed > 0 && (
         <div className="mt-16">
           <Alert tone="info">
-            Размещение на Archi.ru завершилось ошибкой при создании. Откройте возможность и нажмите
-            «Запустить», чтобы повторить попытку новой попыткой.
+            Размещения с ошибками ждут повтора. Откройте возможность и нажмите «Запустить» — будет
+            создана новая попытка, старая останется в журнале.
           </Alert>
         </div>
       )}

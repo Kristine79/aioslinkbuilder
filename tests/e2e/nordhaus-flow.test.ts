@@ -80,7 +80,7 @@ describe('Nordhaus E2E: the complete placement journey over HTTP', () => {
   it('serves the API and the built UI on the same port', async () => {
     const overview = await get<ApiOverviewDto>('/api/overview');
     expect(overview.company.name).toBe('Nordhaus');
-    expect(overview.counts.opportunities).toBe(7);
+    expect(overview.counts.opportunities).toBe(16);
 
     const page = await fetch(`${base}/`);
     expect(page.status).toBe(200);
@@ -230,7 +230,17 @@ describe('Nordhaus E2E: the complete placement journey over HTTP', () => {
     const qualified = await get<{ items: ApiOpportunityDto[] }>(
       '/api/opportunities?status=QUALIFIED',
     );
-    expect(qualified.items.map((item: ApiOpportunityDto) => item.platformName)).toEqual(['Houzz']);
+    const qualifiedNames = qualified.items.map((item: ApiOpportunityDto) => item.platformName);
+    expect(qualified.items.every((item: ApiOpportunityDto) => item.status === 'QUALIFIED')).toBe(
+      true,
+    );
+    expect(qualifiedNames).toContain('Houzz');
+    expect(qualifiedNames).toContain('Zoon.ru');
+
+    const catalog = await get<{ items: ApiOpportunityDto[] }>('/api/opportunities?source=catalog');
+    expect(
+      catalog.items.every((item: ApiOpportunityDto) => item.discoverySource === 'catalog'),
+    ).toBe(true);
 
     const analysis = await request('/api/company/analyze', { method: 'POST' });
     expect(analysis.status).toBe(200);
@@ -250,6 +260,78 @@ describe('Nordhaus E2E: the complete placement journey over HTTP', () => {
     expect(actions).toContain('PLACEMENT_VERIFIED');
     expect(actions).toContain('PLACEMENT_MANUALLY_PUBLISHED');
     expect(actions).toContain('PLACEMENT_FAILED');
+  });
+});
+
+describe('E2E: generic company/campaign flow (product is not Nordhaus-specific)', () => {
+  it('creates a company, a campaign, runs analysis and discovery, then filters by source', async () => {
+    const created = await request('/api/companies', {
+      method: 'POST',
+      body: {
+        name: 'Дизайн-бюро «Форма»',
+        website: 'https://forma.example.com',
+        industry: 'design',
+        description: 'Дизайн интерьеров премиум-класса',
+        geography: ['Москва'],
+        products: ['дизайн-проекты', 'мебель на заказ'],
+        targetAudience: ['владельцы недвижимости', 'девелоперы'],
+      },
+    });
+    expect(created.status).toBe(201);
+    const company = created.body as { id: string; name: string };
+    expect(company.name).toBe('Дизайн-бюро «Форма»');
+
+    const campaignResponse = await request(`/api/companies/${company.id}/campaigns`, {
+      method: 'POST',
+      body: {
+        name: 'Кампания «Формы»',
+        goals: ['Публикации в интерьерных медиа', 'Профили на картах'],
+      },
+    });
+    expect(campaignResponse.status).toBe(201);
+    const campaign = (campaignResponse.body as { id: string }).id;
+
+    const companyData = await get<{ analysis: unknown }>(`/api/company?campaignId=${campaign}`);
+    expect(companyData.analysis).toBeNull();
+
+    const discoveryBeforeAnalysis = await request(`/api/discover?campaignId=${campaign}`, {
+      method: 'POST',
+    });
+    expect(discoveryBeforeAnalysis.status).toBe(409);
+    expect((discoveryBeforeAnalysis.body as { error: { code: string } }).error.code).toBe(
+      'NO_ANALYSIS',
+    );
+
+    const analyzed = await request(`/api/company/analyze?campaignId=${campaign}`, {
+      method: 'POST',
+    });
+    expect(analyzed.status).toBe(200);
+
+    const discovery = await request(`/api/discover?campaignId=${campaign}`, { method: 'POST' });
+    expect(discovery.status).toBe(200);
+    const result = discovery.body as {
+      discovered: number;
+      classified: number;
+      sources: string[];
+      items: Array<{ score: number | null; discoverySource: string; status: string }>;
+    };
+    expect(result.discovered).toBeGreaterThan(0);
+    expect(result.classified).toBe(result.discovered);
+    expect(result.sources).toEqual(expect.arrayContaining(['catalog', 'search']));
+    expect(result.items.every((item) => item.score !== null)).toBe(true);
+    expect(result.items.every((item) => item.status === 'QUALIFIED')).toBe(true);
+
+    const searchOnly = await get<{ items: Array<{ discoverySource: string }> }>(
+      `/api/opportunities?campaignId=${campaign}&source=search`,
+    );
+    expect(searchOnly.items.length).toBeGreaterThan(0);
+    expect(searchOnly.items.every((item) => item.discoverySource === 'search')).toBe(true);
+
+    const overview = await get<{ counts: Record<string, number> }>(
+      `/api/overview?campaignId=${campaign}`,
+    );
+    expect(overview.counts.opportunities).toBe(result.discovered);
+    expect(overview.counts.recommended).toBe(result.classified);
   });
 });
 

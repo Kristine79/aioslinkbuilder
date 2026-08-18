@@ -45,7 +45,26 @@ export const PROVIDER_TYPE_LABELS: Record<string, string> = {
   API: 'API-провайдер',
   BROWSER: 'Браузерная автоматизация',
   MANUAL: 'Ручной процесс',
-  MOCK: 'Мок',
+  MOCK: 'Демо-провайдер',
+};
+
+export const DISCOVERY_SOURCE_LABELS: Record<string, string> = {
+  catalog: 'Каталог',
+  search: 'Поиск',
+  recommendation: 'Рекомендация',
+  manual: 'Ручное добавление',
+  unknown: 'Неизвестен',
+};
+
+export const AI_PROVIDER_LABELS: Record<string, string> = {
+  'demo-ai': 'Демо-провайдер анализа',
+  'scenario-stub': 'Демо-провайдер анализа',
+};
+
+export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Черновик',
+  ACTIVE: 'Активна',
+  COMPLETED: 'Завершена',
 };
 
 export const VERIFICATION_LABELS: Record<VerificationStatus, string> = {
@@ -97,6 +116,23 @@ export const FUNNEL_LABELS: Record<string, string> = {
   executed: 'Запущено',
   published: 'Опубликовано',
   verified: 'Проверено',
+};
+
+export const AUDIT_ENTITY_LABELS: Record<string, string> = {
+  Company: 'Компания',
+  Campaign: 'Кампания',
+  PlacementOpportunity: 'Возможность',
+  Placement: 'Размещение',
+  Verification: 'Проверка',
+};
+
+export const AUDIT_FILTER_LABELS: Record<string, string> = {
+  all: 'Все события',
+  placements: 'Размещения',
+  opportunities: 'Возможности',
+  analysis: 'Анализ',
+  errors: 'Ошибки',
+  manual: 'Ручные действия',
 };
 
 export const SCORE_DIMENSION_LABELS: Record<string, string> = {

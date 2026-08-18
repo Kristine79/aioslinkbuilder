@@ -56,6 +56,7 @@ export class DiscoverOpportunitiesUseCase {
 
     const existing = await this.opportunities.findByCampaignId(command.campaignId);
     const existingPlatformIds = new Set(existing.map((opportunity) => opportunity.platformId));
+    const createdPlatformIds = new Set<string>();
 
     const opportunities: PlacementOpportunity[] = [];
     for (const source of this.sources) {
@@ -75,9 +76,13 @@ export class DiscoverOpportunitiesUseCase {
         if (candidate.platformId === null) {
           continue;
         }
-        if (existingPlatformIds.has(candidate.platformId)) {
+        if (
+          existingPlatformIds.has(candidate.platformId) ||
+          createdPlatformIds.has(candidate.platformId)
+        ) {
           continue;
         }
+        createdPlatformIds.add(candidate.platformId);
         validateOpportunity({
           campaignId: command.campaignId,
           platformId: candidate.platformId,
@@ -94,6 +99,7 @@ export class DiscoverOpportunitiesUseCase {
           placementType: command.placementType,
           placementMethod: 'UNKNOWN',
           categoryId,
+          metadata: { discoverySource: source.name },
         });
         await this.auditLog.append({
           actor: 'system',

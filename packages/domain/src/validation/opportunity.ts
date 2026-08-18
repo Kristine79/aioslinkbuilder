@@ -10,6 +10,8 @@ export interface OpportunityDraft {
   placementType: PlacementType;
   placementMethod: PlacementMethod;
   categoryId?: string | null;
+  /** Discovery-time facts (e.g. which discovery source found the platform). */
+  metadata?: Readonly<Record<string, unknown>> | null;
 }
 
 export function validateOpportunity(draft: OpportunityDraft): void {

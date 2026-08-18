@@ -85,6 +85,7 @@ export type {
 export { AnalyzeCompanyUseCase } from './use-cases/analysis/analyze-company.use-case.js';
 export { GeneratePlacementStrategyUseCase } from './use-cases/analysis/generate-placement-strategy.use-case.js';
 export { CatalogPlatformDiscoverySource } from './use-cases/opportunity/catalog-platform-discovery-source.js';
+export { SearchPlatformDiscoverySource } from './use-cases/opportunity/search-platform-discovery-source.js';
 export { ApproveOpportunityUseCase } from './use-cases/placement/approve-opportunity.use-case.js';
 export { ExecutePlacementUseCase } from './use-cases/placement/execute-placement.use-case.js';
 export { MonitorPlacementUseCase } from './use-cases/placement/monitor-placement.use-case.js';

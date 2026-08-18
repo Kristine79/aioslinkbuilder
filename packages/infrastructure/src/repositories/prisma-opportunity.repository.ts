@@ -35,6 +35,7 @@ export class PrismaPlacementOpportunityRepository implements PlacementOpportunit
         categoryId: draft.categoryId ?? null,
         placementType: draft.placementType,
         placementMethod: draft.placementMethod,
+        metadata: toPrismaJson(draft.metadata ?? null),
       },
     });
     return toOpportunity(row);

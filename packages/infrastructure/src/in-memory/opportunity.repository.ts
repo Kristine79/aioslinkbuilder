@@ -50,7 +50,7 @@ export class InMemoryPlacementOpportunityRepository implements PlacementOpportun
       placementMethod: draft.placementMethod,
       providerCapabilities: [],
       status: 'DISCOVERED',
-      metadata: null,
+      metadata: draft.metadata ?? null,
       createdAt: now,
       updatedAt: now,
     };
