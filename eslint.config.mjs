@@ -5,13 +5,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      'node_modules/**',
-      '**/dist/**',
-      'coverage/**',
-      'pnpm-lock.yaml',
-      'api/\\[\\[route\\]\\].mjs',
-    ],
+    ignores: ['node_modules/**', '**/dist/**', 'coverage/**', 'pnpm-lock.yaml', 'api/index.mjs'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
