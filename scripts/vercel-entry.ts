@@ -56,7 +56,8 @@ async function nodeHandler(request: unknown, res?: ServerResponse): Promise<Resp
   }
   const req = request as IncomingMessage;
   const method = req.method ?? 'GET';
-  const url = req.url ?? 'http://localhost/';
+  const rawUrl = req.url ?? '/';
+  const url = /^https?:\/\//.test(rawUrl) ? rawUrl : `https://vercel.local${rawUrl}`;
   const headers = new Headers(req.headers as Record<string, string | string[]>);
   const init: RequestInit = { method, headers };
   if (method !== 'GET' && method !== 'HEAD') {
