@@ -67,8 +67,15 @@ export {
   isScoreInRange,
   validateScore,
   validateScoreBreakdown,
+  calculateScoreBreakdown,
 } from './scoring.js';
-export type { ScoreDimension, ScoreBreakdown } from './scoring.js';
+export type { ScoreDimension, ScoreBreakdown, ScoreInputs } from './scoring.js';
 
 export { validateCompany } from './validation/company.js';
 export type { CompanyDraft } from './validation/company.js';
+
+export { validateCampaign } from './validation/campaign.js';
+export type { CampaignDraft } from './validation/campaign.js';
+
+export { validateOpportunity } from './validation/opportunity.js';
+export type { OpportunityDraft } from './validation/opportunity.js';

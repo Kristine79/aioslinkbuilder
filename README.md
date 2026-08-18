@@ -9,8 +9,8 @@ Product requirements and design live in: `PRD.md`, `ARCHITECTURE.md`, `DOMAIN_MO
 ```text
 packages/
   domain/          pure business logic: entities, enums, state machine, capabilities, scoring, validation
-  application/     use cases (Phase 1+) + repository ports
-  infrastructure/  Prisma schema + migrations + Prisma client factory
+  application/     repository ports + use cases + command DTOs (Phases 1, 2)
+  infrastructure/  Prisma schema + migrations + Prisma repositories + seed
   ai/              AI provider abstraction + zod output schemas
   integrations/    PlacementProvider contract (interface + DTOs); implementations in Phase 3
 tests/
@@ -44,6 +44,7 @@ Local dev network note: on some networks the Neon direct endpoint is unreachable
 pnpm install
 pnpm db:generate      # generate Prisma Client
 pnpm db:migrate       # apply migrations (needs .env)
+pnpm db:seed          # idempotent demo data: 8 categories, 8 platforms, 2 mock providers, Nordhaus company + campaign
 ```
 
 Quality gates:
@@ -63,8 +64,8 @@ pnpm test:e2e         # E2E scaffold (no tests until Phase 6)
 | Phase | Scope                                                                              | Status      |
 | ----- | ---------------------------------------------------------------------------------- | ----------- |
 | 0     | structure, domain model, DB schema, state machine, provider/AI abstractions, tests | done        |
-| 1     | company and campaign domain/application flows                                      | not started |
-| 2     | opportunity discovery, classification, scoring                                     | not started |
+| 1     | company and campaign domain/application flows                                      | done        |
+| 2     | opportunity discovery, classification, scoring                                     | in progress |
 | 3     | provider implementations + MockProvider                                            | not started |
 | 4     | placement execution, verification, evidence, audit log                             | not started |
 | 5     | Russian UI                                                                         | not started |
@@ -76,7 +77,15 @@ pnpm test:e2e         # E2E scaffold (no tests until Phase 6)
 - Platform and PlacementProvider are separate entities (ADR-006).
 - State machine implements only documented transitions; failure/manual states are terminal until recovery actions are defined (ADR-007).
 - Tooling: pnpm workspaces, strict TS, Vitest, Prisma, zod (ADR-008).
+- Application layer: ports + use cases + command DTOs; delivery (`apps/api`) deferred; repositories own ids and timestamps; writes re-validate full state; audit events with actor `system` (ADR-009).
 
 ## Deployment target
 
-Vercel hosting, Neon PostgreSQL, database access provider-agnostic (only `DATABASE_URL` / `DIRECT_URL` env vars are required by the application).
+Vercel hosting (existing project `aioslinkbuilder`), Neon PostgreSQL, database access provider-agnostic (only `DATABASE_URL` / `DIRECT_URL` env vars are required by the application).
+
+Deployment notes (Vercel):
+
+- `packageManager` pins `pnpm@11.9.0` (`allowBuilds`/`patchedDependencies` are pnpm 11 features).
+- `postinstall` runs `prisma generate` during `pnpm install`, and the Prisma generator declares `binaryTargets = ["native", "debian-openssl-3.0.x"]`, so the Linux query engine is produced on Vercel (no `buildCommand`, no output directory).
+- `prisma@6.19.3` is published with a broken `exports` map (root export points to a `build/types.js` that is missing from the tarball). This makes `require.resolve('prisma')` fail and every `prisma generate` attempt an auto-install (`pnpm add @prisma/client`, which recursed when combined with a postinstall). The package is patched via pnpm `patchedDependencies` (`patches/prisma@6.19.3.patch` restoring `build/types.js` as a re-export of `./index.js`), and `prisma` CLI is declared as a devDependency of `packages/infrastructure` (the schema owner) so both resolve from the same `node_modules` — auto-install no longer triggers, generation is deterministic.
+- `api/health.mjs` is a Vercel function that reports DB reachability (stage-by-stage raw probe) and Prisma initialization.

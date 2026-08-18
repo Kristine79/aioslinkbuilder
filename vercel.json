@@ -1,0 +1,8 @@
+{
+  "buildCommand": "",
+  "functions": {
+    "api/health.mjs": {
+      "maxDuration": 60
+    }
+  }
+}

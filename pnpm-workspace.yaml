@@ -14,3 +14,6 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - prisma
   - esbuild
+
+patchedDependencies:
+  prisma@6.19.3: patches/prisma@6.19.3.patch

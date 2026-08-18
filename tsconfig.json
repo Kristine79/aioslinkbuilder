@@ -26,5 +26,10 @@
       "@aios/integrations": ["packages/integrations/src/index.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts", "tests/**/*.ts", "vitest.*.ts"]
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/infrastructure/prisma/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.*.ts"
+  ]
 }

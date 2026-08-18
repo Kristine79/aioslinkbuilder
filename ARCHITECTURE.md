@@ -55,6 +55,32 @@ Infrastructure
 
 Domain must not depend on UI, database implementations, HTTP clients, or specific AI vendors.
 
+Implemented packages (Phases 1, 2):
+
+```text
+apps/             not created yet — delivery layer (HTTP API, web UI) arrives in a later phase;
+                  `apps/api` will contain HTTP routes, validation of requests and a composition
+                  root only, never business logic (ADR-009)
+packages/
+  domain/         entities, enums, validation, capabilities, scoring, placement state machine
+  application/    repository ports + use cases + command DTOs + application errors
+  infrastructure/ Prisma schema, migrations, Prisma repositories, seed
+  ai/             AI provider abstraction + zod-validated output schemas
+  integrations/   PlacementProvider contract (interface + DTOs); implementations later
+```
+
+Dependency direction:
+
+```text
+application → domain           (use cases orchestrate ports, validate via domain functions)
+infrastructure → application   (implements repository ports)
+infrastructure → domain        (Prisma row <-> domain entity mapping)
+infrastructure/ai/integrations depend on nothing outside their contracts
+```
+
+No package may import from a layer below itself; delivery (`apps/api`) is the only allowed
+consumer of `application` + `infrastructure` composition.
+
 ## 3. Domain entities
 
 Core entities:

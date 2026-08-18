@@ -1,0 +1,7 @@
+diff --git a/build/types.js b/build/types.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..dee682a1f296ad1a72a5251ec4b2b5f8c1125089
+--- /dev/null
++++ b/build/types.js
+@@ -0,0 +1 @@
++module.exports = require('./index.js')

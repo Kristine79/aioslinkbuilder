@@ -2,13 +2,13 @@ import { ValidationError } from '../errors.js';
 
 export interface CompanyDraft {
   name: string;
-  description?: string;
-  industry?: string;
+  description?: string | null;
+  industry?: string | null;
   geography?: string[];
   locations?: string[];
   products?: string[];
   targetAudience?: string[];
-  website?: string;
+  website?: string | null;
 }
 
 export function validateCompany(draft: CompanyDraft): void {
@@ -21,7 +21,7 @@ export function validateCompany(draft: CompanyDraft): void {
       throw new ValidationError(`Company ${key} entries must not be empty`);
     }
   }
-  if (draft.website !== undefined && !isHttpUrl(draft.website)) {
+  if (draft.website != null && !isHttpUrl(draft.website)) {
     throw new ValidationError('Company website must be a valid http(s) URL');
   }
 }

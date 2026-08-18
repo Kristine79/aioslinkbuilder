@@ -1,0 +1,261 @@
+import { PrismaClient } from '@prisma/client';
+
+const db = new PrismaClient();
+
+const CATEGORIES = [
+  {
+    id: 'cat-maps-local',
+    code: 'maps-local',
+    name: 'Maps & local directories',
+    description: 'Map services and local business directories',
+    sortOrder: 1,
+  },
+  {
+    id: 'cat-furniture-directories',
+    code: 'furniture-directories',
+    name: 'Furniture directories',
+    description: 'Catalogues and directories focused on furniture brands and products',
+    sortOrder: 2,
+  },
+  {
+    id: 'cat-interior-design',
+    code: 'interior-design',
+    name: 'Interior & design',
+    description: 'Interior design magazines, portals and inspiration platforms',
+    sortOrder: 3,
+  },
+  {
+    id: 'cat-architecture',
+    code: 'architecture',
+    name: 'Architecture',
+    description: 'Architecture portals and communities',
+    sortOrder: 4,
+  },
+  {
+    id: 'cat-professional-platforms',
+    code: 'professional-platforms',
+    name: 'Professional platforms',
+    description: 'Professional networks and industry B2B platforms',
+    sortOrder: 5,
+  },
+  {
+    id: 'cat-media-pr',
+    code: 'media-pr',
+    name: 'Media & PR',
+    description: 'News media, editorial publications and PR outlets',
+    sortOrder: 6,
+  },
+  {
+    id: 'cat-social-platforms',
+    code: 'social-platforms',
+    name: 'Social platforms',
+    description: 'Social networks and social media services',
+    sortOrder: 7,
+  },
+  {
+    id: 'cat-b2b-regional',
+    code: 'b2b-regional',
+    name: 'B2B & regional platforms',
+    description: 'Regional and sector-specific business platforms',
+    sortOrder: 8,
+  },
+] as const;
+
+const PLATFORMS = [
+  {
+    id: 'platform-yandex-business',
+    name: 'Яндекс Бизнес',
+    url: 'https://business.yandex.ru',
+    country: 'Russia',
+    categoryId: 'cat-maps-local',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-2gis',
+    name: '2ГИС',
+    url: 'https://2gis.ru',
+    country: 'Russia',
+    categoryId: 'cat-maps-local',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-mebel-ru',
+    name: 'Мебель.ру',
+    url: 'https://mebel.ru',
+    country: 'Russia',
+    categoryId: 'cat-furniture-directories',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-inmyroom',
+    name: 'INMYROOM',
+    url: 'https://inmyroom.ru',
+    country: 'Russia',
+    categoryId: 'cat-interior-design',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-salon-interior',
+    name: 'SALON-interior',
+    url: 'https://salon.ru',
+    country: 'Russia',
+    categoryId: 'cat-interior-design',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-archi-ru',
+    name: 'Archi.ru',
+    url: 'https://archi.ru',
+    country: 'Russia',
+    categoryId: 'cat-architecture',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-houzz',
+    name: 'Houzz',
+    url: 'https://www.houzz.ru',
+    country: 'Russia',
+    categoryId: 'cat-interior-design',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+  {
+    id: 'platform-vk',
+    name: 'VK',
+    url: 'https://vk.com',
+    country: 'Russia',
+    categoryId: 'cat-social-platforms',
+    notes: 'Demo platform (synthetic seed data)',
+  },
+] as const;
+
+const PROVIDERS = [
+  {
+    id: 'provider-yandex-business-mock',
+    platformId: 'platform-yandex-business',
+    name: 'YandexBusiness Mock',
+    providerType: 'MOCK',
+    capabilities: ['DISCOVER', 'VALIDATE', 'CREATE', 'GET_STATUS', 'VERIFY'],
+    capabilitiesVerified: true,
+    notes: 'Mock provider for demo purposes',
+  },
+  {
+    id: 'provider-2gis-mock',
+    platformId: 'platform-2gis',
+    name: 'TwoGIS Mock',
+    providerType: 'MOCK',
+    capabilities: ['DISCOVER', 'VALIDATE', 'CREATE', 'GET_STATUS', 'VERIFY'],
+    capabilitiesVerified: true,
+    notes: 'Mock provider for demo purposes',
+  },
+] as const;
+
+const COMPANY = {
+  id: 'company-nordhaus',
+  name: 'Nordhaus',
+  description: 'Premium made-to-order furniture manufacturer (synthetic demo company)',
+  industry: 'furniture',
+  geography: ['Moscow', 'Russia'],
+  locations: ['Moscow'],
+  products: ['kitchens', 'wardrobes', 'built-in furniture', 'upholstered furniture'],
+  targetAudience: ['premium property owners', 'interior designers', 'architects', 'HoReCa'],
+  website: 'https://nordhaus.example.com',
+};
+
+const CAMPAIGN = {
+  id: 'campaign-nordhaus-demo',
+  companyId: 'company-nordhaus',
+  name: 'Nordhaus Demo Campaign',
+  goals: [
+    'Publish the premium furniture brand on interior and design directories',
+    'Establish profiles on local maps and furniture catalogues',
+  ],
+  status: 'DRAFT' as const,
+};
+
+async function main(): Promise<void> {
+  await checkDatabaseReachable();
+
+  let categoryCount = 0;
+  for (const category of CATEGORIES) {
+    await db.placementCategory.upsert({
+      where: { id: category.id },
+      create: { ...category },
+      update: { ...category },
+    });
+    categoryCount += 1;
+  }
+
+  let platformCount = 0;
+  for (const platform of PLATFORMS) {
+    await db.platform.upsert({
+      where: { id: platform.id },
+      create: { ...platform },
+      update: { ...platform },
+    });
+    platformCount += 1;
+  }
+
+  let providerCount = 0;
+  for (const provider of PROVIDERS) {
+    await db.placementProvider.upsert({
+      where: { id: provider.id },
+      create: { ...provider },
+      update: { ...provider },
+    });
+    providerCount += 1;
+  }
+
+  await db.company.upsert({
+    where: { id: COMPANY.id },
+    create: { ...COMPANY },
+    update: { ...COMPANY },
+  });
+
+  await db.campaign.upsert({
+    where: { id: CAMPAIGN.id },
+    create: { ...CAMPAIGN },
+    update: { ...CAMPAIGN },
+  });
+
+  console.log(
+    `Seed completed: ${categoryCount} categories, ${platformCount} platforms, ` +
+      `${providerCount} providers, 1 company, 1 campaign`,
+  );
+}
+
+async function checkDatabaseReachable(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL;
+  const host = databaseUrl === undefined ? 'unknown' : new URL(databaseUrl).hostname;
+  try {
+    await withTimeout(db.$queryRaw`SELECT 1`, 10_000);
+  } catch (error) {
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Neon database is unreachable (host: ${host}). Seed cannot run. ` +
+        `Underlying error: ${cause}`,
+    );
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`connection timed out after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+main()
+  .catch((error: unknown) => {
+    console.error('Seed failed:', error);
+    process.exitCode = 1;
+  })
+  .finally(() => {
+    void db.$disconnect();
+  });

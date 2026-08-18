@@ -11,7 +11,7 @@ export const SCORE_DIMENSIONS = [
 
 export type ScoreDimension = (typeof SCORE_DIMENSIONS)[number];
 
-/** Weights from SCORING.md. The deterministic scoring calculation is implemented in a later phase. */
+/** Weights from SCORING.md. */
 export const SCORE_DIMENSION_WEIGHTS: Readonly<Record<ScoreDimension, number>> = {
   topicalRelevance: 30,
   audienceMatch: 20,
@@ -34,8 +34,33 @@ export interface ScoreBreakdown {
   total: number;
 }
 
+export type ScoreInputs = Omit<ScoreBreakdown, 'total'>;
+
 export function isScoreInRange(value: number): boolean {
   return Number.isFinite(value) && value >= MIN_SCORE && value <= MAX_SCORE;
+}
+
+/**
+ * Deterministic weighted score calculation (SCORING.md).
+ *
+ * The total is the weighted average of the six dimensions, rounded to the
+ * nearest integer. This function is the only place where a score value is
+ * produced; AI output only supplies dimension inputs and never edits the
+ * final score.
+ */
+export function calculateScoreBreakdown(inputs: ScoreInputs): ScoreBreakdown {
+  for (const dimension of SCORE_DIMENSIONS) {
+    if (!isScoreInRange(inputs[dimension])) {
+      throw new ValidationError(
+        `Score input ${dimension} must be between ${MIN_SCORE} and ${MAX_SCORE}`,
+      );
+    }
+  }
+  const weightedSum = SCORE_DIMENSIONS.reduce(
+    (sum, dimension) => sum + SCORE_DIMENSION_WEIGHTS[dimension] * inputs[dimension],
+    0,
+  );
+  return { ...inputs, total: Math.round(weightedSum / 100) };
 }
 
 export function validateScoreBreakdown(breakdown: ScoreBreakdown): void {

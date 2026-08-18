@@ -18,7 +18,7 @@ export default tseslint.config(
       globals: globals.node,
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['eslint.config.mjs'],
+          allowDefaultProject: ['eslint.config.mjs', 'api/health.mjs'],
         },
         tsconfigRootDir: import.meta.dirname,
       },

@@ -1,6 +1,7 @@
-import type { Company } from '@aios/domain';
+import type { Company, CompanyDraft } from '@aios/domain';
 
 export interface CompanyRepository {
   findById(id: string): Promise<Company | null>;
-  save(company: Company): Promise<Company>;
+  create(draft: CompanyDraft): Promise<Company>;
+  update(company: Company): Promise<Company>;
 }
