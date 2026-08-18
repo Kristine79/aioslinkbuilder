@@ -60,6 +60,22 @@ export { supportsCapability, requireCapability } from './capabilities.js';
 export type { CapabilitySet } from './capabilities.js';
 
 export {
+  EXECUTION_REQUIRED_CAPABILITIES,
+  providerSupportsAll,
+  selectBestProvider,
+  derivePlacementMethod,
+  deriveProviderAlignment,
+} from './alignment.js';
+export type { ProviderAlignment } from './alignment.js';
+
+export {
+  DEFAULT_PLACEMENT_TYPE_BY_CATEGORY,
+  DEFAULT_PLACEMENT_TYPE,
+  placementTypeForCategory,
+} from './placement-strategy.js';
+export type { PlacementStrategy, PlacementStrategyItem } from './placement-strategy.js';
+
+export {
   SCORE_DIMENSIONS,
   SCORE_DIMENSION_WEIGHTS,
   MIN_SCORE,
@@ -79,3 +95,20 @@ export type { CampaignDraft } from './validation/campaign.js';
 
 export { validateOpportunity } from './validation/opportunity.js';
 export type { OpportunityDraft } from './validation/opportunity.js';
+export {
+  validatePlacement,
+  validateManualPlacementRequest,
+  validateManualPlacementCompletion,
+} from './validation/placement.js';
+
+export type {
+  PlacementDraft,
+  ManualPlacementRequestDraft,
+  ManualPlacementCompletionDraft,
+} from './validation/placement.js';
+
+export { validateVerification } from './validation/verification.js';
+export type { VerificationDraft } from './validation/verification.js';
+
+export { validateEvidence } from './validation/evidence.js';
+export type { EvidenceDraft } from './validation/evidence.js';

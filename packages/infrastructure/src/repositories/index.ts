@@ -1,3 +1,9 @@
 export { PrismaCompanyRepository } from './prisma-company.repository.js';
 export { PrismaCampaignRepository } from './prisma-campaign.repository.js';
 export { PrismaAuditLogRepository } from './prisma-audit-log.repository.js';
+export { PrismaLookupRepository } from './prisma-lookup.repository.js';
+export { PrismaPlacementOpportunityRepository } from './prisma-opportunity.repository.js';
+export { PrismaAIAnalysisRepository } from './prisma-ai-analysis.repository.js';
+export { PrismaPlacementRepository } from './prisma-placement.repository.js';
+export { PrismaVerificationRepository } from './prisma-verification.repository.js';
+export { PrismaEvidenceRepository } from './prisma-evidence.repository.js';

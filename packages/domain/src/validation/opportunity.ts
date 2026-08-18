@@ -9,6 +9,7 @@ export interface OpportunityDraft {
   platformId: string;
   placementType: PlacementType;
   placementMethod: PlacementMethod;
+  categoryId?: string | null;
 }
 
 export function validateOpportunity(draft: OpportunityDraft): void {
@@ -17,6 +18,13 @@ export function validateOpportunity(draft: OpportunityDraft): void {
   }
   if (draft.platformId.trim().length === 0) {
     throw new ValidationError('Opportunity platformId must not be empty');
+  }
+  if (
+    draft.categoryId !== undefined &&
+    draft.categoryId !== null &&
+    draft.categoryId.trim().length === 0
+  ) {
+    throw new ValidationError('Opportunity categoryId must not be empty');
   }
   if (!PLACEMENT_TYPES.includes(draft.placementType)) {
     throw new ValidationError(

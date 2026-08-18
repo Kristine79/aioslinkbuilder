@@ -119,3 +119,46 @@ A feature is complete only when:
 - failure cases are handled
 - documentation is updated
 - no architectural boundary is violated
+
+
+IMPORTANT ARCHITECTURAL RULE — SEOFlow MUST ALWAYS BE CONSIDERED BEFORE REIMPLEMENTING EXISTING CAPABILITIES
+
+The new project is independent from SEOFlow, but SEOFlow is an existing working implementation created by the same developer and must be treated as a primary implementation reference.
+
+Before implementing any non-trivial capability related to placement discovery, research, submission, browser automation, verification, evidence, human-in-the-loop, retry/failure handling, email verification, form analysis, field mapping, or platform-specific execution:
+
+1. First inspect SEOFlow and determine whether the capability already exists there.
+2. If it exists, do NOT automatically implement a second mechanism from scratch.
+3. Compare the existing SEOFlow implementation with the new project's domain/application/provider architecture.
+4. Determine whether the correct approach is:
+   - reuse the proven concept;
+   - extract a generic module later;
+   - wrap the existing capability behind a new Provider/Port;
+   - or implement something genuinely new.
+5. Only implement a new mechanism from scratch when SEOFlow does not already provide the required capability or when there is a concrete architectural reason not to reuse it.
+6. If you choose not to reuse an existing SEOFlow capability, explicitly explain why.
+
+SEOFlow is NOT a dependency of this project and must not be copied wholesale.
+
+However, "independent architecture" does NOT mean "rebuild everything from scratch".
+
+Avoid duplicated implementations of already-proven functionality.
+
+The guiding principle is:
+
+NEW DOMAIN / NEW ARCHITECTURE
++
+EXISTING PROVEN SEOFLOW CAPABILITIES
+=
+REUSE OR ADAPT WHERE PRACTICAL
+
+NOT:
+
+NEW DOMAIN / NEW ARCHITECTURE
++
+REIMPLEMENT SEOFLOW FROM ZERO
+
+Before introducing a substantial new subsystem, check:
+C:\hp\github\seoflowai
+
+and report whether an equivalent or related capability already exists there.

@@ -13,5 +13,7 @@ export interface AIAnalysisDraft {
 
 export interface AIAnalysisRepository {
   findByCampaignId(campaignId: string): Promise<AIAnalysis[]>;
+  /** Latest VALID COMPANY_ANALYSIS for the campaign, or null. */
+  findLatestValidCompanyAnalysis(campaignId: string): Promise<AIAnalysis | null>;
   create(draft: AIAnalysisDraft): Promise<AIAnalysis>;
 }

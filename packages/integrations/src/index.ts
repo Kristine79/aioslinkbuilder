@@ -32,3 +32,14 @@ export type {
   VerifyInput,
   VerifyResult,
 };
+
+export { ProviderError, ProviderNotFoundError, ProviderUnavailableError } from './errors.js';
+export type { ProviderErrorCategory } from './errors.js';
+
+export { MockPlacementProvider } from './mock/mock-placement-provider.js';
+export type {
+  MockPlacementProviderOptions,
+  MockPlacementStatus,
+} from './mock/mock-placement-provider.js';
+export { InMemoryPlacementProviderRegistry } from './mock/in-memory-provider-registry.js';
+export type { InMemoryPlacementProviderRegistryOptions } from './mock/in-memory-provider-registry.js';

@@ -1,0 +1,9 @@
+export { InMemoryCompanyRepository } from './company.repository.js';
+export { InMemoryCampaignRepository } from './campaign.repository.js';
+export { InMemoryAuditLogRepository } from './audit-log.repository.js';
+export { InMemoryPlacementOpportunityRepository } from './opportunity.repository.js';
+export { InMemoryLookupRepository } from './lookup.repository.js';
+export { InMemoryAIAnalysisRepository } from './ai-analysis.repository.js';
+export { InMemoryPlacementRepository } from './placement.repository.js';
+export { InMemoryVerificationRepository } from './verification.repository.js';
+export { InMemoryEvidenceRepository } from './evidence.repository.js';

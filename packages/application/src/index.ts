@@ -10,14 +10,37 @@ import type {
 } from './ports/repositories/audit-log.repository.js';
 import type { AIAnalysisDraft } from './ports/repositories/ai-analysis.repository.js';
 import type { LookupRepository } from './ports/repositories/lookup.repository.js';
+import type {
+  EvidenceRepository,
+  EvidenceDraft,
+} from './ports/repositories/evidence.repository.js';
+import type {
+  PlatformDiscoverySource,
+  DiscoverySourceInput,
+  DiscoveryCandidate,
+  DiscoverySourceResult,
+} from './ports/discovery-sources.js';
+import type { PlacementProviderRegistry } from './ports/provider-registry.js';
 
 export type { CompanyRepository, CampaignRepository };
 export type { PlacementOpportunityRepository, PlacementRepository };
 export type { VerificationRepository, AIAnalysisRepository, AuditLogRepository };
-export type { AuditLogDraft, AIAnalysisDraft };
-export type { LookupRepository };
+export type { AuditLogDraft, AIAnalysisDraft, EvidenceDraft };
+export type { LookupRepository, EvidenceRepository };
+export type { PlacementProviderRegistry };
+export type {
+  PlatformDiscoverySource,
+  DiscoverySourceInput,
+  DiscoveryCandidate,
+  DiscoverySourceResult,
+};
 
-export { NotFoundError, NoCompanyAnalysisError } from './errors.js';
+export {
+  NotFoundError,
+  NoCompanyAnalysisError,
+  NoProviderAvailableError,
+  NoProviderAssignedError,
+} from './errors.js';
 
 export type {
   CreateCompanyCommand,
@@ -44,3 +67,28 @@ export type {
   ClassifyOpportunityCommand,
   DeterministicScoreInputs,
 } from './dtos/opportunity-commands.js';
+export type {
+  AnalyzeCompanyCommand,
+  GeneratePlacementStrategyCommand,
+} from './dtos/analysis-commands.js';
+export type {
+  ApproveOpportunityCommand,
+  ExecutePlacementCommand,
+  MonitorPlacementCommand,
+  VerifyPlacementCommand,
+} from './dtos/placement-commands.js';
+export type {
+  RequestManualPlacementCommand,
+  CompleteManualPlacementCommand,
+} from './dtos/manual-placement-commands.js';
+
+export { AnalyzeCompanyUseCase } from './use-cases/analysis/analyze-company.use-case.js';
+export { GeneratePlacementStrategyUseCase } from './use-cases/analysis/generate-placement-strategy.use-case.js';
+export { CatalogPlatformDiscoverySource } from './use-cases/opportunity/catalog-platform-discovery-source.js';
+export { ApproveOpportunityUseCase } from './use-cases/placement/approve-opportunity.use-case.js';
+export { ExecutePlacementUseCase } from './use-cases/placement/execute-placement.use-case.js';
+export { MonitorPlacementUseCase } from './use-cases/placement/monitor-placement.use-case.js';
+export { VerifyPlacementUseCase } from './use-cases/placement/verify-placement.use-case.js';
+export { RequestManualPlacementUseCase } from './use-cases/placement/request-manual-placement.use-case.js';
+export { CompleteManualPlacementUseCase } from './use-cases/placement/complete-manual-placement.use-case.js';
+export type { VerifyPlacementResult } from './use-cases/placement/verify-placement.use-case.js';

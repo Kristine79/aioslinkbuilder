@@ -1,5 +1,10 @@
 import type { PlacementOpportunity, PlacementCategory, ScoreBreakdown } from '@aios/domain';
-import { assertTransitionPlacement, calculateScoreBreakdown } from '@aios/domain';
+import {
+  EXECUTION_REQUIRED_CAPABILITIES,
+  assertTransitionPlacement,
+  calculateScoreBreakdown,
+  deriveProviderAlignment,
+} from '@aios/domain';
 import type { AIProvider } from '@aios/ai';
 import { companyAnalysisSchema, opportunityClassificationSchema, validateAIOutput } from '@aios/ai';
 
@@ -9,6 +14,7 @@ import type { AIAnalysisRepository } from '../../ports/repositories/ai-analysis.
 import type { AuditLogRepository } from '../../ports/repositories/audit-log.repository.js';
 import type { LookupRepository } from '../../ports/repositories/lookup.repository.js';
 import type { PlacementOpportunityRepository } from '../../ports/repositories/opportunity.repository.js';
+import type { PlacementProviderRegistry } from '../../ports/provider-registry.js';
 
 /**
  * Neutral value used for deterministic score dimensions (authority, placement
@@ -27,6 +33,12 @@ const CLASSIFICATION_SCHEMA_VERSION = '1';
  * audience match, geographic relevance) and the placement type. Deterministic
  * dimensions come from the command (or default to neutral). The final score is
  * always computed by the domain layer; AI never writes a score directly.
+ *
+ * Provider alignment is read from the PlacementProviderRegistry — the same
+ * single source of truth that ExecutePlacementUseCase uses — so the method
+ * and capabilities recorded at classification can never disagree with what
+ * execution sees (including environment policy such as the demo/production
+ * MOCK distinction).
  */
 export class ClassifyOpportunityUseCase {
   constructor(
@@ -34,6 +46,7 @@ export class ClassifyOpportunityUseCase {
     private readonly opportunities: PlacementOpportunityRepository,
     private readonly analyses: AIAnalysisRepository,
     private readonly lookups: LookupRepository,
+    private readonly providers: PlacementProviderRegistry,
     private readonly auditLog: AuditLogRepository,
   ) {}
 
@@ -71,6 +84,8 @@ export class ClassifyOpportunityUseCase {
 
     assertTransitionPlacement(opportunity.status, 'QUALIFIED');
 
+    const alignment = await this.loadProviderAlignment(opportunity.platformId);
+
     const classified: PlacementOpportunity = {
       ...opportunity,
       categoryId: resolveCategoryId(categories, validated.category),
@@ -80,6 +95,8 @@ export class ClassifyOpportunityUseCase {
       scoreBreakdown: breakdown,
       recommendation: validated.recommendationReason,
       whyRecommended: describeBreakdown(breakdown),
+      placementMethod: alignment.method,
+      providerCapabilities: alignment.provider?.capabilities ?? [],
       status: 'QUALIFIED',
       updatedAt: new Date(),
     };
@@ -109,6 +126,8 @@ export class ClassifyOpportunityUseCase {
         categoryId: classified.categoryId,
         placementType: classified.placementType,
         score: classified.score,
+        placementMethod: classified.placementMethod,
+        providerId: alignment.provider?.id ?? null,
       },
     });
 
@@ -116,12 +135,8 @@ export class ClassifyOpportunityUseCase {
   }
 
   private async loadCompanyAnalysis(campaignId: string) {
-    const analyses = await this.analyses.findByCampaignId(campaignId);
-    const analysis = analyses.find(
-      (candidate) =>
-        candidate.analysisType === 'COMPANY_ANALYSIS' && candidate.validationStatus === 'VALID',
-    );
-    if (analysis === undefined) {
+    const analysis = await this.analyses.findLatestValidCompanyAnalysis(campaignId);
+    if (analysis === null) {
       throw new NoCompanyAnalysisError(campaignId);
     }
     return validateAIOutput(
@@ -129,6 +144,11 @@ export class ClassifyOpportunityUseCase {
       analysis.structuredOutput,
       'stored companyAnalysis',
     );
+  }
+
+  private async loadProviderAlignment(platformId: string) {
+    const providers = await this.providers.listByPlatformId(platformId);
+    return deriveProviderAlignment(providers, EXECUTION_REQUIRED_CAPABILITIES);
   }
 
   private async loadPlatformMetadata(platformId: string) {

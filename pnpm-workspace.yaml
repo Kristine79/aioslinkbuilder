@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - apps/*
 
 # pnpm 11 moved allow-build policy to `allowBuilds`; `onlyBuiltDependencies`
 # is kept for compatibility with pnpm 10.

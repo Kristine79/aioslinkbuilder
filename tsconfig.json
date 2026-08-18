@@ -27,9 +27,11 @@
     }
   },
   "include": [
+    "apps/api/src/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/infrastructure/prisma/**/*.ts",
     "tests/**/*.ts",
+    "scripts/**/*.ts",
     "vitest.*.ts"
   ]
 }

@@ -1,4 +1,6 @@
 import { Prisma } from '@prisma/client';
+import { PROVIDER_CAPABILITIES } from '@aios/domain';
+import type { ProviderCapability } from '@aios/domain';
 
 export function toDomainMetadata(
   value: Prisma.JsonValue | null,
@@ -17,4 +19,15 @@ export function toPrismaJson(
   }
   const parsed: unknown = JSON.parse(JSON.stringify(value));
   return parsed as Prisma.InputJsonValue;
+}
+
+export function toDomainCapabilities(value: Prisma.JsonValue): ProviderCapability[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(
+    (capability): capability is ProviderCapability =>
+      typeof capability === 'string' &&
+      PROVIDER_CAPABILITIES.includes(capability as ProviderCapability),
+  );
 }

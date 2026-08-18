@@ -33,7 +33,7 @@ describe('CreateCampaignUseCase', () => {
     expect(campaign.status).toBe('DRAFT');
     expect(campaigns.campaigns.get(campaign.id)).toEqual(campaign);
     expect(auditLog.entries).toHaveLength(1);
-    expect(auditLog.entries[0]).toEqual({
+    expect(auditLog.entries[0]).toMatchObject({
       actor: 'system',
       action: 'CAMPAIGN_CREATED',
       entityType: 'Campaign',

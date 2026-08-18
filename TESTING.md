@@ -23,7 +23,9 @@ Cover:
 
 ### E2E tests
 
-Minimum happy path:
+`tests/e2e/nordhaus-flow.test.ts` boots the real production composition
+(API + static UI serving) over HTTP on an ephemeral port and drives the
+complete Nordhaus journey as the UI would:
 
 ```text
 Create Campaign
@@ -35,6 +37,15 @@ Create Campaign
 → Mock Placement
 → Verify
 ```
+
+plus monitoring, retry-after-failure, the manual (human-in-the-loop) path,
+server-side filters, activity feed checks and negative cases (invalid
+transitions → 409, validation → 400, missing resources → 404).
+
+Deterministic by design: in-memory repositories (a real infrastructure
+module), MockProvider and a fixture AI provider — no database, no external
+services. Run with `pnpm test:e2e`; build the web app first
+(`pnpm build:web`) to exercise the static-UI serving assertions.
 
 ## Negative cases
 

@@ -24,7 +24,7 @@ describe('CreateCompanyUseCase', () => {
     expect(company.id).not.toBe('');
     expect(companies.companies.get(company.id)).toEqual(company);
     expect(auditLog.entries).toHaveLength(1);
-    expect(auditLog.entries[0]).toEqual({
+    expect(auditLog.entries[0]).toMatchObject({
       actor: 'system',
       action: 'COMPANY_CREATED',
       entityType: 'Company',

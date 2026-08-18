@@ -147,6 +147,42 @@ const PROVIDERS = [
     capabilitiesVerified: true,
     notes: 'Mock provider for demo purposes',
   },
+  {
+    id: 'provider-mebel-ru-mock',
+    platformId: 'platform-mebel-ru',
+    name: 'MebelRu Mock',
+    providerType: 'MOCK',
+    capabilities: ['CREATE', 'GET_STATUS', 'VERIFY'],
+    capabilitiesVerified: true,
+    notes: 'Mock provider for demo purposes (execution without discovery/validation)',
+  },
+  {
+    id: 'provider-archi-ru-mock',
+    platformId: 'platform-archi-ru',
+    name: 'ArchiRu Mock',
+    providerType: 'MOCK',
+    capabilities: ['CREATE', 'GET_STATUS', 'VERIFY'],
+    capabilitiesVerified: true,
+    notes: 'Mock provider for demo purposes',
+  },
+  {
+    id: 'provider-inmyroom-manual',
+    platformId: 'platform-inmyroom',
+    name: 'INMYROOM Manual',
+    providerType: 'MANUAL',
+    capabilities: ['VERIFY'],
+    capabilitiesVerified: true,
+    notes: 'Manual submission workflow; no automated create capability',
+  },
+  {
+    id: 'provider-vk-browser',
+    platformId: 'platform-vk',
+    name: 'VK Browser',
+    providerType: 'BROWSER',
+    capabilities: ['CREATE', 'GET_STATUS', 'VERIFY'],
+    capabilitiesVerified: false,
+    notes: 'Browser automation candidate; capabilities not yet verified',
+  },
 ] as const;
 
 const COMPANY = {

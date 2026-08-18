@@ -4,12 +4,15 @@ import { InvalidPlacementTransitionError, ValidationError } from '@aios/domain';
 import type { CompanyAnalysis } from '@aios/ai';
 import { AIOutputValidationError } from '@aios/ai';
 import {
+  CatalogPlatformDiscoverySource,
   ClassifyOpportunityUseCase,
   DiscoverOpportunitiesUseCase,
   NoCompanyAnalysisError,
   NotFoundError,
 } from '@aios/application';
+import type { DiscoverySourceInput, PlatformDiscoverySource } from '@aios/application';
 import type { PlacementOpportunity } from '@aios/domain';
+import { MockPlacementProvider } from '@aios/integrations';
 
 import {
   InMemoryAIAnalysisRepository,
@@ -18,9 +21,11 @@ import {
   InMemoryCompanyRepository,
   InMemoryLookupRepository,
   InMemoryPlacementOpportunityRepository,
+  InMemoryPlacementProviderRegistry,
   StubAIProvider,
   seedCategories,
   seedPlatforms,
+  seedProviders,
 } from './fakes.js';
 
 const COMPANY_ANALYSIS: CompanyAnalysis = {
@@ -53,6 +58,14 @@ async function createHarness(): Promise<Harness> {
 
   lookups.categories = seedCategories();
   lookups.platforms = seedPlatforms();
+  lookups.providers = seedProviders();
+
+  const registry = new InMemoryPlacementProviderRegistry(
+    lookups.providers,
+    new Map([
+      ['provider-1', new MockPlacementProvider('Mock A', lookups.providers[0]?.capabilities ?? [])],
+    ]),
+  );
 
   const company = await companies.create({ name: 'Nordhaus' });
   const campaign = await campaigns.create({
@@ -61,7 +74,14 @@ async function createHarness(): Promise<Harness> {
     goals: ['Grow visibility'],
   });
 
-  const discover = new DiscoverOpportunitiesUseCase(campaigns, lookups, opportunities, auditLog);
+  const discover = new DiscoverOpportunitiesUseCase(
+    campaigns,
+    companies,
+    lookups,
+    opportunities,
+    auditLog,
+    [new CatalogPlatformDiscoverySource(lookups)],
+  );
 
   return {
     companies,
@@ -86,6 +106,7 @@ async function createHarness(): Promise<Harness> {
       opportunities,
       analyses,
       lookups,
+      registry,
       auditLog,
     ),
   };
@@ -201,6 +222,51 @@ describe('DiscoverOpportunitiesUseCase', () => {
         categoryCodes: [''],
       }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  it('passes the real company profile (name and geography) to discovery sources', async () => {
+    const companies = new InMemoryCompanyRepository();
+    const campaigns = new InMemoryCampaignRepository();
+    const lookups = new InMemoryLookupRepository();
+    const opportunities = new InMemoryPlacementOpportunityRepository();
+    const auditLog = new InMemoryAuditLogRepository();
+    lookups.categories = seedCategories();
+    lookups.platforms = seedPlatforms();
+
+    const company = await companies.create({
+      name: 'Nordhaus',
+      geography: ['Moscow', 'Russia'],
+    });
+    const campaign = await campaigns.create({
+      companyId: company.id,
+      name: 'Campaign Name Differs From Company',
+      goals: ['Grow visibility'],
+    });
+    const received: DiscoverySourceInput[] = [];
+    const spySource: PlatformDiscoverySource = {
+      name: 'spy',
+      discover: (input) => {
+        received.push(input);
+        return Promise.resolve({ candidates: [] });
+      },
+    };
+    const discover = new DiscoverOpportunitiesUseCase(
+      campaigns,
+      companies,
+      lookups,
+      opportunities,
+      auditLog,
+      [spySource],
+    );
+
+    await discover.execute({ campaignId: campaign.id, placementType: 'BACKLINK' });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({
+      companyName: 'Nordhaus',
+      geography: ['Moscow', 'Russia'],
+      goals: ['Grow visibility'],
+    });
   });
 });
 
@@ -319,7 +385,14 @@ describe('ClassifyOpportunityUseCase', () => {
       name: 'Demo',
       goals: [],
     });
-    const discover = new DiscoverOpportunitiesUseCase(campaigns, lookups, opportunities, auditLog);
+    const discover = new DiscoverOpportunitiesUseCase(
+      campaigns,
+      companies,
+      lookups,
+      opportunities,
+      auditLog,
+      [new CatalogPlatformDiscoverySource(lookups)],
+    );
     const [opportunity] = await discover.execute({
       campaignId: campaign.id,
       placementType: 'BACKLINK',
@@ -351,6 +424,7 @@ describe('ClassifyOpportunityUseCase', () => {
       opportunities,
       analyses,
       lookups,
+      new InMemoryPlacementProviderRegistry(seedProviders()),
       auditLog,
     );
 

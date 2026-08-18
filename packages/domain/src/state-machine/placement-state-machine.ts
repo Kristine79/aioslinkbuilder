@@ -4,25 +4,34 @@ import { InvalidPlacementTransitionError } from '../errors.js';
 /**
  * Transition table for placement lifecycle.
  *
- * Happy path and failure transitions follow STATE_MACHINE.md.
- * Failure/manual states FAILED and VERIFICATION_FAILED are terminal for now:
- * recovery actions will be defined in a later phase. BLOCKED, NEEDS_MANUAL and
- * REJECTED exist as states but have no incoming transitions until the complete
- * failure table and recovery actions are specified.
+ * Happy path and failure transitions follow STATE_MACHINE.md. REJECTED,
+ * NEEDS_MANUAL and BLOCKED are reachable outcomes of provider monitoring
+ * (platform rejection, human action required, stuck in processing). Manual
+ * execution completes via NEEDS_MANUAL -> PUBLISHED. FAILED, BLOCKED,
+ * REJECTED and VERIFICATION_FAILED are terminal for a given attempt: a new
+ * attempt is a new Placement record (retry semantics), recovery actions for
+ * BLOCKED/REJECTED will be defined in a later phase.
  */
 export const PLACEMENT_TRANSITIONS: Readonly<Record<PlacementStatus, readonly PlacementStatus[]>> =
   {
     DISCOVERED: ['QUALIFIED'],
     QUALIFIED: ['SELECTED'],
-    SELECTED: ['READY'],
+    SELECTED: ['READY', 'NEEDS_MANUAL'],
     READY: ['SUBMITTED', 'FAILED'],
-    SUBMITTED: ['PENDING_PUBLICATION', 'PUBLISHED', 'FAILED'],
-    PENDING_PUBLICATION: ['PUBLISHED'],
+    SUBMITTED: [
+      'PENDING_PUBLICATION',
+      'PUBLISHED',
+      'FAILED',
+      'REJECTED',
+      'NEEDS_MANUAL',
+      'BLOCKED',
+    ],
+    PENDING_PUBLICATION: ['PUBLISHED', 'REJECTED', 'NEEDS_MANUAL', 'BLOCKED'],
     PUBLISHED: ['VERIFIED', 'VERIFICATION_FAILED'],
     VERIFIED: [],
     FAILED: [],
     BLOCKED: [],
-    NEEDS_MANUAL: [],
+    NEEDS_MANUAL: ['PUBLISHED'],
     VERIFICATION_FAILED: [],
     REJECTED: [],
   };

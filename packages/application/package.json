@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@aios/ai": "workspace:*",
-    "@aios/domain": "workspace:*"
+    "@aios/domain": "workspace:*",
+    "@aios/integrations": "workspace:*"
   }
 }

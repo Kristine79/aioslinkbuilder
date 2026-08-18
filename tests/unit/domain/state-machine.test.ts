@@ -15,6 +15,8 @@ describe('placement state machine', () => {
       ['DISCOVERED', 'QUALIFIED'],
       ['QUALIFIED', 'SELECTED'],
       ['SELECTED', 'READY'],
+      ['SELECTED', 'NEEDS_MANUAL'],
+      ['NEEDS_MANUAL', 'PUBLISHED'],
       ['READY', 'SUBMITTED'],
       ['SUBMITTED', 'PENDING_PUBLICATION'],
       ['SUBMITTED', 'PUBLISHED'],
@@ -22,6 +24,12 @@ describe('placement state machine', () => {
       ['PUBLISHED', 'VERIFIED'],
       ['READY', 'FAILED'],
       ['SUBMITTED', 'FAILED'],
+      ['SUBMITTED', 'REJECTED'],
+      ['SUBMITTED', 'NEEDS_MANUAL'],
+      ['SUBMITTED', 'BLOCKED'],
+      ['PENDING_PUBLICATION', 'REJECTED'],
+      ['PENDING_PUBLICATION', 'NEEDS_MANUAL'],
+      ['PENDING_PUBLICATION', 'BLOCKED'],
       ['PUBLISHED', 'VERIFICATION_FAILED'],
     ];
 
@@ -46,9 +54,15 @@ describe('placement state machine', () => {
       ['DISCOVERED', 'FAILED'],
       ['QUALIFIED', 'FAILED'],
       ['SELECTED', 'FAILED'],
+      ['QUALIFIED', 'NEEDS_MANUAL'],
+      ['READY', 'NEEDS_MANUAL'],
+      ['NEEDS_MANUAL', 'VERIFIED'],
+      ['NEEDS_MANUAL', 'FAILED'],
       ['VERIFIED', 'VERIFICATION_FAILED'],
       ['FAILED', 'READY'],
       ['FAILED', 'SUBMITTED'],
+      ['REJECTED', 'PUBLISHED'],
+      ['BLOCKED', 'PUBLISHED'],
     ];
 
     it.each(invalid)('rejects %s -> %s', (from, to) => {
@@ -92,23 +106,25 @@ describe('placement state machine', () => {
   });
 
   describe('failure and manual states', () => {
-    it('FAILED, BLOCKED, NEEDS_MANUAL, VERIFICATION_FAILED and REJECTED have no outgoing transitions yet', () => {
-      for (const state of [
-        'FAILED',
-        'BLOCKED',
-        'NEEDS_MANUAL',
-        'VERIFICATION_FAILED',
-        'REJECTED',
-      ] as const) {
+    it('FAILED, BLOCKED, VERIFICATION_FAILED and REJECTED have no outgoing transitions', () => {
+      for (const state of ['FAILED', 'BLOCKED', 'VERIFICATION_FAILED', 'REJECTED'] as const) {
         expect(PLACEMENT_TRANSITIONS[state]).toEqual([]);
       }
     });
 
-    it('BLOCKED, NEEDS_MANUAL and REJECTED have no incoming transitions until recovery actions are defined', () => {
-      const allTargets = Object.values(PLACEMENT_TRANSITIONS).flat();
-      expect(allTargets).not.toContain('BLOCKED');
-      expect(allTargets).not.toContain('NEEDS_MANUAL');
-      expect(allTargets).not.toContain('REJECTED');
+    it('NEEDS_MANUAL only transitions to PUBLISHED (manual completion)', () => {
+      expect(PLACEMENT_TRANSITIONS.NEEDS_MANUAL).toEqual(['PUBLISHED']);
+    });
+
+    it('BLOCKED, NEEDS_MANUAL and REJECTED are reachable from the submitted pipeline', () => {
+      const submittedTargets = PLACEMENT_TRANSITIONS.SUBMITTED;
+      const pendingTargets = PLACEMENT_TRANSITIONS.PENDING_PUBLICATION;
+      expect(submittedTargets).toContain('BLOCKED');
+      expect(submittedTargets).toContain('NEEDS_MANUAL');
+      expect(submittedTargets).toContain('REJECTED');
+      expect(pendingTargets).toContain('BLOCKED');
+      expect(pendingTargets).toContain('NEEDS_MANUAL');
+      expect(pendingTargets).toContain('REJECTED');
     });
   });
 });

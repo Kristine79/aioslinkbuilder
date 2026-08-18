@@ -55,31 +55,75 @@ Infrastructure
 
 Domain must not depend on UI, database implementations, HTTP clients, or specific AI vendors.
 
-Implemented packages (Phases 1, 2):
+Implemented packages (Phases 1, 2, 5):
 
 ```text
-apps/             not created yet — delivery layer (HTTP API, web UI) arrives in a later phase;
-                  `apps/api` will contain HTTP routes, validation of requests and a composition
-                  root only, never business logic (ADR-009)
+apps/
+  api/            HTTP delivery layer (Hono): routes + request parsing + error mapping +
+                  composition root only — never business logic (ADR-009). Also hosts the
+                  Nordhaus scenario module (fixtures, environment, demo, bootstrap) shared
+                  with `pnpm demo` and the API server.
+  web/            Russian UI (Vite + React + React Router, custom CSS design system):
+                  presentation only — no business logic, no state derivation; every value
+                  (status, ranking, allowed actions) comes from the API.
 packages/
   domain/         entities, enums, validation, capabilities, scoring, placement state machine
   application/    repository ports + use cases + command DTOs + application errors
-  infrastructure/ Prisma schema, migrations, Prisma repositories, seed
+  infrastructure/ Prisma schema, migrations, Prisma repositories, in-memory repositories, seed
   ai/             AI provider abstraction + zod-validated output schemas
-  integrations/   PlacementProvider contract (interface + DTOs); implementations later
+  integrations/   PlacementProvider contract (interface + DTOs); MockProvider + in-memory registry
 ```
 
 Dependency direction:
 
 ```text
-application → domain           (use cases orchestrate ports, validate via domain functions)
-infrastructure → application   (implements repository ports)
-infrastructure → domain        (Prisma row <-> domain entity mapping)
+apps/web → apps/api (HTTP)                     (presentation; SPA fallback served by the API)
+apps/api → application → domain                (routes call use cases, never mutate state directly)
+infrastructure → application                   (implements repository ports; in-memory repos are
+                                                shared by tests, `pnpm demo` and the API server)
+infrastructure → domain                        (Prisma row <-> domain entity mapping)
 infrastructure/ai/integrations depend on nothing outside their contracts
 ```
 
 No package may import from a layer below itself; delivery (`apps/api`) is the only allowed
 consumer of `application` + `infrastructure` composition.
+
+## 2.1 Delivery layer and UI (Phase 5)
+
+The delivery layer follows ADR-009: `apps/api` contains only routes, request parsing, DTO
+mapping and error mapping. All state changes go through application use cases; the domain
+state machine remains the only authority. The UI offers only actions the API reports as
+allowed for the current state (`allowedActions` in the DTOs) — the presentation gate never
+replaces domain enforcement.
+
+HTTP API (all JSON; errors `{ error: { code, message } }`):
+
+```text
+GET  /api/meta                  categories for filters
+GET  /api/company               company profile + latest AI analysis
+POST /api/company/analyze       re-run AnalyzeCompanyUseCase
+GET  /api/strategy              placement strategy items
+GET  /api/opportunities         ranked list; server-side filters category/method/status/minScore
+GET  /api/opportunities/:id     detail with placements, verification, evidence, allowed actions
+POST /api/opportunities/:id/approve|execute|request-manual
+POST /api/placements/:id/monitor|verify|complete-manual
+GET  /api/overview              campaign progress: counts, funnel, manual actions, recent activity
+GET  /api/activity              verifications + full audit journal
+```
+
+Error mapping: `NotFoundError` → 404 NOT_FOUND; `InvalidPlacementTransitionError` → 409
+INVALID_STATE; `ValidationError` → 400 VALIDATION; `NoProviderAvailableError`/
+`NoProviderAssignedError` → 422 NO_PROVIDER; `ProviderError` → 502 PROVIDER_ERROR; other → 500.
+
+Single-port production mode: `apps/api` serves the built web app (`apps/web/dist`) with SPA
+fallback; development uses Vite on :5173 with `/api` proxied to :8787 (no CORS). The API
+bootstraps the Nordhaus scenario to a mid-flight state so every screen opens with live data
+(verified, in-progress, failed-awaiting-retry, manual-awaiting-action and awaiting-approval
+items); the user continues the flow from the UI through the real use cases.
+
+The web app keeps zero business logic: `src/api/client.ts` is a thin typed fetch wrapper,
+`src/ru.ts` holds Russian labels only, screens render API state and trigger actions; scoring,
+provider selection, validation and state transitions are never duplicated on the client.
 
 ## 3. Domain entities
 
