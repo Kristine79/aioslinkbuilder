@@ -231,10 +231,7 @@ export function OpportunityScreen() {
                 onClick={() =>
                   void runAction(
                     () =>
-                      api.requestManual(
-                        opportunity.id,
-                        'Complete the partner application on the platform',
-                      ),
+                      api.requestManual(opportunity.id, 'Завершить заявку партнёра на площадке'),
                     'Размещение переведено в ручной режим.',
                   )
                 }

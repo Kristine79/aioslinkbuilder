@@ -356,7 +356,7 @@ export function createApiApp(services: ApiServices): Hono {
       totalPlacements: placements.length,
       funnel,
       manualActions,
-      recentActivity: recentActivity.reverse(),
+      recentActivity,
     };
     return c.json(overview);
   });

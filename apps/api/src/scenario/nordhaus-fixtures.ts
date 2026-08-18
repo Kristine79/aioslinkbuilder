@@ -20,56 +20,56 @@ export const NORDHAUS_CATEGORIES: PlacementCategory[] = [
   {
     id: 'cat-maps-local',
     code: 'maps-local',
-    name: 'Maps & local directories',
+    name: 'Карты и локальные каталоги',
     description: null,
     sortOrder: 1,
   },
   {
     id: 'cat-furniture-directories',
     code: 'furniture-directories',
-    name: 'Furniture directories',
+    name: 'Мебельные каталоги',
     description: null,
     sortOrder: 2,
   },
   {
     id: 'cat-interior-design',
     code: 'interior-design',
-    name: 'Interior & design',
+    name: 'Интерьер и дизайн',
     description: null,
     sortOrder: 3,
   },
   {
     id: 'cat-architecture',
     code: 'architecture',
-    name: 'Architecture',
+    name: 'Архитектура',
     description: null,
     sortOrder: 4,
   },
   {
     id: 'cat-professional-platforms',
     code: 'professional-platforms',
-    name: 'Professional platforms',
+    name: 'Профессиональные площадки',
     description: null,
     sortOrder: 5,
   },
   {
     id: 'cat-media-pr',
     code: 'media-pr',
-    name: 'Media & PR',
+    name: 'Медиа и PR',
     description: null,
     sortOrder: 6,
   },
   {
     id: 'cat-social-platforms',
     code: 'social-platforms',
-    name: 'Social platforms',
+    name: 'Социальные платформы',
     description: null,
     sortOrder: 7,
   },
   {
     id: 'cat-b2b-regional',
     code: 'b2b-regional',
-    name: 'B2B & regional platforms',
+    name: 'B2B и региональные площадки',
     description: null,
     sortOrder: 8,
   },
@@ -208,13 +208,18 @@ export const NORDHAUS_PROVIDERS: PlacementProvider[] = [
 ];
 
 export const NORDHAUS_COMPANY_ANALYSIS_FIXTURE: CompanyAnalysis = {
-  businessType: 'Premium made-to-order furniture manufacturer',
-  topics: ['made-to-order furniture', 'custom kitchens', 'built-in furniture', 'interior design'],
-  audiences: ['premium property owners', 'interior designers', 'architects', 'HoReCa'],
+  businessType: 'Производитель премиальной мебели на заказ',
+  topics: ['мебель на заказ', 'кухни на заказ', 'встроенная мебель', 'дизайн интерьеров'],
+  audiences: [
+    'владельцы премиальной недвижимости',
+    'дизайнеры интерьеров',
+    'архитекторы',
+    'HoReCa',
+  ],
   relevantCategories: ['maps-local', 'furniture-directories', 'interior-design', 'architecture'],
   strategicRecommendations: [
-    'Establish profiles on map services and furniture catalogues',
-    'Pitch editorial publications focused on interior design',
+    'Создать профили на картах и в мебельных каталогах',
+    'Публикации в интерьерных изданиях',
   ],
 };
 
@@ -225,7 +230,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 95,
     audienceMatch: 90,
     geographicRelevance: 100,
-    recommendationReason: 'Local map profile fits a premium furniture brand',
+    recommendationReason: 'Профиль на картах подходит премиальному мебельному бренду',
   },
   'https://2gis.ru': {
     category: 'maps-local',
@@ -233,7 +238,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 93,
     audienceMatch: 88,
     geographicRelevance: 100,
-    recommendationReason: 'City map listing matches the Moscow audience',
+    recommendationReason: 'Карточка на городской карте соответствует аудитории Москвы',
   },
   'https://mebel.ru': {
     category: 'furniture-directories',
@@ -241,7 +246,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 90,
     audienceMatch: 85,
     geographicRelevance: 90,
-    recommendationReason: 'Furniture catalogue matches the brand products',
+    recommendationReason: 'Мебельный каталог совпадает с продукцией бренда',
   },
   'https://inmyroom.ru': {
     category: 'interior-design',
@@ -249,7 +254,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 88,
     audienceMatch: 92,
     geographicRelevance: 80,
-    recommendationReason: 'Interior design media with a premium audience',
+    recommendationReason: 'Медиа об интерьерном дизайне с премиальной аудиторией',
   },
   'https://salon.ru': {
     category: 'interior-design',
@@ -257,7 +262,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 85,
     audienceMatch: 87,
     geographicRelevance: 75,
-    recommendationReason: 'Design publication for premium interiors',
+    recommendationReason: 'Дизайн-издание о премиальных интерьерах',
   },
   'https://www.houzz.ru': {
     category: 'interior-design',
@@ -265,7 +270,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 90,
     audienceMatch: 85,
     geographicRelevance: 70,
-    recommendationReason: 'Global design platform with a Russian audience',
+    recommendationReason: 'Глобальная дизайн-платформа с российской аудиторией',
   },
   'https://archi.ru': {
     category: 'architecture',
@@ -273,7 +278,7 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
     topicalRelevance: 80,
     audienceMatch: 75,
     geographicRelevance: 60,
-    recommendationReason: 'Architecture portal reaching architects',
+    recommendationReason: 'Архитектурный портал для аудитории архитекторов',
   },
 };
 

@@ -37,4 +37,8 @@ Negative:
 
 ## Database connectivity note
 
-The Neon direct (non-pooler) endpoint is unreachable from the local development network (connections reset), while the pooled endpoint works. Locally, `DIRECT_URL` therefore points at the pooled endpoint. On Vercel/CI the native direct endpoint should be used. This is a network property of the dev machine, not an application-level assumption; the application layer remains provider-agnostic.
+Historically, the Neon direct (non-pooler) endpoint was unreachable from the local development network (connections reset), while the pooled endpoint worked. Locally, `DIRECT_URL` therefore points at the pooled endpoint.
+
+Current state (pre-release audit, 2026-08): from the local development network both endpoints now reset during the SCRAM-SHA-256 authentication exchange (~30s), so no local `prisma` command or integration test can reach Neon from the dev machine. Prisma connections succeed from the Vercel network (`/api/health` reports `"prisma":"ok"` on production), confirming Neon itself is up. On Vercel/CI the native direct endpoint should be used.
+
+This is a network property of the dev machine, not an application-level assumption; the application layer remains provider-agnostic.

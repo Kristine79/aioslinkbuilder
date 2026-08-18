@@ -108,20 +108,25 @@ export async function seedNordhausScenario(
 ): Promise<NordhausScenarioSeed> {
   const company = await env.companies.create({
     name: 'Nordhaus',
-    description: 'Premium made-to-order furniture manufacturer (synthetic demo company)',
+    description: 'Производитель премиальной мебели на заказ (синтетическая демо-компания)',
     industry: 'furniture',
-    geography: ['Moscow', 'Russia'],
-    locations: ['Moscow'],
-    products: ['kitchens', 'wardrobes', 'built-in furniture', 'upholstered furniture'],
-    targetAudience: ['premium property owners', 'interior designers', 'architects', 'HoReCa'],
+    geography: ['Москва', 'Россия'],
+    locations: ['Москва'],
+    products: ['кухни', 'шкафы-купе', 'встроенная мебель', 'мягкая мебель'],
+    targetAudience: [
+      'владельцы премиальной недвижимости',
+      'дизайнеры интерьеров',
+      'архитекторы',
+      'HoReCa',
+    ],
     website: 'https://nordhaus.example.com',
   });
   const campaign = await env.campaigns.create({
     companyId: company.id,
     name: 'Nordhaus Demo Campaign',
     goals: [
-      'Publish the premium furniture brand on interior and design directories',
-      'Establish profiles on local maps and furniture catalogues',
+      'Продвижение премиального мебельного бренда в интерьерных и дизайнерских каталогах',
+      'Создание профилей на картах и в мебельных каталогах',
     ],
   });
 

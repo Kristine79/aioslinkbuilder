@@ -181,11 +181,11 @@ export function resolveCategoryId(
 
 export function describeBreakdown(breakdown: ScoreBreakdown): string {
   return (
-    `Topical relevance ${breakdown.topicalRelevance}/100, ` +
-    `audience match ${breakdown.audienceMatch}/100, ` +
-    `geographic relevance ${breakdown.geographicRelevance}/100, ` +
-    `authority ${breakdown.authority}/100, ` +
-    `placement quality ${breakdown.placementQuality}/100, ` +
-    `automation potential ${breakdown.automationPotential}/100`
+    `Тематическая релевантность ${breakdown.topicalRelevance}/100, ` +
+    `совпадение аудитории ${breakdown.audienceMatch}/100, ` +
+    `географическая релевантность ${breakdown.geographicRelevance}/100, ` +
+    `авторитетность ${breakdown.authority}/100, ` +
+    `качество размещения ${breakdown.placementQuality}/100, ` +
+    `потенциал автоматизации ${breakdown.automationPotential}/100`
   );
 }

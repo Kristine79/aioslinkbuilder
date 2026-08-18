@@ -290,7 +290,7 @@ describe('ClassifyOpportunityUseCase', () => {
       placementQuality: 50,
       automationPotential: 50,
     });
-    expect(classified.whyRecommended).toContain('Topical relevance 90/100');
+    expect(classified.whyRecommended).toContain('Тематическая релевантность 90/100');
   });
 
   it('throws NotFoundError for a missing opportunity', async () => {

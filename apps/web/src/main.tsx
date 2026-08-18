@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './components/AppShell';
 import { ActivityScreen } from './screens/ActivityScreen';
@@ -15,6 +15,18 @@ if (rootElement === null) {
   throw new Error('Root element #root not found');
 }
 
+function NotFoundScreen() {
+  return (
+    <div>
+      <h1 className="page-title">Страница не найдена</h1>
+      <p className="page-subtitle">По этому адресу ничего нет.</p>
+      <Link className="btn btn-secondary" to="/">
+        Вернуться к обзору
+      </Link>
+    </div>
+  );
+}
+
 createRoot(rootElement).render(
   <StrictMode>
     <BrowserRouter>
@@ -25,7 +37,7 @@ createRoot(rootElement).render(
           <Route path="/opportunities" element={<OpportunitiesScreen />} />
           <Route path="/opportunities/:id" element={<OpportunityScreen />} />
           <Route path="/activity" element={<ActivityScreen />} />
-          <Route path="*" element={<DashboardScreen />} />
+          <Route path="*" element={<NotFoundScreen />} />
         </Route>
       </Routes>
     </BrowserRouter>
