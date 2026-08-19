@@ -72,6 +72,36 @@ describe('loadRuntimeConfig', () => {
   });
 });
 
+describe('loadRuntimeConfig with MOCK_PROVIDERS', () => {
+  it('denies MOCK providers by default (production-safe)', () => {
+    expect(loadRuntimeConfig(DEFAULTS).allowMockProviders).toBe(false);
+    expect(
+      loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'deny' }).allowMockProviders,
+    ).toBe(false);
+  });
+
+  it('allows MOCK providers only for explicit "allow"', () => {
+    expect(loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'allow' }).allowMockProviders).toBe(
+      true,
+    );
+    expect(
+      loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: ' ALLOW ' }).allowMockProviders,
+    ).toBe(true);
+  });
+
+  it('fails startup on unknown values instead of silently allowing mocks', () => {
+    expect(() => loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'true' })).toThrow(
+      /MOCK_PROVIDERS must be/,
+    );
+    expect(() => loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: '1' })).toThrow(
+      /MOCK_PROVIDERS must be/,
+    );
+    expect(() => loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'allow-once' })).toThrow(
+      /MOCK_PROVIDERS must be/,
+    );
+  });
+});
+
 describe('loadRuntimeConfig with DISCOVERY_PROVIDER=ai-search', () => {
   const REAL_AI_SEARCH = {
     DISCOVERY_MODE: 'real',

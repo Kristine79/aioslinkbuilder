@@ -12,22 +12,30 @@ Vercel
   ├── serverless function: api/index.mjs (Hono app, single instance per warm run)
   │     └── routes /api/* → /api/index via vercel.json rewrite
   ├── serverless function: api/health.mjs (DB + Prisma probe)
-  └── env: DATABASE_URL, DIRECT_URL (Neon), AI_MODE/DISCOVERY_MODE/OPENCODE_*
+  └── env: DATABASE_URL, DIRECT_URL (Neon), AI_MODE/DISCOVERY_MODE/OPENCODE_*,
+            MOCK_PROVIDERS (default deny, ADR-015)
 Neon PostgreSQL (managed, pooled + direct endpoints)
 ```
 
 Single-port local mode (`pnpm start`, :8787) serves the same app: API +
 built web UI with SPA fallback — the Vercel function is the same `createApiApp` +
-`runNordhausBootstrap` composition.
+`createPrismaEnvironment` composition.
 
 ## Runtime composition
 
-- `scripts/vercel-entry.ts` (bundled to `api/index.mjs` by esbuild) builds the
-  production composition: real repositories (Prisma), provider registry with
-  `allowMocks: false`, real AI provider when `AI_MODE=real` (fail-fast without a key),
+- `scripts/vercel-entry.ts` (bundled to `api/index.mjs` by esbuild) and
+  `apps/api/src/server.ts` (`pnpm start`) build the production composition:
+  `loadRuntimeConfig()` → `createPrismaEnvironment(config)`. Real repositories
+  (Prisma), real AI provider when `AI_MODE=real` (fail-fast without a key),
   real web-search discovery when `DISCOVERY_MODE=real`.
+- MOCK placement providers are gated by `MOCK_PROVIDERS` (default `deny`):
+  the registry excludes MOCK records from listing and resolution
+  (`ProviderUnavailableError`), so automated execution against synthetic
+  providers is impossible in production (ADR-015). Only demo/test
+  compositions set `MOCK_PROVIDERS=allow`; an unknown value fails startup.
 - The bootstrap reproduces the Nordhaus mid-flight scenario **only for the demo
-  composition**; production boots from the empty database.
+  composition** (`pnpm demo`, `scripts/demo-nordhaus.ts`); production boots from the
+  empty database.
 - Provider selection is pure domain logic: verified providers supporting
   CREATE+VERIFY are chosen by type priority; MOCK is excluded at the registry
   boundary in production.

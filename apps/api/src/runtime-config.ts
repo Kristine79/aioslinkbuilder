@@ -12,6 +12,13 @@
  *     duckduckgo (default) — DuckDuckGo HTML search;
  *     ai-search — a search-capable AI provider (e.g. perplexity/sonar on
  *     OpenRouter) whose real citations become search results.
+ * - MOCK_PROVIDERS controls whether MOCK placement providers may be bound
+ *   into the delivery composition:
+ *     allow — bind MOCK providers (demo / test / preview environments);
+ *     deny (default) — the registry excludes MOCK providers, so automated
+ *     placement execution against synthetic providers is impossible.
+ *   Production must never set "allow": an unknown value fails startup
+ *   instead of silently enabling mocks.
  *
  * Explicitly requesting a real mode without the required credentials is a
  * startup error — the product never silently falls back to demo data when
@@ -52,6 +59,8 @@ export interface RuntimeConfig {
   discoveryProvider: DiscoveryProvider;
   openCode: OpenCodeRuntimeConfig | null;
   aiSearch: AiSearchRuntimeConfig | null;
+  /** MOCK placement providers may be bound into this composition (demo/test only). */
+  allowMockProviders: boolean;
   /** Bounds for real web discovery (cost/latency limits for serverless). */
   discoveryLimits: DiscoveryLimits;
 }
@@ -83,6 +92,7 @@ export function loadRuntimeConfig(
   const aiMode = parseMode(env.AI_MODE, 'AI_MODE', 'demo');
   const discoveryMode = parseMode(env.DISCOVERY_MODE, 'DISCOVERY_MODE', 'demo');
   const discoveryProvider = parseDiscoveryProvider(env.DISCOVERY_PROVIDER);
+  const allowMockProviders = parseMockProviders(env.MOCK_PROVIDERS);
 
   const apiKey = (env.OPENCODE_API_KEY ?? '').trim();
   const wantsReal = aiMode === 'real' || discoveryMode === 'real';
@@ -100,6 +110,7 @@ export function loadRuntimeConfig(
     aiMode,
     discoveryMode,
     discoveryProvider,
+    allowMockProviders,
     openCode: wantsReal
       ? {
           apiKey,
@@ -203,6 +214,21 @@ function parseDiscoveryProvider(value: string | undefined): DiscoveryProvider {
   throw new RuntimeConfigError(
     `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". ` +
       'Leave it unset for the DuckDuckGo backend.',
+  );
+}
+
+/**
+ * MOCK providers are opt-in: the default is deny, and any unrecognized value
+ * fails startup instead of silently allowing synthetic providers.
+ */
+function parseMockProviders(value: string | undefined): boolean {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (normalized === '') return false;
+  if (normalized === 'allow') return true;
+  if (normalized === 'deny') return false;
+  throw new RuntimeConfigError(
+    `MOCK_PROVIDERS must be "allow" or "deny", got "${value}". ` +
+      'Leave it unset (or set "deny") for the production-safe default.',
   );
 }
 

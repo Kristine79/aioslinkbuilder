@@ -75,11 +75,26 @@ The mock is deterministic and stateful per placement:
 ### Demo/production policy
 
 Provider selection itself is pure domain logic and never reads the
-environment. The demo/test composition binds `MockPlacementProvider`
-implementations and allows MOCK provider records; the production
-composition passes `allowMocks: false` to the provider registry, which
-excludes MOCK records from listing and resolution — a MOCK provider can
-never be selected in production.
+environment. The demo/test composition enables MOCK providers; the
+production composition denies them by default (ADR-015). The switch is a
+single runtime flag — `MOCK_PROVIDERS` — parsed at startup by the delivery
+API (`apps/api/src/runtime-config.ts`):
+
+- `MOCK_PROVIDERS=deny` (default) — the registry gates MOCK records out of
+  listing and resolution (`ProviderUnavailableError`), so a MOCK provider
+  can never be selected for automated execution. MANUAL providers stay
+  listed, but no synthetic implementation is bound in deny mode: requesting
+  one fails loudly instead of fabricating verification results.
+- `MOCK_PROVIDERS=allow` — demo/test/preview only: binds
+  `MockPlacementProvider` implementations so the full placement lifecycle
+  can be demonstrated.
+- Any unrecognized value fails startup — the product never silently enables
+  mocks.
+
+The flag is checked at the composition boundary only
+(`buildRegistry(providers, allowMockProviders)` in
+`apps/api/src/prisma-environment.ts`); the domain and application layers are
+unaware of it.
 
 ## Initial real-world provider research
 

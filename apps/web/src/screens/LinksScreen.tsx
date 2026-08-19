@@ -37,6 +37,7 @@ export function LinksScreen() {
       const anchorType = item.anchorStrategy?.anchorType ?? null;
       const verified = item.placements.some((p) => p.status === 'VERIFIED');
       const liveUrl = item.placements.find((p) => p.status === 'VERIFIED')?.liveUrl ?? null;
+      const isDemoProvider = item.placements.some((p) => p.providerType === 'MOCK');
       const anchorCount = 1;
       return {
         platformName: item.platformName,
@@ -48,6 +49,7 @@ export function LinksScreen() {
         anchorType,
         verified,
         liveUrl,
+        isDemoProvider,
         anchorCount,
       };
     });
@@ -145,9 +147,12 @@ export function LinksScreen() {
                         : '—'}
                     </td>
                     <td>
-                      <span className="badge tone-gray">
-                        {STATUS_LABELS[row.status] ?? row.status}
-                      </span>
+                      <div className="flex" style={{ gap: 8, alignItems: 'center' }}>
+                        <span className="badge tone-gray">
+                          {STATUS_LABELS[row.status] ?? row.status}
+                        </span>
+                        {row.isDemoProvider && <span className="chip">демо-провайдер</span>}
+                      </div>
                     </td>
                     <td>
                       {row.verified && row.liveUrl !== null ? (

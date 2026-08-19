@@ -10,6 +10,11 @@
  * The provider registry stays in-memory (MockProvider implementations) until
  * real platform integrations exist; provider entity records come from the
  * database so alignment/classification reads live data (ADR-012).
+ *
+ * MOCK providers are gated by the runtime config: `MOCK_PROVIDERS=deny`
+ * (the default) binds no synthetic implementations, so the registry excludes
+ * them and automated placement execution against mocks is impossible in
+ * production (ADR-015). Only demo/test compositions set `MOCK_PROVIDERS=allow`.
  */
 
 import { OpenCodeAIProvider, AISearchClient } from '@aios/ai';
@@ -120,7 +125,7 @@ export async function createPrismaEnvironment(
       'Platform catalog is empty. Run `pnpm db:seed` to load categories, platforms and providers.',
     );
   }
-  const registry = buildRegistry(providers);
+  const registry = buildRegistry(providers, config.allowMockProviders);
 
   let discoverySources: PlatformDiscoverySource[];
   if (config.discoveryMode === 'real') {
@@ -182,28 +187,37 @@ export async function createPrismaEnvironment(
  * Binds provider entity records (from the database) to the executable
  * MockProvider implementations. Scenario tweaks (2GIS timeline, Archi.ru
  * first-create failure) are keyed by provider id, matching the Prisma seed.
+ *
+ * When `allowMocks` is false (production default, ADR-015) no synthetic
+ * implementations are bound: MOCK providers stay out of every listing and
+ * `resolve` for them throws `ProviderUnavailableError`, which makes the
+ * automated execute/monitor/verify lifecycle against synthetic providers
+ * impossible while real data and MANUAL flow keep working.
  */
-function buildRegistry(
+export function buildRegistry(
   providers: readonly PlacementProvider[],
+  allowMocks: boolean,
 ): InMemoryPlacementProviderRegistry {
   const mockProviders = providers.filter(
     (provider) => provider.providerType === 'MOCK' || provider.providerType === 'MANUAL',
   );
   const bindings = new Map<string, MockPlacementProvider>();
-  for (const provider of mockProviders) {
-    let options: ConstructorParameters<typeof MockPlacementProvider>[2] = undefined;
-    if (provider.id === 'provider-2gis-mock') {
-      options = { timeline: ['pending_publication', 'published'] };
+  if (allowMocks) {
+    for (const provider of mockProviders) {
+      let options: ConstructorParameters<typeof MockPlacementProvider>[2] = undefined;
+      if (provider.id === 'provider-2gis-mock') {
+        options = { timeline: ['pending_publication', 'published'] };
+      }
+      if (provider.id === 'provider-archi-ru-mock') {
+        options = { failCreate: 1 };
+      }
+      bindings.set(
+        provider.id,
+        new MockPlacementProvider(provider.name, provider.capabilities, options),
+      );
     }
-    if (provider.id === 'provider-archi-ru-mock') {
-      options = { failCreate: 1 };
-    }
-    bindings.set(
-      provider.id,
-      new MockPlacementProvider(provider.name, provider.capabilities, options),
-    );
   }
-  return new InMemoryPlacementProviderRegistry([...providers], bindings, { allowMocks: true });
+  return new InMemoryPlacementProviderRegistry([...providers], bindings, { allowMocks });
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

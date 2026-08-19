@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm build:vercel",
+  "buildCommand": "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL} npx prisma migrate deploy --schema packages/infrastructure/prisma/schema.prisma && pnpm build:vercel",
   "outputDirectory": "apps/web/dist",
   "rewrites": [
     {

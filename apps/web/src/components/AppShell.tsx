@@ -83,15 +83,6 @@ export function AppShell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-mark">AI</div>
-          <div>
-            <div className="sidebar-brand-name">AI Backlink OS</div>
-            <div className="sidebar-brand-sub">
-              AI-powered platform for discovering, evaluating and acquiring high-quality backlinks.
-            </div>
-          </div>
-        </div>
         <nav className="sidebar-nav">
           {NAV.map((entry) => (
             <NavLink

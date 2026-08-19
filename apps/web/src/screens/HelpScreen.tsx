@@ -1,8 +1,8 @@
 /**
  * Help Center — in-app documentation for AI Backlink OS.
- * Left anchor navigation on desktop, horizontal scrollable chips on narrow
- * screens. Content is presentation-only and describes the actual application
- * behavior (see src/help/sections.tsx).
+ * Section navigation lives in the «Разделы» column; content of the selected
+ * section is rendered to the right. Content is presentation-only and
+ * describes the actual application behavior (see src/help/sections.tsx).
  */
 
 import { useEffect } from 'react';
@@ -22,15 +22,6 @@ export function HelpScreen() {
           Как находить, оценивать и получать качественные backlink-размещения с помощью AI
         </p>
       </div>
-
-      <nav className="help-nav" aria-label="Разделы справки">
-        {HELP_SECTIONS.map((section) => (
-          <a key={section.id} href={`#${section.id}`} className="help-nav-link">
-            <span className="help-nav-num">{section.num}</span>
-            {section.title}
-          </a>
-        ))}
-      </nav>
 
       <div className="help-layout">
         <aside className="help-toc">
