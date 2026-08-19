@@ -139,6 +139,16 @@ editorial platforms and a deterministic profile fallback.
 **only** from the explicit human-triggered `APPROVED → SENT` transition — never
 automatically. The demo mock returns a deterministic id.
 
+### Placement plan (decision engine)
+
+The AI placement plan (ADR-013) introduces **no new integrations and no new
+provider capabilities**: it reads provider availability through the existing
+registry (`selectBestProvider`) with the same capability model (`CREATE` +
+`VERIFY` for automatic execution, `VERIFY`-only for manual, `OUTREACH` always
+available) and calls the existing AI provider abstraction (`generatePlacementPlan`).
+A platform without a verified `CREATE` capability yields `REVIEW_REQUIRED` /
+manual handling — never a fabricated automatic step.
+
 ## Real-data vs demo-data policy
 
 Never present demo/mock SEO metrics as real measurements. Every external metric

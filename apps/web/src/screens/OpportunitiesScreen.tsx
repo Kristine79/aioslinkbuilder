@@ -12,6 +12,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { CategoryDto, DiscoverResultDto, OpportunityDto } from '../api/types';
 import { Chip, ChipList, ErrorState, LoadingState, StatusBadge } from '../components/ui';
+import { HelpTip } from '../components/HelpTip';
 import { ScoreBadge } from '../components/Score';
 import {
   ACTION_LABELS,
@@ -361,7 +362,13 @@ function OpportunityRow({ opportunity }: { opportunity: OpportunityDto }) {
       </div>
       <div className="row-side">
         <ScoreBadge score={opportunity.score} />
-        <span className="score-caption">балл</span>
+        <span className="score-caption">
+          балл{' '}
+          <HelpTip
+            text="Балл 0–100 по факторам: релевантность, донор, качество размещения, автоматизация. Это оценка, а не гарантия — смотрите разбивку в карточке."
+            align="right"
+          />
+        </span>
       </div>
     </div>
   );

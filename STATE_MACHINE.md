@@ -88,3 +88,12 @@ REJECTED → PUBLISHED
 - The database is the persistence layer and does not independently enforce domain transitions; no database triggers or database-level state enforcement are used in this prototype.
 - Every transition should be testable.
 - State changes should produce audit events where appropriate.
+
+## Non-state read-side layers (placement plan)
+
+The AI placement plan ("План размещений", see ADR-013) is a **derived, read-side
+decision layer and introduces no states or transitions**. It classifies opportunities
+into `RECOMMENDED` / `REVIEW_REQUIRED` / `NOT_RECOMMENDED` and lets the human
+approve/execute them, but every resulting action goes through the ordinary transitions
+above (`SELECTED → READY`, `SELECTED → NEEDS_MANUAL`, ...). The plan is never an
+alternate path to publish.

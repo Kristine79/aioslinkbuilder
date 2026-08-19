@@ -8,6 +8,7 @@ import { CompaniesScreen } from './screens/CompaniesScreen';
 import { CompanyScreen } from './screens/CompanyScreen';
 import { CompareScreen } from './screens/CompareScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { HelpScreen } from './screens/HelpScreen';
 import { LinksScreen } from './screens/LinksScreen';
 import { OpportunityScreen } from './screens/OpportunityScreen';
 import { OpportunitiesScreen } from './screens/OpportunitiesScreen';
@@ -45,6 +46,7 @@ createRoot(rootElement).render(
           <Route path="/links" element={<LinksScreen />} />
           <Route path="/activity" element={<ActivityScreen />} />
           <Route path="/companies" element={<CompaniesScreen />} />
+          <Route path="/help" element={<HelpScreen />} />
           <Route path="*" element={<NotFoundScreen />} />
         </Route>
       </Routes>

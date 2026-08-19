@@ -119,11 +119,20 @@ POST /api/opportunities/:id/approve|execute|request-manual
 POST /api/placements/:id/monitor|verify|complete-manual
 GET  /api/overview              campaign progress, counts, human actions, negotiations
 GET  /api/activity              verifications + full audit journal
+GET  /api/placement-plan        AI placement plan (decision map), latest by default
+POST /api/placement-plan        (re)generate the placement plan
+GET  /api/campaigns/:id/placement-plan   same, scoped to a campaign
+POST /api/campaigns/:id/placement-plan   same, scoped to a campaign
 ```
+
+For the campaign-scoped routes the `:id` route parameter wins; otherwise an explicit
+`?campaignId=` query is honored, with the seeded campaign as the final fallback.
 
 Error mapping: `NotFoundError` → 404 NOT_FOUND; `InvalidPlacementTransitionError` → 409
 INVALID_STATE; `ValidationError` → 400 VALIDATION; `NoProviderAvailableError`/
-`NoProviderAssignedError` → 422 NO_PROVIDER; `ProviderError` → 502 PROVIDER_ERROR; other → 500.
+`NoProviderAssignedError` → 422 NO_PROVIDER; `ProviderError` → 502 PROVIDER_ERROR;
+`NoPlacementPlanError` → 404 NO_PLACEMENT_PLAN; `PlanGenerationFailedError` →
+502 PLAN_GENERATION_FAILED; other → 500.
 
 Single-port production mode: `apps/api` serves the built web app (`apps/web/dist`) with SPA
 fallback; development uses Vite on :5173 with `/api` proxied to :8787 (no CORS). The API
@@ -180,6 +189,20 @@ Link-building intelligence use cases (`packages/application/src/use-cases/intel/
 - UpdateOutreachStatus — human-in-the-loop outreach transitions (SENT is human-triggered)
 - AnalyzeNegotiationReply — negotiation copilot
 - RespondNegotiation — human approves/sends the AI-prepared response
+
+Placement plan (decision engine) use cases (`packages/application/src/use-cases/plan/`):
+
+- GeneratePlacementPlan — one batched AI call over all discovered opportunities (see
+  `plan-builder.ts`); the AI interprets the deterministic signals (score, donor quality,
+  risk, provider availability, strategy support) into a decision map, which is persisted
+  as an `AIAnalysis` row of type `PLACEMENT_PLAN` and audited. See ADR-013.
+- GetPlacementPlan — materializes the plan for the API/UI by re-reconciling the stored
+  decision map against the **current** per-opportunity state (provider/score changes are
+  reflected without a new AI call); the domain `reconcilePlanDecision` is authoritative
+  for the final bucket/action/automation.
+
+The placement plan is a read-side decision layer. It never mutates placement state: the
+state machine remains the only authority for `SELECTED/READY/...` transitions.
 
 Use cases must not contain presentation logic.
 

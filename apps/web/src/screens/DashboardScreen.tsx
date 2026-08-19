@@ -10,6 +10,7 @@ import { api } from '../api/client';
 import type { OverviewDto } from '../api/types';
 import { Alert, ErrorState, LoadingState, StatCard } from '../components/ui';
 import { HumanActionsPanel } from '../components/HumanActionsPanel';
+import { WorkflowDiagram } from '../components/WorkflowDiagram';
 import {
   AUDIT_ACTION_LABELS,
   FUNNEL_LABELS,
@@ -52,6 +53,23 @@ export function DashboardScreen() {
 
   return (
     <div>
+      <section className="hero card mb-16">
+        <div className="hero-top">
+          <div>
+            <div className="hero-brand">AI Backlink OS</div>
+            <div className="hero-tagline">
+              AI-powered platform for discovering, evaluating and acquiring high-quality backlinks.
+            </div>
+          </div>
+          <Link to="/help" className="btn btn-secondary btn-sm">
+            Как это работает?
+          </Link>
+        </div>
+        <div className="mt-16">
+          <WorkflowDiagram compact />
+        </div>
+      </section>
+
       <h1 className="page-title">Обзор кампании</h1>
       <p className="page-subtitle">
         {company.name} · {campaign.name}

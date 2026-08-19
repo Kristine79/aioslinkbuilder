@@ -1,5 +1,5 @@
 /* ============================================================
-   AI OS — Линкбилдинг. Design tokens + components.
+   AI Backlink OS. Design tokens + components.
    Restrained, professional AI SaaS look. Light content on a
    dark sidebar, one accent color, semantic status colors.
    ============================================================ */
@@ -132,6 +132,12 @@ button {
 .sidebar-brand-sub {
   font-size: 11px;
   color: #8b90a8;
+  line-height: 1.3;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .sidebar-nav {
@@ -341,6 +347,12 @@ h3 {
   }
   .topbar {
     padding: 10px 16px;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .topbar-company,
+  .topbar > a.text-tertiary {
+    display: none;
   }
   .sidebar {
     width: 64px;
@@ -589,6 +601,9 @@ h3 {
   font-weight: 500;
   line-height: 20px;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chip-unverified {
@@ -1060,6 +1075,13 @@ h3 {
   max-width: 280px;
 }
 
+@media (max-width: 720px) {
+  .campaign-switch {
+    min-width: 0;
+    max-width: 160px;
+  }
+}
+
 .topbar-company {
   white-space: nowrap;
   overflow: hidden;
@@ -1525,6 +1547,8 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .hitl-kind {
@@ -1650,4 +1674,498 @@ h3 {
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ---------- Hero (dashboard) ---------- */
+
+.hero {
+  padding: 20px;
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+}
+
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-brand {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.hero-tagline {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 4px;
+  max-width: 680px;
+}
+
+/* ---------- Product workflow diagram ---------- */
+
+.wf {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wf-step {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.hero .wf-step {
+  background: var(--surface);
+}
+
+.wf-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.wf-label {
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.wf-arrow {
+  color: var(--text-tertiary);
+  align-self: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.wf-detailed {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 640px;
+}
+
+.wf-detailed .wf-step {
+  padding: 10px 14px;
+}
+
+.wf-detailed .wf-arrow {
+  transform: rotate(90deg);
+  align-self: flex-start;
+  margin-left: 25px;
+  padding: 2px 0;
+}
+
+.wf-caption {
+  display: block;
+  margin-top: 6px;
+  padding-left: 28px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .wf {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .wf-arrow {
+    transform: rotate(90deg);
+    align-self: center;
+    padding: 2px 0;
+  }
+  .wf-detailed .wf-arrow {
+    align-self: flex-start;
+    margin-left: 25px;
+  }
+}
+
+/* ---------- Contextual help tooltip ---------- */
+
+.help-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  cursor: help;
+  flex-shrink: 0;
+  user-select: none;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.help-tip:hover .help-tip-panel,
+.help-tip:focus-visible .help-tip-panel {
+  display: block;
+}
+
+.help-tip-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(300px, 74vw);
+  background: #101828;
+  color: #f2f4f7;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 400;
+  box-shadow: var(--shadow-lg);
+  z-index: 40;
+  white-space: normal;
+  text-align: left;
+}
+
+.help-tip-panel a {
+  color: #c7cce6;
+  white-space: nowrap;
+}
+
+.help-tip[data-align='right'] .help-tip-panel {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.verification-row a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* ---------- Help Center ---------- */
+
+.help-header {
+  margin-bottom: 16px;
+}
+
+.help-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.help-toc {
+  position: sticky;
+  top: 88px;
+  max-height: calc(100vh - 104px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 12px;
+}
+
+.help-toc-heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+  padding: 0 8px;
+}
+
+.help-toc-link {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.help-toc-link:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.help-toc-num {
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 22px;
+}
+
+.help-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.help-section {
+  scroll-margin-top: 88px;
+}
+
+.help-section-header {
+  gap: 10px;
+}
+
+.help-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.help-section-title {
+  font-size: 15px;
+}
+
+.help-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: 0 0 10px;
+}
+
+.help-heading {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 16px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.help-list {
+  margin: 4px 0 10px;
+  padding-left: 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.help-list li {
+  margin: 4px 0;
+}
+
+.help-status-list {
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-status-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.help-steps {
+  margin: 4px 0 14px;
+  padding-left: 20px;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.help-steps li {
+  margin: 8px 0;
+}
+
+.help-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-faq-item {
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.help-faq-item summary {
+  cursor: pointer;
+  margin: 0;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13.5px;
+  list-style: none;
+}
+
+.help-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-faq-item summary::after {
+  content: '+';
+  float: right;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.help-faq-item[open] summary::after {
+  content: '–';
+}
+
+.help-faq-item[open] {
+  border-color: var(--border-strong);
+}
+
+.help-faq-item .help-heading {
+  margin: 0 0 6px;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.help-faq-item .help-text {
+  margin: 8px 0 0;
+}
+
+.help-details {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.help-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text);
+  list-style: none;
+}
+
+.help-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-details-body {
+  margin-top: 10px;
+}
+
+.help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.help-screen-block {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-screen-block:last-child {
+  border-bottom: none;
+}
+
+.help-screen-block .help-heading {
+  margin-top: 0;
+}
+
+.bg-soft {
+  background: var(--surface-soft);
+}
+
+.help-diagram-card {
+  padding: 16px;
+}
+
+.mono-chip {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 980px) {
+  .help-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .help-toc {
+    display: none;
+  }
+  .help-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    margin: 0 -4px 16px;
+    position: sticky;
+    top: 58px;
+    background: var(--bg);
+    z-index: 5;
+    scrollbar-width: thin;
+  }
+  .help-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .help-nav-link:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .help-nav-num {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+  }
+  .help-section {
+    scroll-margin-top: 112px;
+  }
 }

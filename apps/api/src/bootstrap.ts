@@ -46,9 +46,7 @@ export interface NordhausBootstrap extends ApiServices {
  * the API/UI instead. Falls back to the demo bootstrap when no real mode is
  * active.
  */
-export function createRealEnvironment(
-  config: RuntimeConfig = loadRuntimeConfig(),
-): ApiServices {
+export function createRealEnvironment(config: RuntimeConfig = loadRuntimeConfig()): ApiServices {
   const providerConfig = openCodeProviderConfig(config);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
 

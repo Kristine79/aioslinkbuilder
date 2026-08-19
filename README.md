@@ -1,4 +1,4 @@
-# AI OS — Link Building Module
+# AI Backlink OS
 
 Phases 0–6: modular-monolith monorepo with a strict domain layer, PostgreSQL (Neon) persistence, placement state machine, deterministic scoring, provider (incl. MockProvider) and AI abstractions, placement execution/verification flows, a delivery layer (`apps/api`, Hono) and a functional Russian UI (`apps/web`, Vite + React).
 

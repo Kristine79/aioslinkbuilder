@@ -58,6 +58,24 @@ AI may draft:
 
 Human approval is required before external publication.
 
+## Placement plan (decision engine)
+
+Input:
+- all discovered opportunities with their deterministic signals (score, Score 2.0
+  overall, donor quality, risk, provider availability, execution method, strategy
+  support)
+- company profile
+
+Output (one batched call, schema validated):
+- per-opportunity decision map: `RECOMMENDED` / `REVIEW_REQUIRED` /
+  `NOT_RECOMMENDED` (with reasons, suggested next action, automation mode, anchor
+  suggestion)
+
+The AI output is a *suggestion*: the domain `reconcilePlanDecision` re-derives the
+final bucket/action/automation from current deterministic scores (AI can never
+promote a low-scoring opportunity), and the plan is persisted/read as an
+`AIAnalysis` provenance artifact (ADR-013). The plan never mutates placement state.
+
 ## Provider selection
 
 AI may recommend a provider/method.

@@ -26,6 +26,7 @@ import {
 } from '../components/ui';
 import { ScoreBadge, ScoreBreakdown } from '../components/Score';
 import { DonorQualityPanel } from '../components/DonorQualityPanel';
+import { HelpTip } from '../components/HelpTip';
 import { PageAnalysisPanel, LinkInsertPanel } from '../components/PagePanel';
 import { OutreachPanel } from '../components/OutreachPanel';
 import { ScoreV2Panel, WorkflowPanel } from '../components/ScoreWorkflowPanel';
@@ -151,6 +152,10 @@ export function OpportunityScreen() {
             {opportunity.categoryName !== null ? ` · ${opportunity.categoryName}` : ''}
             {' · '}
             {TYPE_LABELS[opportunity.placementType] ?? opportunity.placementType}
+            <HelpTip
+              text="Формат размещения: вставка ссылки, гостевой пост, ресурсная страница и другие типы. Подробнее — в Справке."
+              align="right"
+            />
           </p>
         </div>
         <div className="flex" style={{ flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -171,7 +176,15 @@ export function OpportunityScreen() {
       )}
 
       <div className="mb-16">
-        <Card title="Требует действия">
+        <Card
+          title="Требует действия"
+          actions={
+            <HelpTip
+              text="Действия, которые система не выполняет без вас: одобрение, проверка, переговоры, ручное размещение."
+              align="right"
+            />
+          }
+        >
           <HumanActionsPanel actions={opportunity.humanActions} />
         </Card>
       </div>
@@ -233,7 +246,15 @@ export function OpportunityScreen() {
           </Card>
 
           {opportunity.scoreV2 !== null && (
-            <Card title="Оценка 2.0">
+            <Card
+              title="Оценка 2.0"
+              actions={
+                <HelpTip
+                  text="Итог из пяти составляющих: релевантность 30%, донор 25%, качество размещения 20%, исполнение 15%, риск 10%."
+                  align="right"
+                />
+              }
+            >
               <ScoreV2Panel scoreV2={opportunity.scoreV2} />
             </Card>
           )}
@@ -245,14 +266,34 @@ export function OpportunityScreen() {
           )}
 
           {opportunity.donorQuality !== null && (
-            <Card title="Качество донора">
+            <Card
+              title="Качество донора"
+              actions={
+                <>
+                  <HelpTip
+                    text="Насколько надёжна площадка: авторитетность, трафик, спам-риск, тематика и другие метрики."
+                    align="right"
+                  />
+                  <HelpTip
+                    text="У каждой метрики указан источник: измерено / оценка AI / демо / нет данных. UNKNOWN — нормально, система не выдумывает значения."
+                    align="right"
+                  />
+                </>
+              }
+            >
               <DonorQualityPanel
                 donor={opportunity.donorQuality}
                 riskLevel={opportunity.risk?.level ?? null}
               />
               {opportunity.risk !== null && opportunity.risk.reasons.length > 0 && (
                 <div className="risk-reasons mt-8" style={{ marginTop: 10 }}>
-                  <span className="outreach-hint">Факторы риска</span>
+                  <span className="outreach-hint">
+                    Факторы риска{' '}
+                    <HelpTip
+                      text="Сигналы риска донора: спам, качество ссылочного профиля, поведение площадки. Итог — низкий / средний / высокий."
+                      align="right"
+                    />
+                  </span>
                   <ul className="risk-list" style={{ marginTop: 4 }}>
                     {opportunity.risk.reasons.map((reason) => (
                       <li key={reason}>{reason}</li>
@@ -263,7 +304,15 @@ export function OpportunityScreen() {
             </Card>
           )}
 
-          <Card title="Данные площадки">
+          <Card
+            title="Данные площадки"
+            actions={
+              <HelpTip
+                text="Откуда найдена площадка: каталог, веб-поиск или рекомендация. Способ выполнения — как система будет выполнять размещение."
+                align="right"
+              />
+            }
+          >
             <div className="kv">
               <span className="kv-key">Платформа</span>
               <span className="kv-value">{opportunity.platformName}</span>
@@ -295,7 +344,15 @@ export function OpportunityScreen() {
         </div>
 
         <div className="grid" style={{ alignContent: 'start' }}>
-          <Card title="Рекомендация AI">
+          <Card
+            title="Рекомендация AI"
+            actions={
+              <HelpTip
+                text="Почему AI считает эту площадку подходящей: логика выбора и итоговая рекомендация. Решение всё равно за вами."
+                align="right"
+              />
+            }
+          >
             {opportunity.whyRecommended !== null && (
               <div style={{ fontSize: 13.5, marginBottom: 8 }}>{opportunity.whyRecommended}</div>
             )}
@@ -347,16 +404,22 @@ export function OpportunityScreen() {
           <Card
             title="Исполнение"
             actions={
-              opportunity.provider !== null ? (
-                <span className="chip">
-                  {opportunity.provider.name}
-                  {' · '}
-                  {PROVIDER_TYPE_LABELS[opportunity.provider.type] ?? opportunity.provider.type}
-                  {isDemoProvider ? ' · демо' : ''}
-                </span>
-              ) : (
-                <span className="chip">провайдер не выбран</span>
-              )
+              <>
+                <HelpTip
+                  text="Запуск размещения: автоматически через провайдера или вручную с подтверждением. Ошибки можно повторить новой попыткой."
+                  align="right"
+                />
+                {opportunity.provider !== null ? (
+                  <span className="chip">
+                    {opportunity.provider.name}
+                    {' · '}
+                    {PROVIDER_TYPE_LABELS[opportunity.provider.type] ?? opportunity.provider.type}
+                    {isDemoProvider ? ' · демо' : ''}
+                  </span>
+                ) : (
+                  <span className="chip">провайдер не выбран</span>
+                )}
+              </>
             }
           >
             {opportunity.providerCapabilities.length > 0 && (
@@ -565,6 +628,10 @@ function PlacementAttempt({
         <div className={`placement-check ${verified ? 'ok' : ''}`}>
           <span className="placement-check-mark">{verified ? '✓' : '…'}</span>
           Проверка: {verified ? 'проверено' : 'не проведена'}
+          <HelpTip
+            text="Подтверждение, что размещение реально существует, с сохранением доказательств (URL, содержимое, скриншот)."
+            align="right"
+          />
         </div>
       </div>
 

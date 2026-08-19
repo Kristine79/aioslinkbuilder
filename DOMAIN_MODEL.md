@@ -225,3 +225,48 @@ from the current state: review donor, approve opportunity, approve outreach,
 donor replied, negotiate price, manual placement, confirm publication. Each
 card states WHY the human is needed, WHAT the AI prepared and WHAT the human
 must do.
+
+---
+
+## Placement plan (decision engine, ADR-013)
+
+The AI placement plan is a **derived, read-side decision layer** (it is not
+operational state and does not live in the state machine).
+
+### PlacementPlanItem
+
+Per-opportunity decision produced by the AI and re-reconciled by the domain:
+
+- `opportunityId`
+- `recommendation` — `RECOMMENDED` | `REVIEW_REQUIRED` | `NOT_RECOMMENDED`
+  (domain `enums/placement-recommendation.ts`; the AI may suggest it, the domain
+  reconciles it from current scores)
+- `score` — effective deterministic score used for the bucket
+- `reasons`
+- `decision` — the reconciled outcome:
+  - `nextAction` — e.g. `EXECUTE`, `REQUEST_REVIEW`, `REVIEW`, `RESEARCH_DATA`,
+    scoped by automation mode
+  - `automation` — `AUTOMATIC` | `AI_ASSISTED` | `MANUAL`
+  - `executionMethod`
+  - `isHumanRequired` / `needsApproval`
+  - `providerAvailable`
+  - `strategySupportsType`
+  - `anchorRecommendation` — brand-anchor suggestion (AI) or stored
+    `intel.anchorStrategy` (domain prefers the latter)
+  - `commonRejection` — low score / high risk / insufficient data / no coverage
+
+### PlacementPlan
+
+- `campaignId`
+- `generatedAt` / `sourceAnalysisId`
+- `aiProviderLabel`
+- `items` — one per discovered opportunity (exact coverage: no missing, no invented ids)
+- `summary` — `weightedAutomationPercent`, `automationBreakdown`, `averageScore`,
+  `totalRecommended`
+
+Derivation: one batched AI call (`ScenarioAIProvider.generatePlacementPlan`) produces a
+strict zod-validated decision map persisted as an `AIAnalysis` row of type
+`PLACEMENT_PLAN` (`structuredOutput`). On read, `GetPlacementPlanUseCase` re-reconciles
+the stored decision map against the **current** opportunity state, so score/provider
+changes are reflected without a new AI call; generation failures surface as
+`PlanGenerationFailedError` (502).

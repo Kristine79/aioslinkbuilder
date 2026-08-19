@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { ActivityDto } from '../api/types';
 import { ErrorState, LoadingState, StatusBadge, VerificationBadge } from '../components/ui';
+import { HelpTip } from '../components/HelpTip';
 import { AUDIT_ACTION_LABELS, AUDIT_FILTER_LABELS, EVIDENCE_LABELS, formatDateTime } from '../ru';
 
 type AuditFilter = 'all' | 'placements' | 'opportunities' | 'analysis' | 'errors' | 'manual';
@@ -84,7 +85,13 @@ export function ActivityScreen() {
 
       <div className="grid">
         <div className="card">
-          <h2 className="card-title">Проверки ({data.verifications.length})</h2>
+          <h2 className="card-title">
+            Проверки ({data.verifications.length}){' '}
+            <HelpTip
+              text="Каждая проверка подтверждает, что размещение реально существует, и сохраняет доказательства. «Опубликовано» ≠ «Проверено»."
+              align="right"
+            />
+          </h2>
           {data.verifications.length === 0 ? (
             <div className="empty-note">
               Проверок пока нет — запустите размещение и проверьте его.

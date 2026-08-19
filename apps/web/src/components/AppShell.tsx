@@ -26,6 +26,7 @@ const NAV: readonly NavEntry[] = [
   { to: '/links', label: 'Ссылки и анкоры', icon: '⌁' },
   { to: '/activity', label: 'Активность и доказательства', icon: '≡' },
   { to: '/companies', label: 'Компании', icon: '◇' },
+  { to: '/help', label: 'Справка', icon: '?' },
 ];
 
 function Icon({ name }: { name: string }) {
@@ -85,8 +86,10 @@ export function AppShell() {
         <div className="sidebar-brand">
           <div className="sidebar-brand-mark">AI</div>
           <div>
-            <div className="sidebar-brand-name">AI OS</div>
-            <div className="sidebar-brand-sub">Линкбилдинг</div>
+            <div className="sidebar-brand-name">AI Backlink OS</div>
+            <div className="sidebar-brand-sub">
+              AI-powered platform for discovering, evaluating and acquiring high-quality backlinks.
+            </div>
           </div>
         </div>
         <nav className="sidebar-nav">
@@ -102,13 +105,11 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          AI OS · Линкбилдинг
-        </div>
+        <div className="sidebar-footer">AI Backlink OS</div>
       </aside>
       <div className="main">
         <div className="topbar">
-          <div className="topbar-title">AI OS · Линкбилдинг</div>
+          <div className="topbar-title">AI Backlink OS</div>
           {companies.length > 0 && (
             <div className="topbar-campaign">
               <label className="topbar-label" htmlFor="campaign-switcher">

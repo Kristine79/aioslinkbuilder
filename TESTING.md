@@ -40,12 +40,33 @@ Create Campaign
 
 plus monitoring, retry-after-failure, the manual (human-in-the-loop) path,
 server-side filters, activity feed checks and negative cases (invalid
-transitions → 409, validation → 400, missing resources → 404).
+transitions → 409, validation → 400, missing resources → 404). Since Phase 8 it
+also covers the AI placement plan lifecycle over HTTP: generation, deterministic
+regeneration equality, campaign-scoped routes, and a generic second company
+(«Студия «Атлас»») whose plan must not leak Nordhaus-specific text.
 
 Deterministic by design: in-memory repositories (a real infrastructure
 module), MockProvider and a fixture AI provider — no database, no external
 services. Run with `pnpm test:e2e`; build the web app first
 (`pnpm build:web`) to exercise the static-UI serving assertions.
+
+## Placement plan test coverage (Phase 8)
+
+- `tests/unit/domain/placement-plan.test.ts` — reconcile rules (score preservation,
+  audit-insensitive deterministic scores, BROWSER-unverified → REVIEW_PROVIDER,
+  insufficient data), summary weighted automation, `pickRecommendedToStart` sorting.
+- `tests/unit/ai/schemas.test.ts` — `placementPlanSchema`: valid output, unknown
+  suggestion, missing `opportunityId`, extra top-level field rejection.
+- `tests/unit/application/placement-plan.test.ts` — generate + persist + audit
+  `PLACEMENT_PLAN_GENERATED`; override over-optimistic AI (AI says RECOMMENDED but
+  score 40 → NOT_RECOMMENDED/LOW_SCORE); FAILED audit on failure; malformed AI
+  output; missing/extra coverage; stale plan after a new opportunity →
+  `PlanGenerationFailedError`; `NO_PLACEMENT_PLAN` before first generation.
+
+Harness pattern: `StubAIProvider.setPlacementPlan(...)` /
+`failPlacementPlan(...)` in `tests/unit/application/fakes.ts`; note that the
+in-memory opportunity repository drops score/status on `create`, so tests
+`create` then `update`.
 
 ## Negative cases
 

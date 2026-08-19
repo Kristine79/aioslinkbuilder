@@ -206,7 +206,9 @@ function parseDiscoveryProvider(value: string | undefined): DiscoveryProvider {
   );
 }
 
-function resolveDiscoveryLimits(env: Readonly<Record<string, string | undefined>>): DiscoveryLimits {
+function resolveDiscoveryLimits(
+  env: Readonly<Record<string, string | undefined>>,
+): DiscoveryLimits {
   const pick = (name: string, fallback: number): number => {
     const raw = Number(env[name] ?? '');
     return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : fallback;

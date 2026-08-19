@@ -138,3 +138,29 @@ Risk is computed deterministically from available signals (severity 1–3):
 | Traffic/authority mismatch | 2 |
 
 Level: 0 severity LOW, 1–2 MEDIUM, 3+ HIGH, no signals UNKNOWN.
+
+---
+
+## Placement plan thresholds (decision engine)
+
+The AI placement plan ("План размещений", ADR-013) interprets the deterministic
+signals into a per-opportunity decision. The recommendation thresholds are domain
+constants (`packages/domain/src/placement-plan.ts`):
+
+| Bucket | Condition |
+|---|---|
+| `RECOMMENDED` | effective score ≥ 75 and no high-risk blocker |
+| `REVIEW_REQUIRED` | effective score 55–74, or HIGH risk, or no verified CREATE provider for an automatic execution |
+| `NOT_RECOMMENDED` | effective score < 55, or insufficient data, or explicit low-score rejection |
+
+Notes:
+
+- Effective score = the deterministic opportunity score when `intel` is absent,
+  or the average of the opportunity score and `intel.scoreV2.overall` when both exist.
+  The AI never writes the numeric scores used here.
+- The AI may *suggest* a bucket, but `reconcilePlanDecision` re-derives the final
+  bucket/action/automation from the current scores — an over-optimistic AI cannot
+  promote a low-scoring opportunity.
+- Under-score reasons are preserved as context when the AI suggestion is kept.
+- The summary automation percentage is deterministic:
+  `(AUTOMATIC × 1 + AI_ASSISTED × 0.5) / total`, rounded.
