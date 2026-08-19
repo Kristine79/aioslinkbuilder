@@ -11,3 +11,6 @@ coverage/
 
 .vercel
 .env*
+
+# local test artifacts
+tmp-*.json
