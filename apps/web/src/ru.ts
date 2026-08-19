@@ -177,6 +177,7 @@ export const PROVIDER_TYPE_LABELS: Record<string, string> = {
 export const DISCOVERY_SOURCE_LABELS: Record<string, string> = {
   catalog: 'Каталог',
   search: 'Поиск',
+  'web-search': 'Веб-поиск',
   recommendation: 'Рекомендация',
   manual: 'Ручное добавление',
   unknown: 'Неизвестен',
@@ -185,6 +186,7 @@ export const DISCOVERY_SOURCE_LABELS: Record<string, string> = {
 export const AI_PROVIDER_LABELS: Record<string, string> = {
   'demo-ai': 'Демо-провайдер анализа',
   'scenario-stub': 'Демо-провайдер анализа',
+  'opencode-go': 'OpenCode Go',
 };
 
 export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
@@ -217,6 +219,37 @@ export const ACTION_LABELS: Record<string, string> = {
   completeManual: 'Подтвердить публикацию',
 };
 
+export const PLAN_RECOMMENDATION_LABELS: Record<string, string> = {
+  RECOMMENDED: 'Рекомендовано',
+  REVIEW_REQUIRED: 'Требует вашего решения',
+  NOT_RECOMMENDED: 'Не рекомендуется',
+  INSUFFICIENT_DATA: 'Недостаточно данных',
+};
+
+export const PLAN_NEXT_ACTION_LABELS: Record<string, string> = {
+  PREPARE_OUTREACH: 'Подготовить outreach',
+  REQUEST_MANUAL_PLACEMENT: 'Оформить вручную',
+  EXECUTE_AUTOMATICALLY: 'Запустить автоматически',
+  REVIEW_PROVIDER: 'Проверить провайдера',
+  REVIEW_OPPORTUNITY: 'Проверить возможность',
+  REJECT: 'Отклонить',
+};
+
+export const PLAN_AUTOMATION_LABELS: Record<string, string> = {
+  AUTOMATIC: 'Автоматически',
+  AI_ASSISTED: 'С участием AI',
+  HUMAN_REQUIRED: 'Требует человека',
+};
+
+export const PLAN_REJECTION_LABELS: Record<string, string> = {
+  LOW_SCORE: 'Низкая оценка',
+  HIGH_RISK: 'Высокий риск',
+  NO_PROVIDER: 'Нет провайдера',
+  UNSUITABLE_PLACEMENT_TYPE: 'Неподходящий тип размещения',
+  MANUAL_NEGOTIATION_REQUIRED: 'Требуются переговоры',
+  LOW_RELEVANCE: 'Низкая релевантность',
+};
+
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
   COMPANY_ANALYZED: 'Анализ компании выполнен',
   CAMPAIGN_CREATED: 'Кампания создана',
@@ -243,6 +276,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   NEGOTIATION_ANALYZED: 'Ответ проанализирован AI',
   NEGOTIATION_RESPONDED: 'Ответ согласован человеком',
   NEGOTIATION_AGREED: 'Договорённость достигнута',
+  PLACEMENT_PLAN_GENERATED: 'План размещений сформирован',
 };
 
 export const FUNNEL_LABELS: Record<string, string> = {

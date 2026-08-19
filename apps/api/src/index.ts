@@ -35,6 +35,7 @@ export type {
   ApiOpportunityDto,
   ApiOverviewDto,
   ApiPlacementDto,
+  ApiPlacementPlanDto,
   ApiProviderDto,
   ApiStrategyItemDto,
   ApiVerificationDto,

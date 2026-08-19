@@ -9,6 +9,7 @@ export const AI_ANALYSIS_TYPES = [
   'NEGOTIATION_ANALYSIS',
   'DONOR_QUALITY_ESTIMATES',
   'DONOR_RISK',
+  'PLACEMENT_PLAN',
 ] as const;
 
 export type AIAnalysisType = (typeof AI_ANALYSIS_TYPES)[number];

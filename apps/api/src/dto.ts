@@ -19,6 +19,7 @@ import type {
   PageAnalysis,
   Placement,
   PlacementOpportunity,
+  PlacementPlan,
   PlacementProvider,
   PlacementStatus,
   Platform,
@@ -286,6 +287,63 @@ export interface ApiErrorDto {
   error: { code: string; message: string };
 }
 
+export interface ApiPlanRejectionReasonDto {
+  kind: string;
+  text: string;
+}
+
+export interface ApiAnchorPlanRecommendationDto {
+  anchorType: string;
+  anchor: string;
+  explanation: string;
+}
+
+export interface ApiPlanItemDto {
+  opportunityId: string;
+  platformId: string;
+  platformName: string;
+  placementType: string;
+  placementMethod: string;
+  score: number | null;
+  overallScore: number | null;
+  donorQuality: number | null;
+  riskLevel: string | null;
+  providerAvailable: boolean;
+  recommendation: string;
+  recommendationReason: string;
+  nextAction: string;
+  automationLevel: string;
+  riskExplanation: string | null;
+  suggestedPlacementApproach: string | null;
+  rejectionReason: ApiPlanRejectionReasonDto | null;
+  anchorRecommendation: ApiAnchorPlanRecommendationDto | null;
+}
+
+export interface ApiPlanSummaryDto {
+  total: number;
+  recommended: number;
+  reviewRequired: number;
+  notRecommended: number;
+  insufficientData: number;
+  automationPercent: number;
+  byRejectionReason: string[];
+}
+
+export interface ApiPlacementPlanDto {
+  campaignId: string;
+  generatedAt: string;
+  provider: string;
+  model: string | null;
+  schemaVersion: string;
+  summary: ApiPlanSummaryDto;
+  recommendedToStart: Array<{
+    opportunityId: string;
+    platformName: string;
+    placementType: string;
+  }>;
+  items: ApiPlanItemDto[];
+}
+
 interface LookupMaps {
   platformById: ReadonlyMap<string, Platform>;
   categoryById: ReadonlyMap<string, PlacementCategory>;
@@ -437,8 +495,7 @@ export function mapOpportunity(
     typeof intel.donorQuality?.organicTraffic.value === 'number'
       ? intel.donorQuality.organicTraffic.value
       : null;
-  const geography =
-    intel.donorQuality?.trafficGeography.value ?? null;
+  const geography = intel.donorQuality?.trafficGeography.value ?? null;
   return {
     id: opportunity.id,
     campaignId: opportunity.campaignId,
@@ -593,8 +650,7 @@ function mapHumanActions(
     .filter((placement) => placement.status === 'NEEDS_MANUAL')
     .map((placement) => ({
       id: placement.id,
-      reason:
-        typeof placement.metadata?.reason === 'string' ? placement.metadata.reason : null,
+      reason: typeof placement.metadata?.reason === 'string' ? placement.metadata.reason : null,
     }));
   const items = deriveHumanActions({
     opportunityId: opportunity.id,
@@ -645,4 +701,62 @@ function candidateForDisplay(
     opportunity.placementMethod === 'MANUAL' ? ['VERIFY'] : EXECUTION_REQUIRED_CAPABILITIES,
   );
   return candidate === null ? null : mapProvider(candidate);
+}
+
+/** Serializes the AI placement plan for the UI. */
+export function mapPlacementPlan(plan: PlacementPlan): ApiPlacementPlanDto {
+  return {
+    campaignId: plan.campaignId,
+    generatedAt: toIso(plan.generatedAt),
+    provider: plan.provider,
+    model: plan.model,
+    schemaVersion: plan.schemaVersion,
+    summary: {
+      total: plan.summary.total,
+      recommended: plan.summary.recommended,
+      reviewRequired: plan.summary.reviewRequired,
+      notRecommended: plan.summary.notRecommended,
+      insufficientData: plan.summary.insufficientData,
+      automationPercent: plan.summary.automationPercent,
+      byRejectionReason: [...plan.summary.byRejectionReason],
+    },
+    recommendedToStart: plan.recommendedToStart.map((item) => ({
+      opportunityId: item.opportunityId,
+      platformName: item.platformName,
+      placementType: item.placementType,
+    })),
+    items: plan.items.map((item) => ({
+      opportunityId: item.opportunityId,
+      platformId: item.platformId,
+      platformName: item.platformName,
+      placementType: item.placementType,
+      placementMethod: item.placementMethod,
+      score: item.score,
+      overallScore: item.overallScore,
+      donorQuality: item.donorQuality,
+      riskLevel: item.riskLevel,
+      providerAvailable: item.providerAvailable,
+      recommendation: item.decision.recommendation,
+      recommendationReason: item.decision.recommendationReason,
+      nextAction: item.decision.nextAction,
+      automationLevel: item.decision.automationLevel,
+      riskExplanation: item.decision.riskExplanation,
+      suggestedPlacementApproach: item.decision.suggestedPlacementApproach,
+      rejectionReason:
+        item.decision.rejectionReason === null
+          ? null
+          : {
+              kind: item.decision.rejectionReason.kind,
+              text: item.decision.rejectionReason.text,
+            },
+      anchorRecommendation:
+        item.anchorRecommendation === null
+          ? null
+          : {
+              anchorType: item.anchorRecommendation.anchorType,
+              anchor: item.anchorRecommendation.anchor,
+              explanation: item.anchorRecommendation.explanation,
+            },
+    })),
+  };
 }

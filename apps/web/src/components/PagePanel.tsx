@@ -89,10 +89,10 @@ export function LinkInsertPanel({
           <div className="linkinsert-caption">Анкор-стратегия</div>
           <div className="flex" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <span className="anchor-badge">{anchor.anchor}</span>
-            <span className="chip">{ANCHOR_TYPE_LABELS[anchor.anchorType] ?? anchor.anchorType}</span>
-            {anchor.profileAvailable && (
-              <span className="chip">учтён анкор-профиль компании</span>
-            )}
+            <span className="chip">
+              {ANCHOR_TYPE_LABELS[anchor.anchorType] ?? anchor.anchorType}
+            </span>
+            {anchor.profileAvailable && <span className="chip">учтён анкор-профиль компании</span>}
           </div>
           <div className="mt-8 text-secondary" style={{ fontSize: 13 }}>
             {anchor.explanation}

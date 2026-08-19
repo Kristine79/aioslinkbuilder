@@ -48,5 +48,13 @@ export default tseslint.config(
       globals: globals.browser,
     },
   },
+  {
+    // In tests it is idiomatic to assert mock methods directly
+    // (expect(mock.method).toHaveBeenCalledWith(...)) without binding `this`.
+    files: ['**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+    },
+  },
   prettier,
 );

@@ -20,6 +20,7 @@ import {
   analyzeScenarioDonorReply,
   createNordhausEnvironment,
   executeScenarioPlacement,
+  generateScenarioPlacementPlan,
   monitorScenarioPlacement,
   prepareScenarioLinkInsert,
   requestManualScenarioPlacement,
@@ -37,6 +38,13 @@ export interface NordhausDemoReport {
   verificationCount: number;
   evidenceCount: number;
   auditActions: string[];
+  placementPlan: {
+    recommended: number;
+    reviewRequired: number;
+    notRecommended: number;
+    insufficientData: number;
+    automationPercent: number;
+  } | null;
 }
 
 export async function runNordhausDemo(): Promise<NordhausDemoReport> {
@@ -84,7 +92,8 @@ export async function runNordhausDemo(): Promise<NordhausDemoReport> {
   const houzzIntel = (houzz.metadata ?? {}) as Record<string, unknown>;
   record(
     `[4c] LinkInsert (${NORDHAUS_PLATFORM_IDS.houzz}): donor quality ${
-      (houzzIntel.donorQuality as { overallDonorQuality?: number | null }).overallDonorQuality ?? '—'
+      (houzzIntel.donorQuality as { overallDonorQuality?: number | null }).overallDonorQuality ??
+      '—'
     }, risk ${
       (houzzIntel.riskAssessment as { level?: string }).level ?? '—'
     }, outreach status ${(houzzIntel.outreach as { status?: string }).status ?? '—'}`,
@@ -100,6 +109,19 @@ export async function runNordhausDemo(): Promise<NordhausDemoReport> {
     `[4d] Negotiation (${NORDHAUS_PLATFORM_IDS.houzz}): intent ${
       (negIntel.negotiation as { analysis?: { intent?: string } }).analysis?.intent ?? '—'
     }`,
+  );
+
+  // Step 4.7: AI placement plan (decision engine) — one batch call over the
+  // whole opportunity set; every suggestion is reconciled with the
+  // deterministic score/risk/provider state before it is shown.
+  const plan = await generateScenarioPlacementPlan(env);
+  const planRows = plan.items.map(
+    (item) =>
+      `[${item.decision.recommendation}] ${item.platformName} (${item.decision.automationLevel})`,
+  );
+  record(`[4e] PlacementPlan: ${planRows.join('; ')}`);
+  record(
+    `[4e] PlacementPlan summary: ${plan.summary.recommended} recommended, ${plan.summary.reviewRequired} review, ${plan.summary.notRecommended} rejected, automation ${plan.summary.automationPercent}%`,
   );
 
   // Step 5: approve all executable + manual opportunities.
@@ -193,6 +215,13 @@ export async function runNordhausDemo(): Promise<NordhausDemoReport> {
     verificationCount: env.verifications.verifications.size,
     evidenceCount: env.evidence.evidence.size,
     auditActions: env.auditLog.entries.map((entry) => entry.action),
+    placementPlan: {
+      recommended: plan.summary.recommended,
+      reviewRequired: plan.summary.reviewRequired,
+      notRecommended: plan.summary.notRecommended,
+      insufficientData: plan.summary.insufficientData,
+      automationPercent: plan.summary.automationPercent,
+    },
   };
 
   record(

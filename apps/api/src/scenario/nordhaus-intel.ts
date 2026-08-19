@@ -8,11 +8,7 @@
  * becomes MEASURED automatically.
  */
 
-import type {
-  BacklinkProfile,
-  IndexingStatus,
-  PageAnalysis,
-} from '@aios/domain';
+import type { BacklinkProfile, IndexingStatus, PageAnalysis } from '@aios/domain';
 import { syntheticDatum, unknownDatum } from '@aios/domain';
 import type {
   OutreachProvider,
@@ -161,10 +157,7 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(91, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(8_400, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 24, external: 18, dofollow: 12 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 24, external: 18, dofollow: 12 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'Второй абзац, после упоминания материалов для кухонь',
     summary:
       'Подборка идей для кухни на заказ: материалы, планировка, бренды и советы дизайнеров. Статья открыта для редакционных ссылок на производителей мебели.',
@@ -179,10 +172,7 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(86, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(5_200, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 12, external: 9, dofollow: 6 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 12, external: 9, dofollow: 6 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'Третий абзац, в контексте встроенной мебели',
     summary:
       'Гид по выбору мебели для небольших квартир: встроенные шкафы, трансформируемая мебель, советы по экономии пространства.',
@@ -197,10 +187,7 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(84, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(6_900, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 16, external: 11, dofollow: 8 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 16, external: 11, dofollow: 8 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'После описания проекта с мягкой мебелью',
     summary:
       'Обзор интерьеров из коллекции журнала: авторские решения, мебель и аксессуары для премиальных пространств.',
@@ -215,13 +202,9 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(79, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(7_100, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 9, external: 7, dofollow: 4 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 9, external: 7, dofollow: 4 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'Внутри раздела «Производство и интерьеры»',
-    summary:
-      'Редакционный материал о производстве мебели и её роли в архитектурных интерьерах.',
+    summary: 'Редакционный материал о производстве мебели и её роли в архитектурных интерьерах.',
     analyzedAt: now(),
   },
   'https://designmate.ru': {
@@ -233,10 +216,7 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(87, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(3_800, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 14, external: 10, dofollow: 7 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 14, external: 10, dofollow: 7 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'Первый абзац, после вводного текста о рынке',
     summary:
       'Обзор премиальных кухонь: технологии производства, материалы, ведущие фабрики и бренды.',
@@ -251,10 +231,7 @@ export const PAGE_FIXTURES: Readonly<Record<string, PageAnalysis>> = {
     linkInsertSuitability: syntheticDatum(83, DEMO_SOURCE),
     indexation: syntheticDatum('INDEXED', DEMO_SOURCE),
     traffic: syntheticDatum(4_400, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 18, external: 13, dofollow: 9 },
-      DEMO_SOURCE,
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 18, external: 13, dofollow: 9 }, DEMO_SOURCE),
     suggestedPlacementLocation: 'Раздел «Встроенные шкафы»',
     summary:
       'Идеи по встроенной мебели: шкафы-купе, гардеробные, мебель для ниш и экономия пространства.',
@@ -343,10 +320,7 @@ export class ScenarioSeoMetricsProvider implements SeoMetricsProvider {
 /** Mock page analysis provider: curated synthetic pages for the demo. */
 export class ScenarioPageAnalysisProvider implements PageAnalysisProvider {
   readonly name = 'demo-page-analysis';
-  analyzePage(input: {
-    platformName: string;
-    url: string | null;
-  }): Promise<PageAnalysis> {
+  analyzePage(input: { platformName: string; url: string | null }): Promise<PageAnalysis> {
     const fixture = input.url === null ? undefined : PAGE_FIXTURES[input.url];
     if (fixture !== undefined) {
       return Promise.resolve(fixture);

@@ -7,6 +7,12 @@ import type { VerificationStatus } from './enums/verification-status.js';
 import type { EvidenceType } from './enums/evidence-type.js';
 import type { CampaignStatus } from './enums/campaign-status.js';
 import type { AIAnalysisType, AIAnalysisValidationStatus } from './enums/ai-analysis.js';
+import type {
+  PlacementRecommendation,
+  RecommendedAction,
+  AutomationLevel,
+  RejectionReasonKind,
+} from './enums/placement-recommendation.js';
 
 export type {
   PlacementStatus,
@@ -19,6 +25,10 @@ export type {
   CampaignStatus,
   AIAnalysisType,
   AIAnalysisValidationStatus,
+  PlacementRecommendation,
+  RecommendedAction,
+  AutomationLevel,
+  RejectionReasonKind,
 };
 
 export { PLACEMENT_STATUSES } from './enums/placement-status.js';
@@ -30,6 +40,12 @@ export { VERIFICATION_STATUSES } from './enums/verification-status.js';
 export { EVIDENCE_TYPES } from './enums/evidence-type.js';
 export { CAMPAIGN_STATUSES } from './enums/campaign-status.js';
 export { AI_ANALYSIS_TYPES, AI_ANALYSIS_VALIDATION_STATUSES } from './enums/ai-analysis.js';
+export {
+  PLACEMENT_RECOMMENDATIONS,
+  RECOMMENDED_ACTIONS,
+  AUTOMATION_LEVELS,
+  REJECTION_REASONS,
+} from './enums/placement-recommendation.js';
 
 export {
   DomainError,
@@ -121,11 +137,7 @@ export {
   OUTREACH_METHOD_PLACEMENT_TYPES,
   isOutreachPlacementType,
 } from './workflow.js';
-export type {
-  PlacementTypeWorkflow,
-  WorkflowStage,
-  WorkflowStageKind,
-} from './workflow.js';
+export type { PlacementTypeWorkflow, WorkflowStage, WorkflowStageKind } from './workflow.js';
 
 export {
   METRIC_STATUSES,
@@ -152,16 +164,8 @@ export type {
 export { PAGE_TYPES, emptyPageAnalysis } from './page-analysis.js';
 export type { PageType, OutboundLinkSignals, PageAnalysis } from './page-analysis.js';
 
-export {
-  ANCHOR_TYPES,
-  recommendAnchorType,
-  anchorTypeLabel,
-} from './anchors.js';
-export type {
-  AnchorType,
-  AnchorRecommendation,
-  AnchorRecommendationInput,
-} from './anchors.js';
+export { ANCHOR_TYPES, recommendAnchorType, anchorTypeLabel } from './anchors.js';
+export type { AnchorType, AnchorRecommendation, AnchorRecommendationInput } from './anchors.js';
 
 export type { LinkInsertDraft } from './link-insert.js';
 
@@ -172,12 +176,7 @@ export {
   assessDonorRisk,
   riskToScore,
 } from './donor-risk.js';
-export type {
-  RiskLevel,
-  RiskSignalKind,
-  RiskSignal,
-  DonorRiskAssessment,
-} from './donor-risk.js';
+export type { RiskLevel, RiskSignalKind, RiskSignal, DonorRiskAssessment } from './donor-risk.js';
 
 export {
   SCORE_V2_WEIGHTS,
@@ -196,10 +195,7 @@ export {
 } from './outreach.js';
 export type { OutreachStatus, OutreachMessage, OutreachDraft } from './outreach.js';
 
-export {
-  NEGOTIATION_INTENTS,
-  emptyNegotiationSession,
-} from './negotiation.js';
+export { NEGOTIATION_INTENTS, emptyNegotiationSession } from './negotiation.js';
 export type {
   NegotiationIntent,
   PriceRange,
@@ -208,16 +204,25 @@ export type {
   NegotiationSession,
 } from './negotiation.js';
 
-export {
-  HUMAN_ACTION_KINDS,
-  deriveHumanActions,
-} from './hitl.js';
-export type {
-  HumanActionKind,
-  HumanActionItem,
-  HumanActionContext,
-} from './hitl.js';
+export { HUMAN_ACTION_KINDS, deriveHumanActions } from './hitl.js';
+export type { HumanActionKind, HumanActionItem, HumanActionContext } from './hitl.js';
 
 export {
-  derivePlacementMethodForType,
-} from './alignment.js';
+  PLAN_MIN_SCORE_RECOMMENDED,
+  PLAN_MIN_SCORE_REVIEW_REQUIRED,
+  reconcilePlanDecision,
+  buildPlanSummary,
+  pickRecommendedToStart,
+} from './placement-plan.js';
+export type {
+  PlanDecisionSignals,
+  PlanDecisionAiSuggestion,
+  RejectionReason,
+  PlanDecision,
+  AnchorPlanRecommendation,
+  PlanDecisionItem,
+  PlanSummary,
+  PlacementPlan,
+} from './placement-plan.js';
+
+export { derivePlacementMethodForType } from './alignment.js';

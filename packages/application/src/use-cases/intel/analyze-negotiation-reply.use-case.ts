@@ -1,8 +1,5 @@
 import type { NegotiationAnalysis, PlacementOpportunity } from '@aios/domain';
-import {
-  assertTransitionOutreach,
-  emptyNegotiationSession,
-} from '@aios/domain';
+import { assertTransitionOutreach, emptyNegotiationSession } from '@aios/domain';
 import { ValidationError } from '@aios/domain';
 import type { AIProvider } from '@aios/ai';
 import { negotiationAnalysisSchema, validateAIOutput } from '@aios/ai';

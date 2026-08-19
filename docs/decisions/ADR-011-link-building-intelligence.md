@@ -21,7 +21,7 @@ The intelligence is exposed through new application-layer **ports**:
 
 New AI provider methods (`analyzePage`, `generateLinkInsert`, `recommendAnchor`,
 `generateOutreach`, `analyzeNegotiationReply`, `estimateDonorQuality`,
-`assessDonorRisk`) all return zod-validated *semantic* output that the
+`assessDonorRisk`) all return zod-validated _semantic_ output that the
 application layer wraps into domain state with the correct `MetricStatus`
 (e.g. `AI_ESTIMATED`). AI never writes a final numeric score.
 

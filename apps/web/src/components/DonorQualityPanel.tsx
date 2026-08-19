@@ -4,11 +4,7 @@
  */
 
 import type { DonorQualityDto, MetricDatumDto } from '../api/types';
-import {
-  DONOR_QUALITY_LEVEL_LABELS,
-  RISK_LEVEL_LABELS,
-  RISK_LEVEL_TONES,
-} from '../ru';
+import { DONOR_QUALITY_LEVEL_LABELS, RISK_LEVEL_LABELS, RISK_LEVEL_TONES } from '../ru';
 import { formatMetricValue } from './Metric';
 
 function toneFor(score: number | null): string {
@@ -30,7 +26,7 @@ function MetricRow({
 }) {
   const value = datum.value;
   const displayed =
-    value === null ? '—' : (format ? format(value) : new Intl.NumberFormat('ru-RU').format(value));
+    value === null ? '—' : format ? format(value) : new Intl.NumberFormat('ru-RU').format(value);
   const known = datum.status !== 'UNKNOWN';
   return (
     <div className="donor-row">
@@ -39,7 +35,9 @@ function MetricRow({
         {displayed}
       </span>
       <span className="donor-status">
-        <span className={`badge ${datum.status === 'MEASURED' ? 'tone-green' : datum.status === 'AI_ESTIMATED' ? 'tone-blue' : datum.status === 'SYNTHETIC' ? 'tone-amber' : datum.status === 'UNKNOWN' ? 'tone-gray' : 'tone-indigo'}`}>
+        <span
+          className={`badge ${datum.status === 'MEASURED' ? 'tone-green' : datum.status === 'AI_ESTIMATED' ? 'tone-blue' : datum.status === 'SYNTHETIC' ? 'tone-amber' : datum.status === 'UNKNOWN' ? 'tone-gray' : 'tone-indigo'}`}
+        >
           {datum.status === 'MEASURED'
             ? 'измерено'
             : datum.status === 'AI_ESTIMATED'
@@ -68,7 +66,13 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
   );
 }
 
-export function DonorQualityPanel({ donor, riskLevel }: { donor: DonorQualityDto; riskLevel?: string | null }) {
+export function DonorQualityPanel({
+  donor,
+  riskLevel,
+}: {
+  donor: DonorQualityDto;
+  riskLevel?: string | null;
+}) {
   const overall = donor.overallDonorQuality;
   return (
     <div>
@@ -107,7 +111,9 @@ export function DonorQualityPanel({ donor, riskLevel }: { donor: DonorQualityDto
           {donor.indexingStatus.value !== null && (
             <div className="donor-row">
               <span className="donor-label">Индексация</span>
-              <span className={`donor-value ${donor.indexingStatus.status === 'UNKNOWN' ? 'muted' : ''}`}>
+              <span
+                className={`donor-value ${donor.indexingStatus.status === 'UNKNOWN' ? 'muted' : ''}`}
+              >
                 {donor.indexingStatus.value === 'INDEXED'
                   ? 'проиндексирована'
                   : donor.indexingStatus.value === 'PARTIAL'
@@ -125,7 +131,9 @@ export function DonorQualityPanel({ donor, riskLevel }: { donor: DonorQualityDto
           {donor.keywordProfile.value !== null && donor.keywordProfile.value.length > 0 && (
             <div className="donor-row">
               <span className="donor-label">Ядро запросов</span>
-              <span className="donor-value donor-clamp">{formatMetricValue(donor.keywordProfile.value)}</span>
+              <span className="donor-value donor-clamp">
+                {formatMetricValue(donor.keywordProfile.value)}
+              </span>
             </div>
           )}
           {donor.backlinkProfile.value !== null && (

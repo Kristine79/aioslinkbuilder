@@ -57,7 +57,11 @@ export class RespondNegotiationUseCase {
     const now = new Date().toISOString();
     const hasCustomResponse =
       command.customResponse !== undefined && command.customResponse.trim().length > 0;
-    const response = hasCustomResponse ? command.customResponse!.trim() : (command.agree ? 'Согласовано, размещаем.' : 'Отклоняем.');
+    const response = hasCustomResponse
+      ? command.customResponse!.trim()
+      : command.agree
+        ? 'Согласовано, размещаем.'
+        : 'Отклоняем.';
     session.replies.push({ role: 'human', text: response, at: now });
 
     let nextOutreach = outreach;
@@ -79,7 +83,10 @@ export class RespondNegotiationUseCase {
       session.status = 'RESOLVED';
     }
 
-    const metadata = writeIntel(opportunity.metadata, { negotiation: session, outreach: nextOutreach });
+    const metadata = writeIntel(opportunity.metadata, {
+      negotiation: session,
+      outreach: nextOutreach,
+    });
     const updated = await this.opportunities.update({
       ...opportunity,
       metadata,

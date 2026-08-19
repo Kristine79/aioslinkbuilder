@@ -14,7 +14,12 @@ import type { AddressInfo } from 'node:net';
 import { serve, type ServerType } from '@hono/node-server';
 
 import { createServerApp, runNordhausBootstrap } from '@aios/api';
-import type { ApiOpportunityDto, ApiOverviewDto, ApiPlacementDto } from '@aios/api';
+import type {
+  ApiOpportunityDto,
+  ApiOverviewDto,
+  ApiPlacementDto,
+  ApiPlacementPlanDto,
+} from '@aios/api';
 
 interface PlacementResult {
   placementId: string;
@@ -260,6 +265,96 @@ describe('Nordhaus E2E: the complete placement journey over HTTP', () => {
     expect(actions).toContain('PLACEMENT_VERIFIED');
     expect(actions).toContain('PLACEMENT_MANUALLY_PUBLISHED');
     expect(actions).toContain('PLACEMENT_FAILED');
+  });
+
+  it('generates the placement plan, reconciles it and exposes it over the API', async () => {
+    // No plan yet: the GET returns a structured 404.
+    const missing = await request('/api/placement-plan');
+    expect(missing.status).toBe(404);
+    expect((missing.body as { error: { code: string } }).error.code).toBe('NO_PLACEMENT_PLAN');
+
+    const generated = await request('/api/placement-plan', { method: 'POST' });
+    expect(generated.status).toBe(200);
+    const plan = generated.body as ApiPlacementPlanDto;
+
+    // Every discovered opportunity is covered by exactly one decision.
+    const opportunities = await listOpportunities();
+    expect(plan.summary.total).toBe(opportunities.length);
+    expect(plan.items).toHaveLength(opportunities.length);
+    expect(
+      plan.summary.recommended + plan.summary.reviewRequired + plan.summary.notRecommended,
+    ).toBe(plan.summary.total);
+
+    // Deterministic reconciliation: automated execution only for API methods
+    // with a provider; outreach/manual opportunities require a human.
+    const automatic = plan.items.filter((item) => item.automationLevel === 'AUTOMATIC');
+    expect(automatic.length).toBeGreaterThan(0);
+    expect(automatic.every((item) => item.placementMethod === 'API')).toBe(true);
+
+    const humanItems = plan.items.filter((item) => item.automationLevel === 'HUMAN_REQUIRED');
+    expect(humanItems.length).toBeGreaterThan(0);
+
+    // The plan is deterministic: regenerating yields the same reconciled view.
+    const second = await request('/api/placement-plan', { method: 'POST' });
+    expect(second.status).toBe(200);
+    const secondPlan = second.body as ApiPlacementPlanDto;
+    expect(secondPlan.summary).toEqual(plan.summary);
+    const firstByOpportunity = new Map(
+      plan.items.map((item) => [item.opportunityId, item.recommendation]),
+    );
+    for (const item of secondPlan.items) {
+      expect(firstByOpportunity.get(item.opportunityId)).toBe(item.recommendation);
+    }
+
+    // The plan is stored and can be re-fetched.
+    const stored = await get<ApiPlacementPlanDto>('/api/placement-plan');
+    expect(stored.summary.total).toBe(plan.summary.total);
+    expect(stored.items[0]?.recommendationReason.length).toBeGreaterThan(0);
+
+    // The audit trail records the generation.
+    const activity = await get<{ audit: Array<{ action: string }> }>('/api/activity');
+    expect(activity.audit.map((entry) => entry.action)).toContain('PLACEMENT_PLAN_GENERATED');
+
+    // The campaign-scoped route resolves the same plan by campaign id.
+    const overview = await get<ApiOverviewDto>('/api/overview');
+    const scoped = await get<ApiPlacementPlanDto>(
+      `/api/campaigns/${overview.campaign.id}/placement-plan`,
+    );
+    expect(scoped.summary.total).toBe(plan.summary.total);
+  });
+
+  it('exposes the placement plan for a generic second company (no Nordhaus leaks)', async () => {
+    const created = await request('/api/companies', {
+      method: 'POST',
+      body: {
+        name: 'Студия «Атлас»',
+        website: 'https://atlas.example.com',
+        industry: 'design',
+        description: 'Студия интерьерного дизайна',
+        geography: ['Москва'],
+        products: ['дизайн-проекты'],
+        targetAudience: ['частные клиенты'],
+      },
+    });
+    const company = created.body as { id: string };
+    const campaignResponse = await request(`/api/companies/${company.id}/campaigns`, {
+      method: 'POST',
+      body: {
+        name: 'Атлас — кампания',
+        goals: ['Публикации в интерьерных медиа'],
+      },
+    });
+    const campaign = (campaignResponse.body as { id: string }).id;
+    await request(`/api/company/analyze?campaignId=${campaign}`, { method: 'POST' });
+    await request(`/api/discover?campaignId=${campaign}`, { method: 'POST' });
+
+    const plan = await request(`/api/placement-plan?campaignId=${campaign}`, { method: 'POST' });
+    expect(plan.status).toBe(200);
+    const body = plan.body as ApiPlacementPlanDto;
+    expect(body.summary.total).toBeGreaterThan(0);
+    // The plan text is generated from the actual campaign context.
+    const allText = body.items.map((item) => item.recommendationReason).join(' ');
+    expect(allText).not.toContain('Nordhaus');
   });
 });
 

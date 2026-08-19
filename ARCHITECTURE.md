@@ -207,6 +207,14 @@ Never allow an LLM response to directly mutate application state.
 
 AI provider should be abstracted so models can be changed without changing domain logic.
 
+Real AI mode (ADR-012): `OpenCodeAIProvider` (OpenCode Go, OpenAI-compatible
+chat completions) implements the full `AIProvider` contract — every method
+sends a dedicated prompt and the result is validated with zod
+(`validateAIOutput`) in the application layer. The client enforces a timeout,
+two transport retries with backoff, and exactly one corrective retry for
+malformed JSON. In real mode the `SeoMetricsProvider` is `null`, so all SEO
+metrics stay `UNKNOWN` — the product never substitutes synthetic data.
+
 ## 6. Provider architecture
 
 External placement platforms must implement a provider abstraction.

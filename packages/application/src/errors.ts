@@ -28,3 +28,18 @@ export class NoProviderAssignedError extends DomainError {
     super(`Placement "${placementId}" has no provider assigned`);
   }
 }
+
+export class PlanGenerationFailedError extends DomainError {
+  constructor(
+    readonly campaignId: string,
+    reason: string,
+  ) {
+    super(`Placement plan generation failed for campaign "${campaignId}": ${reason}`);
+  }
+}
+
+export class NoPlacementPlanError extends DomainError {
+  constructor(readonly campaignId: string) {
+    super(`No placement plan generated for campaign "${campaignId}"`);
+  }
+}

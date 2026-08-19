@@ -1,8 +1,11 @@
 import {
   ANCHOR_TYPES,
+  AUTOMATION_LEVELS,
   NEGOTIATION_INTENTS,
   PAGE_TYPES,
+  PLACEMENT_RECOMMENDATIONS,
   PLACEMENT_TYPES,
+  RECOMMENDED_ACTIONS,
   RISK_LEVELS,
 } from '@aios/domain';
 import { z } from 'zod';
@@ -115,3 +118,57 @@ export const donorRiskSchema = z.strictObject({
 });
 
 export type AIDonorRisk = z.infer<typeof donorRiskSchema>;
+
+export const placementPlanItemSchema = z.strictObject({
+  opportunityId: z.string().min(1),
+  recommendation: z.enum(PLACEMENT_RECOMMENDATIONS),
+  recommendationReason: z.string().min(1),
+  nextAction: z.enum(RECOMMENDED_ACTIONS),
+  automationLevel: z.enum(AUTOMATION_LEVELS),
+  riskExplanation: z.string().min(1).nullable(),
+  suggestedPlacementApproach: z.string().min(1).nullable(),
+  anchorRecommendation: z
+    .strictObject({
+      anchorType: z.enum(ANCHOR_TYPES),
+      anchor: z.string().min(1),
+      explanation: z.string().min(1),
+    })
+    .nullable(),
+});
+
+export type PlacementPlanItem = z.infer<typeof placementPlanItemSchema>;
+
+/**
+ * The AI decision map for a campaign: one item per discovered opportunity.
+ * AI only interprets existing signals; the domain planner reconciles every
+ * item with the deterministic score/provider/risk state before the plan
+ * reaches the UI.
+ */
+export const placementPlanSchema = z.strictObject({
+  items: z.array(placementPlanItemSchema),
+  overview: z.string().min(1).nullable(),
+});
+
+export type PlacementPlanDecisionMap = z.infer<typeof placementPlanSchema>;
+
+/**
+ * Structured search intent plan used by real web discovery: the AI decides
+ * which directions are worth researching for this company (category hints
+ * reference the catalog category codes passed in the prompt) and produces
+ * concrete web search queries. The discovery source executes the queries
+ * and never treats the LLM's category hints as a measurement.
+ */
+export const searchQueryPlanSchema = z.strictObject({
+  intents: z
+    .array(
+      z.strictObject({
+        intent: z.string().min(3).max(160),
+        categoryCode: z.string().min(3).max(60).nullable(),
+        queries: z.array(z.string().min(5).max(240)).min(1).max(3),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export type SearchQueryPlan = z.infer<typeof searchQueryPlanSchema>;

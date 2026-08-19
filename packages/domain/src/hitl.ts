@@ -77,8 +77,7 @@ export function deriveHumanActions(context: HumanActionContext): HumanActionItem
       kind: 'APPROVE_OPPORTUNITY',
       title: 'Требуется одобрить возможность',
       why: 'AI оценил площадку и рекомендует размещение.',
-      aiPrepared:
-        'AI подготовил оценку, разбивку баллов и объяснение рекомендации.',
+      aiPrepared: 'AI подготовил оценку, разбивку баллов и объяснение рекомендации.',
       humanTask: 'Одобрите возможность, чтобы перейти к следующему этапу.',
       actionLabel: 'Одобрить',
       opportunityId: context.opportunityId,
@@ -151,8 +150,7 @@ export function deriveHumanActions(context: HumanActionContext): HumanActionItem
       kind: 'MANUAL_PLACEMENT',
       title: 'Требуется ручное размещение',
       why: 'Размещение невозможно выполнить автоматически.',
-      aiPrepared:
-        'AI подготовил анкор, текст вставки и инструкцию по размещению.',
+      aiPrepared: 'AI подготовил анкор, текст вставки и инструкцию по размещению.',
       humanTask: 'Выполните размещение на площадке вручную и подтвердите публикацию.',
       actionLabel: 'Выполнить вручную',
       opportunityId: context.opportunityId,

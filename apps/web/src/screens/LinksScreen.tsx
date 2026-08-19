@@ -78,8 +78,8 @@ export function LinksScreen() {
         Кампания в целом: анкоры, типы размещений, доноры и проверенные ссылки.
       </p>
       <div className="text-tertiary" style={{ fontSize: 12, marginBottom: 12 }}>
-        Данные синтетические (демо). Анкор-профиль компании пока не подключён — распределение анкоров
-        приведено без ссылки на историю кампании.
+        Данные синтетические (демо). Анкор-профиль компании пока не подключён — распределение
+        анкоров приведено без ссылки на историю кампании.
       </div>
 
       <div className="stat-grid mt-16">
@@ -140,10 +140,14 @@ export function LinksScreen() {
                     <td>{TYPE_LABELS[row.placementType] ?? row.placementType}</td>
                     <td className="anchor-cell">{row.anchor ?? '—'}</td>
                     <td>
-                      {row.anchorType !== null ? (ANCHOR_TYPE_LABELS[row.anchorType] ?? row.anchorType) : '—'}
+                      {row.anchorType !== null
+                        ? (ANCHOR_TYPE_LABELS[row.anchorType] ?? row.anchorType)
+                        : '—'}
                     </td>
                     <td>
-                      <span className="badge tone-gray">{STATUS_LABELS[row.status] ?? row.status}</span>
+                      <span className="badge tone-gray">
+                        {STATUS_LABELS[row.status] ?? row.status}
+                      </span>
                     </td>
                     <td>
                       {row.verified && row.liveUrl !== null ? (

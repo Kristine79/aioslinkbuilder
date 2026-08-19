@@ -1,4 +1,4 @@
-import type { PlacementType } from '@aios/domain';
+import type { PlacementMethod, PlacementType, RiskLevel } from '@aios/domain';
 import type {
   AIPageAnalysis,
   AIAnchorRecommendation,
@@ -8,6 +8,9 @@ import type {
   CompanyAnalysis,
   DonorQualityEstimates,
   AIDonorRisk,
+  PlacementPlanDecisionMap,
+  PlacementPlanItem,
+  SearchQueryPlan,
 } from './schemas.js';
 
 export interface CompanyAnalysisInput {
@@ -118,6 +121,73 @@ export interface DonorRiskInput {
   donorQuality: unknown;
 }
 
+/** One discovered opportunity as presented to the plan decision engine. */
+export interface PlacementPlanOpportunityInput {
+  opportunityId: string;
+  platform: PlatformMetadata;
+  placementType: PlacementType;
+  placementMethod: PlacementMethod;
+  status: string;
+  /** Deterministic score 1.0 (null when not scored yet). */
+  score: number | null;
+  /** Deterministic Score 2.0 overall (null when intel was not assessed). */
+  overallScore: number | null;
+  /** Donor quality overall (null when intel was not assessed). */
+  donorQuality: number | null;
+  /** Estimated organic traffic when known. */
+  traffic: number | null;
+  riskLevel: RiskLevel | null;
+  providerAvailable: boolean;
+  /** Whether the aligned provider's capabilities are verified. */
+  providerCapabilitiesVerified: boolean;
+  automationAvailable: boolean;
+  hasIntel: boolean;
+  strategySupportsType: boolean;
+}
+
+/** Everything the AI needs to build a placement plan decision map. */
+export interface PlacementPlanInput {
+  campaign: {
+    id: string;
+    name: string;
+    goals: string[];
+  };
+  company: {
+    name: string;
+    industry: string | null;
+    description: string | null;
+    website: string | null;
+    geography: string[];
+    products: string[];
+    targetAudience: string[];
+  };
+  companyAnalysis: CompanyAnalysis;
+  strategy: Array<{
+    categoryCode: string;
+    categoryName: string;
+    placementType: PlacementType;
+  }>;
+  opportunities: PlacementPlanOpportunityInput[];
+}
+
+/** Company context needed to generate web-search intents for discovery. */
+export interface GenerateSearchQueriesInput {
+  company: {
+    name: string;
+    description: string | null;
+    industry: string | null;
+    website: string | null;
+    geography: string[];
+    products: string[];
+    targetAudience: string[];
+  };
+  campaignGoals: string[];
+  /** Catalog category codes the company analysis flagged as relevant. */
+  relevantCategoryCodes: string[];
+  /** Every catalog category code the system knows about. */
+  availableCategoryCodes: string[];
+}
+
 export type {
   AIPageAnalysis,
   AIAnchorRecommendation,
@@ -126,4 +196,7 @@ export type {
   AIOutreachMessage,
   DonorQualityEstimates,
   AIDonorRisk,
+  PlacementPlanDecisionMap,
+  PlacementPlanItem,
+  SearchQueryPlan,
 };

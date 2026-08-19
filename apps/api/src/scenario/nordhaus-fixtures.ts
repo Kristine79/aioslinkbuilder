@@ -33,12 +33,17 @@ import type {
   DonorQualityEstimateInput,
   DonorQualityEstimates,
   DonorRiskInput,
+  GenerateSearchQueriesInput,
   LinkInsertInput,
   NegotiationReplyInput,
   OpportunityClassification,
   OpportunityClassificationInput,
   OutreachInput,
   PageAnalysisInput,
+  PlacementPlanDecisionMap,
+  PlacementPlanInput,
+  PlacementPlanItem,
+  SearchQueryPlan,
 } from '@aios/ai';
 import { MockPlacementProvider, InMemoryPlacementProviderRegistry } from '@aios/integrations';
 import { DONOR_FIXTURES, PAGE_FIXTURES } from './nordhaus-intel.js';
@@ -604,6 +609,81 @@ const DEFAULT_RELEVANT_CATEGORIES = [
   'social-platforms',
 ];
 
+/**
+ * Deterministic search-intent templates per catalog category. Used by the
+ * demo AI (and as the DISCOVERY_MODE=real fallback without an LLM): generic
+ * and industry-agnostic — the category list drives which directions are
+ * researched, the company profile fills in the specifics.
+ */
+export const SEARCH_QUERY_TEMPLATES: Readonly<
+  Record<string, { intent: string; build: (products: string, geography: string) => string[] }>
+> = {
+  'maps-local': {
+    intent: 'Карты и локальные каталоги компаний',
+    build: (products, geography) => [
+      `каталог компаний ${products} ${geography}`,
+      `справочник организаций ${geography} ${products}`,
+      `карты ${geography} компании ${products}`,
+    ],
+  },
+  'furniture-directories': {
+    intent: 'Профильные каталоги',
+    build: (products, geography) => [
+      `каталог производителей ${products}`,
+      `реестр фабрик и мастерских ${products} ${geography}`,
+      `справочник мебельных брендов`,
+    ],
+  },
+  'interior-design': {
+    intent: 'Интерьерные издания и дизайн-площадки',
+    build: (products) => [
+      `журнал о дизайне интерьера ${products} на заказ`,
+      `интерьерные издания размещение материалов`,
+      `площадки дизайнеров интерьера публикации`,
+    ],
+  },
+  architecture: {
+    intent: 'Архитектурные медиа',
+    build: (products) => [
+      `архитектурный портал мебель и интерьеры`,
+      `архитектурные издания публикации о ${products}`,
+      `медиа об архитектуре и интерьере`,
+    ],
+  },
+  'professional-platforms': {
+    intent: 'Профессиональные площадки',
+    build: (products) => [
+      `площадки специалистов по ${products}`,
+      `профили компаний ${products} на агрегаторах услуг`,
+      `b2b платформы поставщики ${products}`,
+    ],
+  },
+  'media-pr': {
+    intent: 'Медиа и PR',
+    build: (products) => [
+      `новостные и отраслевые СМИ о ${products}`,
+      `PR публикации о компании ${products}`,
+      `ресурсные страницы и подборки ${products}`,
+    ],
+  },
+  'social-platforms': {
+    intent: 'Социальные платформы',
+    build: (products) => [
+      `сообщества и паблики о ${products}`,
+      `платформы отзывов и рекомендаций ${products}`,
+      `визуальные площадки интерьера и ${products}`,
+    ],
+  },
+  'b2b-regional': {
+    intent: 'B2B и региональные площадки',
+    build: (products, geography) => [
+      `оптовые и b2b каталоги ${products} ${geography}`,
+      `региональные площадки ${geography} ${products}`,
+      `тендерные и поставщицкие порталы ${products}`,
+    ],
+  },
+};
+
 /** Fixed AI fixtures for the demo scenario: the scenario never calls a real LLM. */
 export class ScenarioAIProvider implements AIProvider {
   readonly name = 'demo-ai';
@@ -653,7 +733,11 @@ export class ScenarioAIProvider implements AIProvider {
     const pageHint = input.targetPage !== null ? ` на странице ${input.targetPage}` : '';
     return Promise.resolve({
       anchor,
-      anchorAlternatives: [`${company} — ${product}`, `${company}`, `${product} по индивидуальным проектам`],
+      anchorAlternatives: [
+        `${company} — ${product}`,
+        `${company}`,
+        `${product} по индивидуальным проектам`,
+      ],
       suggestedInsertionPoint: 'Второй абзац, после вводного описания темы статьи',
       text: `Для тех, кто ищет качественную ${product.toLowerCase()}, ${company} изготавливает кухни и встроенную мебель по индивидуальным проектам${pageHint ? ` (${input.targetPage})` : ''} — подробнее на сайте компании.`,
       explanation:
@@ -684,7 +768,11 @@ export class ScenarioAIProvider implements AIProvider {
       alternatives:
         decision.anchorType === 'BRANDED'
           ? [input.companyName, `${keyword.toLowerCase()} от ${input.companyName}`]
-          : [input.companyName, `${keyword.toLowerCase()} от ${input.companyName}`, 'производитель мебели на заказ'],
+          : [
+              input.companyName,
+              `${keyword.toLowerCase()} от ${input.companyName}`,
+              'производитель мебели на заказ',
+            ],
       explanation: decision.explanation,
       confidence: 76,
     });
@@ -712,25 +800,38 @@ export class ScenarioAIProvider implements AIProvider {
   }
 
   estimateDonorQuality(input: DonorQualityEstimateInput): Promise<DonorQualityEstimates> {
-    const fixture = input.platform.url === null ? undefined : CLASSIFICATION_FIXTURES[input.platform.url];
+    const fixture =
+      input.platform.url === null ? undefined : CLASSIFICATION_FIXTURES[input.platform.url];
     const base =
       fixture === undefined
-        ? CATEGORY_BASE_SEMANTIC_SCORES[categoryCodeFor(input.platform.category)] ?? {
+        ? (CATEGORY_BASE_SEMANTIC_SCORES[categoryCodeFor(input.platform.category)] ?? {
             topicalRelevance: 80,
             audienceMatch: 80,
             geographicRelevance: 80,
-          }
+          })
         : {
             topicalRelevance: fixture.topicalRelevance,
             audienceMatch: fixture.audienceMatch,
             geographicRelevance: fixture.geographicRelevance,
           };
     return Promise.resolve({
-      topicalRelevance: clamp(base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)),
-      audienceMatch: clamp(base.audienceMatch + deterministicDelta(input.platform.name, input.platform.url)),
-      geographicRelevance: clamp(base.geographicRelevance + deterministicDelta(input.platform.name, input.platform.url)),
-      placementQuality: clamp(base.topicalRelevance - 5 + deterministicDelta(input.platform.name, input.platform.url)),
-      automationPotential: DEFAULT_PLACEMENT_TYPE_BY_CATEGORY[categoryCodeFor(input.platform.category)] === 'BUSINESS_PROFILE' ? 90 : 55,
+      topicalRelevance: clamp(
+        base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url),
+      ),
+      audienceMatch: clamp(
+        base.audienceMatch + deterministicDelta(input.platform.name, input.platform.url),
+      ),
+      geographicRelevance: clamp(
+        base.geographicRelevance + deterministicDelta(input.platform.name, input.platform.url),
+      ),
+      placementQuality: clamp(
+        base.topicalRelevance - 5 + deterministicDelta(input.platform.name, input.platform.url),
+      ),
+      automationPotential:
+        DEFAULT_PLACEMENT_TYPE_BY_CATEGORY[categoryCodeFor(input.platform.category)] ===
+        'BUSINESS_PROFILE'
+          ? 90
+          : 55,
       overallAssessment: `Площадка ${input.platform.name} оценена по синтетическим демо-данным`,
     });
   }
@@ -757,6 +858,235 @@ export class ScenarioAIProvider implements AIProvider {
       }
     }
     return Promise.resolve({ level, reasons });
+  }
+
+  /**
+   * Deterministic placement plan decision map. The demo AI interprets ONLY
+   * the signals passed in (deterministic score, risk, provider, strategy) —
+   * the logic is company-agnostic and works for any campaign. Every item
+   * references a real discovered opportunity; the application layer
+   * reconciles the suggestions with the domain before exposing the plan.
+   */
+  generatePlacementPlan(input: PlacementPlanInput): Promise<PlacementPlanDecisionMap> {
+    const items: PlacementPlanItem[] = input.opportunities.map((opportunity) => {
+      const decision = planItemFor(opportunity, input);
+      return {
+        opportunityId: opportunity.opportunityId,
+        recommendation: decision.recommendation,
+        recommendationReason: decision.recommendationReason,
+        nextAction: decision.nextAction,
+        automationLevel: decision.automationLevel,
+        riskExplanation: riskExplanationFor(opportunity.riskLevel),
+        suggestedPlacementApproach: approachFor(opportunity.placementMethod),
+        anchorRecommendation:
+          opportunity.placementType === 'LINK_INSERT' ||
+          opportunity.placementType === 'GUEST_POST' ||
+          opportunity.placementType === 'RESOURCE_PAGE'
+            ? {
+                anchorType: recommendAnchorType({
+                  placementObjective: input.campaign.goals[0] ?? 'размещение ссылки',
+                  companyName: input.company.name,
+                  targetKeyword: null,
+                  surroundingContext: null,
+                  targetPageRelevance: null,
+                  anchorProfileAvailable: false,
+                }).anchorType,
+                anchor: input.company.name,
+                explanation:
+                  'Анкор на основе названия компании: безопасный вариант, когда профиль анкоров кампании недоступен.',
+              }
+            : null,
+      };
+    });
+
+    const recommendedIds = new Set(
+      items
+        .filter((item) => item.recommendation === 'RECOMMENDED')
+        .map((item) => item.opportunityId),
+    );
+    const top = [...input.opportunities]
+      .filter((opportunity) => recommendedIds.has(opportunity.opportunityId))
+      .sort(
+        (a, b) =>
+          (effectiveScore(b.score, b.overallScore) ?? -1) -
+            (effectiveScore(a.score, a.overallScore) ?? -1) ||
+          a.platform.name.localeCompare(b.platform.name),
+      )[0];
+    const overview =
+      items.length === 0
+        ? 'Возможности ещё не обнаружены — сначала выполните поиск площадок.'
+        : `Проанализировано ${items.length} возможностей: ${recommendedIds.size} рекомендовано, ${
+            items.filter((item) => item.recommendation === 'REVIEW_REQUIRED').length
+          } требуют решения, ${
+            items.filter((item) => item.recommendation === 'NOT_RECOMMENDED').length
+          } отклонено.${
+            top === undefined
+              ? ''
+              : ` Начать стоит с «${top.platform.name}» — самая перспективная площадка по итоговой оценке.`
+          }`;
+
+    return Promise.resolve({ items, overview });
+  }
+
+  /**
+   * Deterministic search-intent plan for the demo AI: derives directions from
+   * the company industry/products/geography, maps them onto the catalog
+   * category codes passed in and builds concrete search queries. Never called
+   * in demo discovery (the demo uses the synthetic search source); used as a
+   * stable fallback when DISCOVERY_MODE=real runs without an LLM.
+   */
+  generateSearchQueries(input: GenerateSearchQueriesInput): Promise<SearchQueryPlan> {
+    const relevant = [
+      ...input.relevantCategoryCodes,
+      ...(INDUSTRY_CATEGORIES[
+        normalizeIndustry(input.company.industry, input.company.description)
+      ] ?? DEFAULT_RELEVANT_CATEGORIES),
+    ];
+    const codes = unique(relevant).filter((code) => input.availableCategoryCodes.includes(code));
+    const fallback = input.availableCategoryCodes[0] ?? null;
+    const geography = input.company.geography[0] ?? 'Россия';
+    const products =
+      input.company.products.length > 0
+        ? input.company.products.slice(0, 3).join(' или ')
+        : input.company.name;
+    const intents: Array<{ intent: string; categoryCode: string | null; queries: string[] }> = [];
+
+    for (const code of codes.slice(0, 6)) {
+      const template = SEARCH_QUERY_TEMPLATES[code];
+      if (template === undefined) continue;
+      intents.push({
+        intent: template.intent,
+        categoryCode: code,
+        queries: template.build(products, geography),
+      });
+    }
+    if (intents.length === 0) {
+      intents.push({
+        intent: `Профильные площадки для «${input.company.name}»`,
+        categoryCode: fallback,
+        queries: [`${input.company.name} каталоги и справочники ${geography}`],
+      });
+    }
+    return Promise.resolve({ intents: intents.slice(0, 6) });
+  }
+}
+
+/** Deterministic plan decision for one opportunity (generic, data-driven). */
+function planItemFor(
+  opportunity: PlacementPlanInput['opportunities'][number],
+  input: PlacementPlanInput,
+): {
+  recommendation: PlacementPlanItem['recommendation'];
+  recommendationReason: string;
+  nextAction: PlacementPlanItem['nextAction'];
+  automationLevel: PlacementPlanItem['automationLevel'];
+} {
+  const platformName = opportunity.platform.name;
+  const bestScore = effectiveScore(opportunity.score, opportunity.overallScore);
+  const hasData = bestScore !== null || opportunity.hasIntel || opportunity.riskLevel !== null;
+
+  if (!hasData) {
+    return {
+      recommendation: 'INSUFFICIENT_DATA',
+      recommendationReason: `По «${platformName}» пока недостаточно данных — оценка и анализ донора не выполнены.`,
+      nextAction: 'REVIEW_OPPORTUNITY',
+      automationLevel: 'HUMAN_REQUIRED',
+    };
+  }
+
+  if (bestScore !== null && bestScore < 55) {
+    return {
+      recommendation: 'NOT_RECOMMENDED',
+      recommendationReason: `«${platformName}» получила оценку ${bestScore}/100 — ниже порога рассмотрения для кампании «${input.campaign.name}».`,
+      nextAction: 'REJECT',
+      automationLevel: 'HUMAN_REQUIRED',
+    };
+  }
+
+  if (opportunity.riskLevel === 'HIGH') {
+    return {
+      recommendation: 'REVIEW_REQUIRED',
+      recommendationReason: `«${platformName}» тематически подходит, но риск донора оценён как высокий — требуется проверка человеком.`,
+      nextAction: 'REVIEW_OPPORTUNITY',
+      automationLevel: 'HUMAN_REQUIRED',
+    };
+  }
+
+  if (bestScore !== null && bestScore < 75) {
+    return {
+      recommendation: 'REVIEW_REQUIRED',
+      recommendationReason: `«${platformName}» набрала ${bestScore}/100: оценка перспективная, но ниже порога уверенности — подтвердите вручную.`,
+      nextAction:
+        opportunity.placementMethod === 'OUTREACH' ? 'PREPARE_OUTREACH' : 'REVIEW_OPPORTUNITY',
+      automationLevel: 'HUMAN_REQUIRED',
+    };
+  }
+
+  const scoreText = bestScore !== null ? `${bestScore}/100, ` : '';
+  const reason =
+    `«${platformName}» — ${scoreText}релевантность, аудитория и формат размещения «${opportunity.placementType}» ` +
+    `соответствуют стратегии кампании «${input.campaign.name}»`;
+  const strong = opportunity.strategySupportsType;
+  const methodReason =
+    opportunity.placementMethod === 'OUTREACH'
+      ? ' размещение выполняется через outreach с участием человека.'
+      : opportunity.placementMethod === 'MANUAL'
+        ? ' размещение требует ручной работы на площадке.'
+        : strong && opportunity.providerAvailable
+          ? ' исполнение возможно автоматически через провайдера.'
+          : ' проверьте провайдера перед запуском.';
+  return {
+    recommendation: 'RECOMMENDED',
+    recommendationReason: `${reason};${methodReason}`,
+    nextAction:
+      opportunity.placementMethod === 'OUTREACH'
+        ? 'PREPARE_OUTREACH'
+        : opportunity.placementMethod === 'MANUAL'
+          ? 'REQUEST_MANUAL_PLACEMENT'
+          : opportunity.placementMethod === 'BROWSER' && !opportunity.providerCapabilitiesVerified
+            ? 'REVIEW_PROVIDER'
+            : 'EXECUTE_AUTOMATICALLY',
+    automationLevel:
+      opportunity.placementMethod === 'API'
+        ? 'AUTOMATIC'
+        : opportunity.placementMethod === 'BROWSER'
+          ? 'AI_ASSISTED'
+          : 'HUMAN_REQUIRED',
+  };
+}
+
+function effectiveScore(score: number | null, overall: number | null): number | null {
+  if (score !== null && overall !== null) {
+    return Math.round((score + overall) / 2);
+  }
+  return score ?? overall;
+}
+
+function riskExplanationFor(level: string | null): string | null {
+  switch (level) {
+    case 'LOW':
+      return 'Риск донора низкий: профиль площадки чистый.';
+    case 'MEDIUM':
+      return 'Риск донора средний: стоит проверить качество трафика и ссылок.';
+    case 'HIGH':
+      return 'Риск донора высокий: перед запуском требуется проверка профиля.';
+    default:
+      return null;
+  }
+}
+
+function approachFor(method: string): string | null {
+  switch (method) {
+    case 'API':
+      return 'Автоматическое исполнение через провайдера после одобрения возможности.';
+    case 'BROWSER':
+      return 'Браузерная автоматизация — после проверки возможностей провайдера.';
+    case 'OUTREACH':
+      return 'Outreach: подготовить сообщение, провести переговоры и согласовать условия.';
+    case 'MANUAL':
+      return 'Ручное размещение с последующим подтверждением публикации.';
+    default:
+      return null;
   }
 }
 
@@ -895,8 +1225,12 @@ function deterministicPageAnalysis(input: PageAnalysisInput): AIPageAnalysis {
     targetPage: input.platform.url ?? input.platform.name,
     pageTitle: input.platform.name,
     pageType: 'PROFILE',
-    topicalRelevance: clamp(base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)),
-    linkInsertSuitability: clamp(base.topicalRelevance - 8 + deterministicDelta(input.platform.name, input.platform.url)),
+    topicalRelevance: clamp(
+      base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url),
+    ),
+    linkInsertSuitability: clamp(
+      base.topicalRelevance - 8 + deterministicDelta(input.platform.name, input.platform.url),
+    ),
     indexation: 'INDEXED',
     suggestedPlacementLocation: 'Страница профиля компании',
     summary: `Площадка «${input.platform.name}» — профиль компании в категории «${
@@ -927,7 +1261,8 @@ function classifyNegotiationReply(input: NegotiationReplyInput): AINegotiationAn
       ...base,
       intent: 'LINK_ATTRIBUTE_REQUEST',
       suggestedResponse: `Готовы обсудить атрибуты ссылки. Для ${company} важно, чтобы ссылка не была nofollow. Можем ли договориться о dofollow-ссылке?`,
-      strategy: 'Обсудить атрибуты ссылки; предложить доплату за dofollow, если площадка настаивает.',
+      strategy:
+        'Обсудить атрибуты ссылки; предложить доплату за dofollow, если площадка настаивает.',
       risks: ['Если ссылка будет nofollow, ценность размещения снижается.'],
       fallbackOption: 'Предложить брендированное упоминание без ссылки.',
     };

@@ -57,7 +57,11 @@ export class UpdateOutreachStatusUseCase {
 
     assertTransitionOutreach(outreach.status, command.status);
 
-    const next: typeof outreach = { ...outreach, status: command.status, updatedAt: new Date().toISOString() };
+    const next: typeof outreach = {
+      ...outreach,
+      status: command.status,
+      updatedAt: new Date().toISOString(),
+    };
 
     if (command.status === 'SENT') {
       let provider = outreach.provider;

@@ -18,6 +18,7 @@ import type {
   OpportunityDto,
   OverviewDto,
   PlacementDto,
+  PlacementPlanDto,
   StrategyItemDto,
 } from './types';
 import { getActiveCampaignId } from '../state';
@@ -146,6 +147,9 @@ export const api = {
   activity: (): Promise<ActivityDto> => request(campaignPath('/api/activity')),
   discover: (): Promise<DiscoverResultDto> =>
     request(campaignPath('/api/discover'), { method: 'POST' }),
+  placementPlan: (): Promise<PlacementPlanDto> =>
+    request(campaignPath('/api/placement-plan'), { method: 'POST', body: JSON.stringify({}) }),
+  getPlacementPlan: (): Promise<PlacementPlanDto> => request(campaignPath('/api/placement-plan')),
   intel: (id: string): Promise<OpportunityDto> =>
     request(`/api/opportunities/${id}/intel`, { method: 'POST', body: JSON.stringify({}) }),
   linkInsert: (id: string, desiredAnchor?: string): Promise<OpportunityDto> =>

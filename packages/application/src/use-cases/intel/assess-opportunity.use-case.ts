@@ -143,7 +143,8 @@ export class AssessOpportunityUseCase {
       risk,
       placementMethod: opportunity.placementMethod,
       pageLinkInsertSuitability:
-        isKnownDatum(page.linkInsertSuitability) && typeof page.linkInsertSuitability.value === 'number'
+        isKnownDatum(page.linkInsertSuitability) &&
+        typeof page.linkInsertSuitability.value === 'number'
           ? page.linkInsertSuitability.value
           : null,
     });
@@ -154,7 +155,11 @@ export class AssessOpportunityUseCase {
       risk,
       scoreV2,
     });
-    const updated = await this.opportunities.update({ ...opportunity, metadata, updatedAt: new Date() });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: new Date(),
+    });
 
     await this.auditLog.append({
       actor: 'system',
@@ -299,6 +304,10 @@ export class AssessOpportunityUseCase {
     if (analysis === null) {
       throw new NoCompanyAnalysisError(campaignId);
     }
-    return validateAIOutput(companyAnalysisSchema, analysis.structuredOutput, 'stored companyAnalysis');
+    return validateAIOutput(
+      companyAnalysisSchema,
+      analysis.structuredOutput,
+      'stored companyAnalysis',
+    );
   }
 }

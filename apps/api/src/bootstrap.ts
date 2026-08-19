@@ -6,6 +6,15 @@
  * the flow from the UI.
  */
 
+import { AISearchClient, OpenCodeAIProvider } from '@aios/ai';
+import {
+  AIBackedSearchQueryGenerator,
+  DeterministicSearchQueryGenerator,
+  WebSearchPlatformDiscoverySource,
+} from '@aios/application';
+import { AISearchCitationsProvider, DuckDuckGoSearchProvider } from '@aios/integrations';
+import { HttpPageAnalysisProvider } from '@aios/integrations';
+
 import type { Company, Campaign } from '@aios/domain';
 
 import type { ApiServices } from './app.js';
@@ -20,7 +29,9 @@ import {
   seedNordhausScenario,
   verifyScenarioPlacement,
   type NordhausEnvironment,
+  type NordhausEnvironmentOptions,
 } from './scenario/nordhaus-environment.js';
+import { loadRuntimeConfig, openCodeProviderConfig, type RuntimeConfig } from './runtime-config.js';
 
 export interface NordhausBootstrap extends ApiServices {
   env: NordhausEnvironment;
@@ -28,8 +39,45 @@ export interface NordhausBootstrap extends ApiServices {
   campaign: Campaign;
 }
 
-export async function runNordhausBootstrap(): Promise<NordhausBootstrap> {
-  const env = createNordhausEnvironment();
+export async function runNordhausBootstrap(
+  config: RuntimeConfig = loadRuntimeConfig(),
+): Promise<NordhausBootstrap> {
+  // The OpenCode provider serves two modes independently: AI_MODE=real (all
+  // AI capabilities) and DISCOVERY_MODE=real (search-intent planning). If
+  // only discovery is real, the rest of the pipeline stays deterministic.
+  const providerConfig = openCodeProviderConfig(config);
+  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
+
+  const envOptions: NordhausEnvironmentOptions = {};
+  if (config.aiMode === 'real' && openCodeProvider !== null) {
+    envOptions.ai = openCodeProvider;
+    // Real mode has no paid SEO metrics source: every metric stays UNKNOWN
+    // (honest "no data" instead of synthetic values).
+    envOptions.seoMetrics = null;
+    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8000 });
+  }
+  const env = createNordhausEnvironment(envOptions);
+  if (config.discoveryMode === 'real') {
+    const queryGenerator =
+      openCodeProvider !== null
+        ? new AIBackedSearchQueryGenerator(openCodeProvider)
+        : new DeterministicSearchQueryGenerator();
+    const searchProvider =
+      config.discoveryProvider === 'ai-search' && config.aiSearch !== null
+        ? new AISearchCitationsProvider(
+            new AISearchClient({
+              apiKey: config.aiSearch.apiKey,
+              baseUrl: config.aiSearch.baseUrl,
+              model: config.aiSearch.model,
+              capabilities: config.aiSearch.capabilities,
+              timeoutMs: config.aiSearch.timeoutMs,
+            }),
+          )
+        : new DuckDuckGoSearchProvider();
+    env.discoverySources = [
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator),
+    ];
+  }
   const seed = await seedNordhausScenario(env);
 
   // Assess every seeded opportunity so each carries a donor quality profile,

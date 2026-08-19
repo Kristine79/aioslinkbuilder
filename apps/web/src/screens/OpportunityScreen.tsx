@@ -186,7 +186,12 @@ export function OpportunityScreen() {
           }
         >
           <div className="row-actions">
-            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void aiAssist?.runIntel()}>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => void aiAssist?.runIntel()}
+            >
               Обновить профиль донора
             </button>
             {(opportunity.placementType === 'LINK_INSERT' ||
@@ -201,7 +206,12 @@ export function OpportunityScreen() {
                 >
                   Подготовить вставку
                 </button>
-                <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void aiAssist?.runOutreach()}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void aiAssist?.runOutreach()}
+                >
                   Сформировать outreach
                 </button>
               </>
@@ -307,7 +317,10 @@ export function OpportunityScreen() {
 
           {opportunity.linkInsert !== null && (
             <Card title="Вставка ссылки">
-              <LinkInsertPanel linkInsert={opportunity.linkInsert} anchor={opportunity.anchorStrategy} />
+              <LinkInsertPanel
+                linkInsert={opportunity.linkInsert}
+                anchor={opportunity.anchorStrategy}
+              />
             </Card>
           )}
 
@@ -330,7 +343,6 @@ export function OpportunityScreen() {
               />
             </Card>
           )}
-
 
           <Card
             title="Исполнение"

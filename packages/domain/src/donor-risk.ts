@@ -77,7 +77,10 @@ export function assessDonorRisk(
     else if (value >= 35) push('link_selling', 2, RISK_SIGNAL_LABELS.link_selling);
   }
 
-  if (isKnownDatum(profile.topicalRelevance) && typeof profile.topicalRelevance.value === 'number') {
+  if (
+    isKnownDatum(profile.topicalRelevance) &&
+    typeof profile.topicalRelevance.value === 'number'
+  ) {
     if (profile.topicalRelevance.value < 45) {
       push('irrelevant_topics', 2, RISK_SIGNAL_LABELS.irrelevant_topics);
     } else if (profile.topicalRelevance.value < 60) {
@@ -112,19 +115,23 @@ export function assessDonorRisk(
   if (isKnownDatum(profile.trafficGeography) && context.companyGeography !== undefined) {
     const geos = (profile.trafficGeography.value ?? []).map((value) => value.toLowerCase());
     const companyGeos = context.companyGeography.map((value) => value.toLowerCase());
-    const hasOverlap = companyGeos.some((geo) => geos.some((trafficGeo) => trafficGeo.includes(geo)));
+    const hasOverlap = companyGeos.some((geo) =>
+      geos.some((trafficGeo) => trafficGeo.includes(geo)),
+    );
     if (companyGeos.length > 0 && !hasOverlap) {
-      push(
-        'irrelevant_topics',
-        1,
-        'география трафика донора не пересекается с регионом компании',
-      );
+      push('irrelevant_topics', 1, 'география трафика донора не пересекается с регионом компании');
     }
   }
 
   const severitySum = signals.reduce((sum, signal) => sum + signal.severity, 0);
   const level: RiskLevel =
-    signals.length === 0 ? 'UNKNOWN' : severitySum >= 3 ? 'HIGH' : severitySum >= 2 ? 'MEDIUM' : 'LOW';
+    signals.length === 0
+      ? 'UNKNOWN'
+      : severitySum >= 3
+        ? 'HIGH'
+        : severitySum >= 2
+          ? 'MEDIUM'
+          : 'LOW';
 
   return {
     level,

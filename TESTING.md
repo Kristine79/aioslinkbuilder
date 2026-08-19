@@ -60,6 +60,29 @@ At minimum:
 - invalid state transition
 - malformed AI response
 
+## Real integration tests (AI + web search)
+
+Unit-level tests cover the real integrations with injected fakes (`fetchImpl`,
+stub search provider, stub query generator):
+
+- `tests/unit/ai/opencode-client.test.ts` — success, markdown-fenced JSON,
+  corrective retry (malformed JSON → succeeds; twice → hard error, no
+  infinite loop), 401 (no retry, no key leakage), 429 (retry), 5xx (exhausts
+  retries), network failure, 400 → validation.
+- `tests/unit/integrations/duckduckgo-search.test.ts` — result parsing,
+  `//duckduckgo.com/l/?uddg=` unwrapping, dedupe, `domainOf`, rate-limit
+  mapping.
+- `tests/unit/integrations/http-page-analysis-provider.test.ts` — MEASURED
+  signals vs UNKNOWN for failures, robots handling, redirect limits.
+- `tests/unit/application/web-search-platform-discovery-source.test.ts` —
+  persist-then-candidate, existing-platform reuse, URL dedupe, query caps,
+  partial/all-query failure behavior, deterministic platform ids.
+- `tests/unit/apps/runtime-config.test.ts` — mode parsing, fail-fast when
+  `real` without `OPENCODE_API_KEY`, defaults.
+
+Credential-gated smoke tests (real OpenCode Go + DuckDuckGo calls) are not part
+of the suite; they run manually with a valid `OPENCODE_API_KEY`.
+
 ## Test principles
 
 - tests must be deterministic

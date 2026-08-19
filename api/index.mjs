@@ -2118,7 +2118,11 @@ var PLACEMENT_TYPES = [
   "PRODUCT_LISTING",
   "EDITORIAL_PUBLICATION",
   "SOCIAL_PROFILE",
-  "REFERRAL_TRAFFIC"
+  "REFERRAL_TRAFFIC",
+  "LINK_INSERT",
+  "GUEST_POST",
+  "RESOURCE_PAGE",
+  "PARTNER_PAGE"
 ];
 
 // packages/domain/src/enums/placement-method.ts
@@ -2140,6 +2144,23 @@ var EVIDENCE_TYPES = [
   "WEBSITE_MATCH",
   "BACKLINK_MATCH"
 ];
+
+// packages/domain/src/enums/placement-recommendation.ts
+var PLACEMENT_RECOMMENDATIONS = [
+  "RECOMMENDED",
+  "REVIEW_REQUIRED",
+  "NOT_RECOMMENDED",
+  "INSUFFICIENT_DATA"
+];
+var RECOMMENDED_ACTIONS = [
+  "PREPARE_OUTREACH",
+  "REQUEST_MANUAL_PLACEMENT",
+  "EXECUTE_AUTOMATICALLY",
+  "REVIEW_PROVIDER",
+  "REVIEW_OPPORTUNITY",
+  "REJECT"
+];
+var AUTOMATION_LEVELS = ["AUTOMATIC", "AI_ASSISTED", "HUMAN_REQUIRED"];
 
 // packages/domain/src/errors.ts
 var DomainError = class extends Error {
@@ -2211,6 +2232,210 @@ function requireCapability(supported, capability, context) {
   }
 }
 
+// packages/domain/src/workflow.ts
+var stage = (kind, label, flags = {}) => ({
+  kind,
+  label,
+  automated: flags.automated ?? false,
+  hitl: flags.hitl ?? false,
+  required: flags.required ?? true
+});
+var PLACEMENT_TYPE_WORKFLOWS = {
+  LINK_INSERT: {
+    placementType: "LINK_INSERT",
+    label: "\u0412\u0441\u0442\u0430\u0432\u043A\u0430 \u0441\u0441\u044B\u043B\u043A\u0438 \u0432 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0438\u0439 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("page_analysis", "\u0410\u043D\u0430\u043B\u0438\u0437 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("placement", "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  GUEST_POST: {
+    placementType: "GUEST_POST",
+    label: "\u0413\u043E\u0441\u0442\u0435\u0432\u043E\u0439 \u043F\u043E\u0441\u0442",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("content", "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430", { automated: true, hitl: true }),
+      stage("submission", "\u041E\u0442\u043F\u0440\u0430\u0432\u043A\u0430 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u0430", { hitl: true }),
+      stage("placement", "\u041F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u044F", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  RESOURCE_PAGE: {
+    placementType: "RESOURCE_PAGE",
+    label: "\u0420\u0435\u0441\u0443\u0440\u0441\u043D\u0430\u044F \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0430",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("page_analysis", "\u0410\u043D\u0430\u043B\u0438\u0437 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("content", "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430", { automated: true, hitl: true }),
+      stage("placement", "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  PARTNER_PAGE: {
+    placementType: "PARTNER_PAGE",
+    label: "\u0421\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u043F\u0430\u0440\u0442\u043D\u0451\u0440\u0430",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("content", "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430", { automated: true, hitl: true }),
+      stage("placement", "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  EDITORIAL_PUBLICATION: {
+    placementType: "EDITORIAL_PUBLICATION",
+    label: "\u0420\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u0430\u044F \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u044F",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("content", "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430", { automated: true, hitl: true }),
+      stage("submission", "\u041E\u0442\u043F\u0440\u0430\u0432\u043A\u0430 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u0430", { hitl: true }),
+      stage("placement", "\u041F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u044F", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  BACKLINK: {
+    placementType: "BACKLINK",
+    label: "\u0421\u0441\u044B\u043B\u043A\u0430",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("page_analysis", "\u0410\u043D\u0430\u043B\u0438\u0437 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("placement", "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  BRAND_MENTION: {
+    placementType: "BRAND_MENTION",
+    label: "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435 \u0431\u0440\u0435\u043D\u0434\u0430",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("outreach", "Outreach", { automated: true, hitl: true }),
+      stage("negotiation", "\u041F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B", { hitl: true }),
+      stage("content", "\u041F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043A\u0430 \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0430", { automated: true, hitl: true }),
+      stage("placement", "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  BUSINESS_PROFILE: {
+    placementType: "BUSINESS_PROFILE",
+    label: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("execution", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", { automated: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  DIRECTORY_LISTING: {
+    placementType: "DIRECTORY_LISTING",
+    label: "\u041A\u0430\u0442\u0430\u043B\u043E\u0433",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("execution", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", { automated: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  PRODUCT_LISTING: {
+    placementType: "PRODUCT_LISTING",
+    label: "\u041A\u0430\u0440\u0442\u043E\u0447\u043A\u0430 \u0442\u043E\u0432\u0430\u0440\u0430",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("execution", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", { automated: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  SOCIAL_PROFILE: {
+    placementType: "SOCIAL_PROFILE",
+    label: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u0432 \u0441\u043E\u0446\u0441\u0435\u0442\u044F\u0445",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("execution", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", { automated: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  },
+  REFERRAL_TRAFFIC: {
+    placementType: "REFERRAL_TRAFFIC",
+    label: "\u0420\u0435\u0444\u0435\u0440\u0430\u043B\u044C\u043D\u044B\u0439 \u0442\u0440\u0430\u0444\u0438\u043A",
+    stages: [
+      stage("research", "\u0418\u0441\u0441\u043B\u0435\u0434\u043E\u0432\u0430\u043D\u0438\u0435", { automated: true }),
+      stage("approval", "\u041E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u0435", { hitl: true }),
+      stage("execution", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", { automated: true }),
+      stage("verification", "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430", { automated: true })
+    ]
+  }
+};
+function workflowForType(placementType) {
+  return PLACEMENT_TYPE_WORKFLOWS[placementType];
+}
+var OUTREACH_METHOD_PLACEMENT_TYPES = [
+  "LINK_INSERT",
+  "GUEST_POST",
+  "RESOURCE_PAGE",
+  "PARTNER_PAGE"
+];
+function isOutreachPlacementType(placementType) {
+  return OUTREACH_METHOD_PLACEMENT_TYPES.includes(placementType);
+}
+function workflowCurrentStageKind(placementType, status, outreachStatus) {
+  if (isOutreachPlacementType(placementType)) {
+    switch (outreachStatus) {
+      case "DRAFT":
+      case "READY_FOR_REVIEW":
+      case "APPROVED":
+      case "SENT":
+        return "outreach";
+      case "REPLIED":
+      case "NEGOTIATING":
+        return "negotiation";
+      case "AGREED":
+        return "placement";
+      case "REJECTED":
+      case "NO_RESPONSE":
+        return "negotiation";
+      default:
+        break;
+    }
+  }
+  switch (status) {
+    case "DISCOVERED":
+      return "research";
+    case "QUALIFIED":
+      return isOutreachPlacementType(placementType) ? "research" : "research";
+    case "SELECTED":
+    case "READY":
+      return "approval";
+    case "SUBMITTED":
+    case "PENDING_PUBLICATION":
+    case "PUBLISHED":
+    case "NEEDS_MANUAL":
+    case "FAILED":
+    case "BLOCKED":
+    case "REJECTED":
+    case "VERIFICATION_FAILED":
+      return "placement";
+    case "VERIFIED":
+      return "verification";
+    default:
+      return null;
+  }
+}
+
 // packages/domain/src/alignment.ts
 var EXECUTION_REQUIRED_CAPABILITIES = [
   "CREATE",
@@ -2256,6 +2481,12 @@ function derivePlacementMethod(provider) {
     default:
       return "UNKNOWN";
   }
+}
+function derivePlacementMethodForType(placementType, alignment) {
+  if (isOutreachPlacementType(placementType)) {
+    return "OUTREACH";
+  }
+  return alignment.method;
 }
 function deriveProviderAlignment(providers, required2 = EXECUTION_REQUIRED_CAPABILITIES) {
   const automatic = selectBestProvider(providers, required2);
@@ -2324,6 +2555,43 @@ function calculateScoreBreakdown(inputs) {
   return { ...inputs, total: Math.round(weightedSum / 100) };
 }
 
+// packages/domain/src/validation/company.ts
+function validateCompany(draft) {
+  if (draft.name.trim().length === 0) {
+    throw new ValidationError("Company name must not be empty");
+  }
+  for (const key of ["geography", "locations", "products", "targetAudience"]) {
+    const values = draft[key];
+    if (values !== void 0 && values.some((value) => value.trim().length === 0)) {
+      throw new ValidationError(`Company ${key} entries must not be empty`);
+    }
+  }
+  if (draft.website != null && !isHttpUrl(draft.website)) {
+    throw new ValidationError("Company website must be a valid http(s) URL");
+  }
+}
+function isHttpUrl(value) {
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "http:" || url2.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// packages/domain/src/validation/campaign.ts
+function validateCampaign(draft) {
+  if (draft.companyId.trim().length === 0) {
+    throw new ValidationError("Campaign companyId must not be empty");
+  }
+  if (draft.name.trim().length === 0) {
+    throw new ValidationError("Campaign name must not be empty");
+  }
+  if (draft.goals.some((goal) => goal.trim().length === 0)) {
+    throw new ValidationError("Campaign goals must not be empty");
+  }
+}
+
 // packages/domain/src/validation/opportunity.ts
 function validateOpportunity(draft) {
   if (draft.campaignId.trim().length === 0) {
@@ -2390,6 +2658,649 @@ function validateEvidence(draft) {
   }
 }
 
+// packages/domain/src/donor-quality.ts
+function isKnownDatum(datum) {
+  return datum.status !== "UNKNOWN" && datum.value !== null;
+}
+function unknownDatum() {
+  return { value: null, source: null, status: "UNKNOWN", confidence: null, measuredAt: null };
+}
+function syntheticDatum(value, source = "demo") {
+  return {
+    value,
+    source,
+    status: "SYNTHETIC",
+    confidence: null,
+    measuredAt: null
+  };
+}
+var DONOR_QUALITY_DIMENSION_WEIGHTS = {
+  topicalRelevance: 20,
+  audienceMatch: 15,
+  geographicRelevance: 10,
+  authority: 20,
+  organicTraffic: 10,
+  estimatedRealTraffic: 5,
+  backlinkProfile: 10,
+  placementQuality: 5,
+  automationPotential: 5
+};
+function clamp(value, min = 0, max = 100) {
+  return Math.min(max, Math.max(min, value));
+}
+function trafficToScore(traffic) {
+  if (traffic <= 0) return 0;
+  return clamp(Math.round(100 * (1 - 1 / (1 + traffic / 5e4))));
+}
+function backlinkSubScore(profile) {
+  if (profile === null) return null;
+  const domains = profile.referringDomains;
+  if (domains === null || domains < 0) return null;
+  if (domains === 0) return 0;
+  return clamp(Math.round(40 * Math.log10(1 + domains)));
+}
+function calculateDonorQuality(profile) {
+  const contributions = [];
+  const push = (weightKey, datum, transform2) => {
+    if (!isKnownDatum(datum) || typeof datum.value !== "number") return;
+    contributions.push({
+      weight: DONOR_QUALITY_DIMENSION_WEIGHTS[weightKey],
+      value: clamp(transform2 === void 0 ? datum.value : transform2(datum.value))
+    });
+  };
+  push("topicalRelevance", profile.topicalRelevance);
+  push("audienceMatch", profile.audienceMatch);
+  push("geographicRelevance", profile.geographicRelevance);
+  push("authority", profile.authority);
+  push("organicTraffic", profile.organicTraffic, trafficToScore);
+  push("estimatedRealTraffic", profile.estimatedRealTraffic, trafficToScore);
+  if (isKnownDatum(profile.backlinkProfile)) {
+    const subScore = backlinkSubScore(profile.backlinkProfile.value);
+    if (subScore !== null) {
+      contributions.push({ weight: DONOR_QUALITY_DIMENSION_WEIGHTS.backlinkProfile, value: subScore });
+    }
+  }
+  push("placementQuality", profile.placementQuality);
+  push("automationPotential", profile.automationPotential);
+  const totalWeight = contributions.reduce((sum, entry) => sum + entry.weight, 0);
+  if (totalWeight <= 0) {
+    return { overallDonorQuality: null, overallLevel: "UNKNOWN" };
+  }
+  const overall = Math.round(
+    contributions.reduce((sum, entry) => sum + entry.weight * entry.value, 0) / totalWeight
+  );
+  return { overallDonorQuality: overall, overallLevel: levelFor(overall) };
+}
+function levelFor(score) {
+  if (score >= 80) return "EXCELLENT";
+  if (score >= 65) return "GOOD";
+  if (score >= 50) return "FAIR";
+  return "POOR";
+}
+
+// packages/domain/src/page-analysis.ts
+var PAGE_TYPES = [
+  "EDITORIAL",
+  "RESOURCE",
+  "BLOG",
+  "PRODUCT",
+  "PROFILE",
+  "LISTING",
+  "NEWS",
+  "CATEGORY",
+  "OTHER",
+  "UNKNOWN"
+];
+
+// packages/domain/src/anchors.ts
+var ANCHOR_TYPES = [
+  "EXACT_MATCH",
+  "PARTIAL_MATCH",
+  "BRANDED",
+  "GENERIC",
+  "URL",
+  "LONG_TAIL"
+];
+function recommendAnchorType(input) {
+  const context = (input.surroundingContext ?? "").toLowerCase();
+  const companyMentioned = input.companyName.trim().length > 0 && context.includes(input.companyName.trim().toLowerCase());
+  if (companyMentioned && input.targetKeyword !== null) {
+    return {
+      anchorType: "PARTIAL_MATCH",
+      explanation: `\u0411\u0440\u0435\u043D\u0434 \u0443\u0436\u0435 \u0443\u043F\u043E\u043C\u044F\u043D\u0443\u0442 \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435; \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442\u0441\u044F partial-match, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E exact-match \u0432 \u0434\u0430\u043D\u043D\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u0432\u044B\u0433\u043B\u044F\u0434\u0438\u0442 \u043D\u0435\u0435\u0441\u0442\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u043E.`
+    };
+  }
+  if (input.targetKeyword === null || input.targetKeyword.trim().length === 0) {
+    return {
+      anchorType: "BRANDED",
+      explanation: "\u0426\u0435\u043B\u0435\u0432\u043E\u0439 \u043A\u043B\u044E\u0447\u0435\u0432\u043E\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u043D\u0435 \u0437\u0430\u0434\u0430\u043D \u2014 \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u0435\u0435 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u044C branded-\u0430\u043D\u043A\u043E\u0440 \u043D\u0430 \u043E\u0441\u043D\u043E\u0432\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438."
+    };
+  }
+  if ((input.targetPageRelevance ?? 0) >= 85) {
+    return {
+      anchorType: "PARTIAL_MATCH",
+      explanation: `\u0421\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u0432\u044B\u0441\u043E\u043A\u043E \u0440\u0435\u043B\u0435\u0432\u0430\u043D\u0442\u043D\u0430 \u0437\u0430\u043F\u0440\u043E\u0441\u0443 \xAB${input.targetKeyword}\xBB; \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442\u0441\u044F partial-match, \u043F\u043E\u043B\u043D\u044B\u0439 exact-match \u0432 \u0440\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u043E\u043C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u0432\u044B\u0433\u043B\u044F\u0434\u0435\u043B \u0431\u044B \u043D\u0435\u0435\u0441\u0442\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u043E.`
+    };
+  }
+  return {
+    anchorType: "LONG_TAIL",
+    explanation: "\u0420\u0435\u043B\u0435\u0432\u0430\u043D\u0442\u043D\u043E\u0441\u0442\u044C \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0430 \u0441\u0440\u0435\u0434\u043D\u044F\u044F \u2014 long-tail \u0444\u043E\u0440\u043C\u0443\u043B\u0438\u0440\u043E\u0432\u043A\u0430 \u0432\u044B\u0433\u043B\u044F\u0434\u0438\u0442 \u0435\u0441\u0442\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u0435\u0435 \u0438 \u0441\u043D\u0438\u0436\u0430\u0435\u0442 \u0440\u0438\u0441\u043A \u043F\u0435\u0440\u0435\u043E\u043F\u0442\u0438\u043C\u0438\u0437\u0430\u0446\u0438\u0438."
+  };
+}
+
+// packages/domain/src/donor-risk.ts
+var RISK_LEVELS = ["LOW", "MEDIUM", "HIGH", "UNKNOWN"];
+var RISK_SIGNAL_LABELS = {
+  suspicious_traffic: "\u043F\u043E\u0434\u043E\u0437\u0440\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043F\u0430\u0442\u0442\u0435\u0440\u043D\u044B \u0442\u0440\u0430\u0444\u0438\u043A\u0430",
+  irrelevant_topics: "\u043D\u0438\u0437\u043A\u0430\u044F \u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u0440\u0435\u043B\u0435\u0432\u0430\u043D\u0442\u043D\u043E\u0441\u0442\u044C",
+  excessive_outbound_links: "\u043F\u043E\u0434\u043E\u0437\u0440\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u0432\u044B\u0441\u043E\u043A\u0438\u0439 \u043E\u0431\u044A\u0451\u043C \u0438\u0441\u0445\u043E\u0434\u044F\u0449\u0438\u0445 \u0441\u0441\u044B\u043B\u043E\u043A",
+  pbn_signals: "\u043F\u0440\u0438\u0437\u043D\u0430\u043A\u0438 PBN",
+  low_quality_content: "\u043D\u0438\u0437\u043A\u043E\u043A\u0430\u0447\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0435\u043D\u0442",
+  poor_indexation: "\u0441\u043B\u0430\u0431\u0430\u044F \u0438\u043D\u0434\u0435\u043A\u0441\u0430\u0446\u0438\u044F \u0441\u0442\u0440\u0430\u043D\u0438\u0446",
+  suspicious_backlinks: "\u043F\u043E\u0434\u043E\u0437\u0440\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0439 \u0441\u0441\u044B\u043B\u043E\u0447\u043D\u044B\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C",
+  traffic_mismatch: "\u043D\u0435\u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435 \u0437\u0430\u044F\u0432\u043B\u0435\u043D\u043D\u043E\u0433\u043E \u0438 \u0444\u0430\u043A\u0442\u0438\u0447\u0435\u0441\u043A\u043E\u0433\u043E \u0442\u0440\u0430\u0444\u0438\u043A\u0430",
+  overly_commercial: "\u0447\u0440\u0435\u0437\u043C\u0435\u0440\u043D\u043E \u043A\u043E\u043C\u043C\u0435\u0440\u0447\u0435\u0441\u043A\u0430\u044F \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0430",
+  link_selling: "\u043F\u0440\u0438\u0437\u043D\u0430\u043A\u0438 \u043F\u0440\u043E\u0434\u0430\u0436\u0438 \u0441\u0441\u044B\u043B\u043E\u043A"
+};
+function assessDonorRisk(profile, context = {}) {
+  const signals = [];
+  const reasons = [];
+  const push = (kind, severity, reason) => {
+    signals.push({ kind, severity, available: true });
+    reasons.push(reason);
+  };
+  if (isKnownDatum(profile.spamRisk) && typeof profile.spamRisk.value === "number") {
+    const value = profile.spamRisk.value;
+    if (value >= 60) push("link_selling", 3, RISK_SIGNAL_LABELS.link_selling);
+    else if (value >= 35) push("link_selling", 2, RISK_SIGNAL_LABELS.link_selling);
+  }
+  if (isKnownDatum(profile.topicalRelevance) && typeof profile.topicalRelevance.value === "number") {
+    if (profile.topicalRelevance.value < 45) {
+      push("irrelevant_topics", 2, RISK_SIGNAL_LABELS.irrelevant_topics);
+    } else if (profile.topicalRelevance.value < 60) {
+      push("irrelevant_topics", 1, RISK_SIGNAL_LABELS.irrelevant_topics);
+    }
+  }
+  if (isKnownDatum(profile.indexingStatus)) {
+    const status = profile.indexingStatus.value;
+    if (status === "NOT_INDEXED") {
+      push("poor_indexation", 3, RISK_SIGNAL_LABELS.poor_indexation);
+    } else if (status === "PARTIAL") {
+      push("poor_indexation", 1, RISK_SIGNAL_LABELS.poor_indexation);
+    }
+  }
+  if (isKnownDatum(profile.organicTraffic) && typeof profile.organicTraffic.value === "number" && profile.organicTraffic.value === 0 && isKnownDatum(profile.authority) && typeof profile.authority.value === "number" && profile.authority.value >= 40) {
+    push(
+      "traffic_mismatch",
+      2,
+      "\u0432\u044B\u0441\u043E\u043A\u0430\u044F \u0430\u0432\u0442\u043E\u0440\u0438\u0442\u0435\u0442\u043D\u043E\u0441\u0442\u044C \u043F\u0440\u0438 \u043D\u0443\u043B\u0435\u0432\u043E\u043C \u043E\u0440\u0433\u0430\u043D\u0438\u0447\u0435\u0441\u043A\u043E\u043C \u0442\u0440\u0430\u0444\u0438\u043A\u0435 \u2014 \u043F\u0440\u0438\u0437\u043D\u0430\u043A\u0438 \u0438\u0441\u043A\u0443\u0441\u0441\u0442\u0432\u0435\u043D\u043D\u043E\u0433\u043E \u0442\u0440\u0430\u0444\u0438\u043A\u0430"
+    );
+  }
+  if (isKnownDatum(profile.trafficGeography) && context.companyGeography !== void 0) {
+    const geos = (profile.trafficGeography.value ?? []).map((value) => value.toLowerCase());
+    const companyGeos = context.companyGeography.map((value) => value.toLowerCase());
+    const hasOverlap = companyGeos.some((geo) => geos.some((trafficGeo) => trafficGeo.includes(geo)));
+    if (companyGeos.length > 0 && !hasOverlap) {
+      push(
+        "irrelevant_topics",
+        1,
+        "\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0442\u0440\u0430\u0444\u0438\u043A\u0430 \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0435\u043A\u0430\u0435\u0442\u0441\u044F \u0441 \u0440\u0435\u0433\u0438\u043E\u043D\u043E\u043C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438"
+      );
+    }
+  }
+  const severitySum = signals.reduce((sum, signal) => sum + signal.severity, 0);
+  const level = signals.length === 0 ? "UNKNOWN" : severitySum >= 3 ? "HIGH" : severitySum >= 2 ? "MEDIUM" : "LOW";
+  return {
+    level,
+    signals,
+    reasons,
+    aiReasons: [],
+    assessedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+function riskToScore(level) {
+  switch (level) {
+    case "LOW":
+      return 90;
+    case "MEDIUM":
+      return 60;
+    case "HIGH":
+      return 30;
+    case "UNKNOWN":
+      return 50;
+  }
+}
+
+// packages/domain/src/score-v2.ts
+var SCORE_V2_WEIGHTS = {
+  relevance: 30,
+  donorQuality: 25,
+  placementQuality: 20,
+  execution: 15,
+  risk: 10
+};
+var WEIGHT_TOTAL = 100;
+function clamp2(value) {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+function isScoreV2ComponentInRange(value) {
+  return Number.isFinite(value) && value >= 0 && value <= 100;
+}
+function calculateScoreV2(components) {
+  for (const key of ["relevanceScore", "donorQualityScore", "placementQualityScore", "executionScore", "riskScore"]) {
+    if (!isScoreV2ComponentInRange(components[key])) {
+      throw new ValidationError(`Score V2 component ${key} must be between 0 and 100`);
+    }
+  }
+  const overall = clamp2(
+    (components.relevanceScore * SCORE_V2_WEIGHTS.relevance + components.donorQualityScore * SCORE_V2_WEIGHTS.donorQuality + components.placementQualityScore * SCORE_V2_WEIGHTS.placementQuality + components.executionScore * SCORE_V2_WEIGHTS.execution + components.riskScore * SCORE_V2_WEIGHTS.risk) / WEIGHT_TOTAL
+  );
+  return { ...components, overall };
+}
+var RELEVANCE_WEIGHTS = { topical: 30, audience: 20, geographic: 15 };
+function relevanceFromBreakdown(breakdown) {
+  if (breakdown === null) return null;
+  const total = RELEVANCE_WEIGHTS.topical + RELEVANCE_WEIGHTS.audience + RELEVANCE_WEIGHTS.geographic;
+  return clamp2(
+    (breakdown.topicalRelevance * RELEVANCE_WEIGHTS.topical + breakdown.audienceMatch * RELEVANCE_WEIGHTS.audience + breakdown.geographicRelevance * RELEVANCE_WEIGHTS.geographic) / total
+  );
+}
+function executionFrom(breakdown, method) {
+  const base = breakdown?.automationPotential ?? 50;
+  const adjustment = {
+    API: 0,
+    SEMI_AUTOMATED: 0,
+    BROWSER: -5,
+    MANUAL: -15,
+    OUTREACH: -10,
+    UNKNOWN: -20
+  };
+  return clamp2(base + adjustment[method]);
+}
+function scoreV2From(input) {
+  if (input.breakdown === null) return null;
+  const relevance = relevanceFromBreakdown(input.breakdown);
+  const donorQuality = input.donorQuality?.overallDonorQuality ?? 50;
+  const pageSuitability = input.pageLinkInsertSuitability;
+  const placementQuality = pageSuitability !== null ? clamp2((input.breakdown.placementQuality + pageSuitability) / 2) : input.breakdown.placementQuality;
+  const execution = executionFrom(input.breakdown, input.placementMethod);
+  const risk = input.risk === null ? 50 : riskToScore(input.risk.level);
+  return calculateScoreV2({
+    relevanceScore: relevance ?? 50,
+    donorQualityScore: donorQuality,
+    placementQualityScore: placementQuality,
+    executionScore: execution,
+    riskScore: risk
+  });
+}
+
+// packages/domain/src/outreach.ts
+var OUTREACH_TRANSITIONS = {
+  DRAFT: ["READY_FOR_REVIEW"],
+  READY_FOR_REVIEW: ["APPROVED", "DRAFT"],
+  APPROVED: ["SENT", "DRAFT"],
+  SENT: ["REPLIED", "NO_RESPONSE"],
+  REPLIED: ["NEGOTIATING", "AGREED", "REJECTED"],
+  NEGOTIATING: ["AGREED", "REJECTED", "REPLIED"],
+  AGREED: [],
+  REJECTED: [],
+  NO_RESPONSE: ["SENT"]
+};
+function canTransitionOutreach(from, to) {
+  return OUTREACH_TRANSITIONS[from].includes(to);
+}
+function assertTransitionOutreach(from, to) {
+  if (!canTransitionOutreach(from, to)) {
+    throw new ValidationError(`Invalid outreach transition: ${from} -> ${to}`);
+  }
+}
+function initialOutreachDraft(now2 = (/* @__PURE__ */ new Date()).toISOString()) {
+  return {
+    status: "DRAFT",
+    message: null,
+    provider: null,
+    externalId: null,
+    sentAt: null,
+    createdAt: now2,
+    updatedAt: now2
+  };
+}
+
+// packages/domain/src/negotiation.ts
+var NEGOTIATION_INTENTS = [
+  "ACCEPTED",
+  "REJECTED",
+  "PRICE_NEGOTIATION",
+  "CONTENT_REQUIREMENTS",
+  "LINK_ATTRIBUTE_REQUEST",
+  "NEEDS_CLARIFICATION",
+  "MANUAL_REVIEW"
+];
+function emptyNegotiationSession() {
+  return { status: "OPEN", replies: [], analysis: null };
+}
+
+// packages/domain/src/hitl.ts
+function deriveHumanActions(context) {
+  const items = [];
+  const add = (item) => {
+    items.push({ ...item, id: `${item.kind}-${item.opportunityId}` });
+  };
+  if (context.hasIntel && context.risk !== null && context.risk.level === "HIGH") {
+    add({
+      kind: "REVIEW_DONOR",
+      title: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0434\u043E\u043D\u043E\u0440\u0430",
+      why: "\u0420\u0438\u0441\u043A \u0434\u043E\u043D\u043E\u0440\u0430 \u043E\u0446\u0435\u043D\u0451\u043D \u043A\u0430\u043A \u0432\u044B\u0441\u043E\u043A\u0438\u0439.",
+      aiPrepared: "AI \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u043F\u043E\u043B\u043D\u044B\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u043D\u043E\u0440\u0430 (\u0442\u0440\u0430\u0444\u0438\u043A, \u0430\u0432\u0442\u043E\u0440\u0438\u0442\u0435\u0442\u043D\u043E\u0441\u0442\u044C, \u0438\u043D\u0434\u0435\u043A\u0441\u0430\u0446\u0438\u044F) \u0438 \u0441\u043F\u0438\u0441\u043E\u043A \u0444\u0430\u043A\u0442\u043E\u0440\u043E\u0432 \u0440\u0438\u0441\u043A\u0430.",
+      humanTask: "\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u043D\u043E\u0440\u0430 \u0438 \u0440\u0435\u0448\u0438\u0442\u0435, \u0441\u0442\u043E\u0438\u0442 \u043B\u0438 \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0442\u044C \u0440\u0430\u0431\u043E\u0442\u0443 \u0441 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u043E\u0439.",
+      actionLabel: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0434\u043E\u043D\u043E\u0440\u0430",
+      opportunityId: context.opportunityId,
+      placementId: null
+    });
+  }
+  if (context.opportunityStatus === "QUALIFIED") {
+    add({
+      kind: "APPROVE_OPPORTUNITY",
+      title: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043E\u0434\u043E\u0431\u0440\u0438\u0442\u044C \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C",
+      why: "AI \u043E\u0446\u0435\u043D\u0438\u043B \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0443 \u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435.",
+      aiPrepared: "AI \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u043E\u0446\u0435\u043D\u043A\u0443, \u0440\u0430\u0437\u0431\u0438\u0432\u043A\u0443 \u0431\u0430\u043B\u043B\u043E\u0432 \u0438 \u043E\u0431\u044A\u044F\u0441\u043D\u0435\u043D\u0438\u0435 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0438.",
+      humanTask: "\u041E\u0434\u043E\u0431\u0440\u0438\u0442\u0435 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C, \u0447\u0442\u043E\u0431\u044B \u043F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C\u0443 \u044D\u0442\u0430\u043F\u0443.",
+      actionLabel: "\u041E\u0434\u043E\u0431\u0440\u0438\u0442\u044C",
+      opportunityId: context.opportunityId,
+      placementId: null
+    });
+  }
+  const isOutreachBased = context.placementMethod === "OUTREACH" || context.placementMethod === "MANUAL";
+  if (isOutreachBased && context.outreach !== null) {
+    if (context.outreach.status === "DRAFT" || context.outreach.status === "READY_FOR_REVIEW") {
+      add({
+        kind: "APPROVE_OUTREACH",
+        title: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043E\u0434\u043E\u0431\u0440\u0438\u0442\u044C outreach",
+        why: "AI \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u0447\u0435\u0440\u043D\u043E\u0432\u0438\u043A \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0435.",
+        aiPrepared: "AI \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435: \u0442\u0435\u043C\u0430, \u043F\u0440\u0438\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u0435, \u0446\u0435\u043D\u043D\u043E\u0441\u0442\u043D\u043E\u0435 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0438 \u0437\u0430\u043F\u0440\u043E\u0441 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F.",
+        humanTask: "\u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0438 \u043E\u0434\u043E\u0431\u0440\u0438\u0442\u0435 \u0442\u0435\u043A\u0441\u0442, \u043F\u043E\u0441\u043B\u0435 \u0447\u0435\u0433\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u043C\u043E\u0436\u043D\u043E \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C.",
+        actionLabel: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C outreach",
+        opportunityId: context.opportunityId,
+        placementId: null
+      });
+    }
+    const latestDonorReply = [...context.negotiation?.replies ?? []].reverse().find((reply) => reply.role === "donor");
+    if (context.outreach.status === "SENT" && latestDonorReply !== void 0) {
+      const negotiationReady = context.negotiation?.analysis !== null;
+      add({
+        kind: "DONOR_REPLIED",
+        title: "\u041F\u043E\u043B\u0443\u0447\u0435\u043D \u043E\u0442\u0432\u0435\u0442 \u043E\u0442 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+        why: "\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u043E\u0442\u0432\u0435\u0442\u0438\u043B\u0430 \u043D\u0430 \u0432\u0430\u0448\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435.",
+        aiPrepared: negotiationReady ? `AI \u043F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043B \u043E\u0442\u0432\u0435\u0442: ${context.negotiation?.analysis?.intent ?? "MANUAL_REVIEW"}.` : "\u041E\u0442\u0432\u0435\u0442 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0437\u0430\u043F\u0438\u0441\u0430\u043D, \u0430\u043D\u0430\u043B\u0438\u0437 \u0435\u0449\u0451 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D.",
+        humanTask: "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u043E\u0442\u0432\u0435\u0442 \u0438, \u043F\u0440\u0438 \u043D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u043E\u0441\u0442\u0438, \u043E\u0442\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u043B\u0435\u043D\u043D\u044B\u0439 \u043E\u0442\u0432\u0435\u0442 AI.",
+        actionLabel: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B",
+        opportunityId: context.opportunityId,
+        placementId: null
+      });
+    }
+    if (context.negotiation?.analysis?.intent === "PRICE_NEGOTIATION" && context.outreach.status !== "AGREED" && context.outreach.status !== "REJECTED") {
+      const range = context.negotiation.analysis.recommendedPrice;
+      add({
+        kind: "NEGOTIATE_PRICE",
+        title: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u0442\u044C \u0446\u0435\u043D\u0443",
+        why: "\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u0432\u044B\u0434\u0432\u0438\u043D\u0443\u043B\u0430 \u0446\u0435\u043D\u043E\u0432\u043E\u0435 \u0443\u0441\u043B\u043E\u0432\u0438\u0435.",
+        aiPrepared: `AI \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442 \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D${range !== null ? ` ${range.min}\u2013${range.max} ${range.currency}` : ""} \u0438 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u043E\u0442\u0432\u0435\u0442.`,
+        humanTask: "\u0421\u043E\u0433\u043B\u0430\u0441\u0443\u0439\u0442\u0435 \u0446\u0435\u043D\u0443 \u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u043E\u0442\u0432\u0435\u0442 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0435.",
+        actionLabel: "\u0421\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u0442\u044C \u0446\u0435\u043D\u0443",
+        opportunityId: context.opportunityId,
+        placementId: null
+      });
+    }
+  }
+  for (const placement of context.manualPlacements) {
+    add({
+      kind: "MANUAL_PLACEMENT",
+      title: "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0440\u0443\u0447\u043D\u043E\u0435 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435",
+      why: "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438.",
+      aiPrepared: "AI \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043B \u0430\u043D\u043A\u043E\u0440, \u0442\u0435\u043A\u0441\u0442 \u0432\u0441\u0442\u0430\u0432\u043A\u0438 \u0438 \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044E \u043F\u043E \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044E.",
+      humanTask: "\u0412\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u043D\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0435 \u0432\u0440\u0443\u0447\u043D\u0443\u044E \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u044E.",
+      actionLabel: "\u0412\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0432\u0440\u0443\u0447\u043D\u0443\u044E",
+      opportunityId: context.opportunityId,
+      placementId: placement.id
+    });
+  }
+  return items;
+}
+
+// packages/domain/src/placement-plan.ts
+var PLAN_MIN_SCORE_RECOMMENDED = 75;
+var PLAN_MIN_SCORE_REVIEW_REQUIRED = 55;
+function reconcilePlanDecision(signals, ai) {
+  const base = {
+    recommendation: ai.recommendation,
+    recommendationReason: ai.recommendationReason,
+    nextAction: ai.nextAction,
+    automationLevel: ai.automationLevel,
+    riskExplanation: ai.riskExplanation,
+    suggestedPlacementApproach: ai.suggestedPlacementApproach,
+    rejectionReason: null
+  };
+  const bestScore = effectiveScore(signals.score, signals.overallScore);
+  if (bestScore === null && !signals.hasIntel && signals.riskLevel === null) {
+    return {
+      ...base,
+      recommendation: "INSUFFICIENT_DATA",
+      recommendationReason: signals.placementMethod === "UNKNOWN" || !signals.providerAvailable ? "\u041F\u043E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0434\u0430\u043D\u043D\u044B\u0445: \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u043D\u0435 \u043E\u0446\u0435\u043D\u0435\u043D\u0430 \u0438 \u043F\u043E\u0434\u0445\u043E\u0434\u044F\u0449\u0438\u0439 \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D." : "\u041F\u043E \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0434\u0430\u043D\u043D\u044B\u0445: \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u0435\u0449\u0451 \u043D\u0435 \u043E\u0446\u0435\u043D\u0435\u043D\u0430 (\u043D\u0435\u0442 \u0431\u0430\u043B\u043B\u0430 \u0438 \u0430\u043D\u0430\u043B\u0438\u0437\u0430 \u0434\u043E\u043D\u043E\u0440\u0430).",
+      nextAction: "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: null
+    };
+  }
+  if (bestScore !== null && bestScore < PLAN_MIN_SCORE_REVIEW_REQUIRED) {
+    return {
+      ...base,
+      recommendation: "NOT_RECOMMENDED",
+      recommendationReason: ai.recommendationReason,
+      nextAction: "REJECT",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: {
+        kind: "LOW_SCORE",
+        text: `\u0418\u0442\u043E\u0433\u043E\u0432\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430 ${bestScore} \u043D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0440\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u0438\u044F (${PLAN_MIN_SCORE_REVIEW_REQUIRED}).`
+      }
+    };
+  }
+  const highRisk = signals.riskLevel === "HIGH";
+  if (highRisk && (ai.recommendation === "RECOMMENDED" || ai.recommendation === "REVIEW_REQUIRED")) {
+    return {
+      ...base,
+      recommendation: "REVIEW_REQUIRED",
+      recommendationReason: ai.recommendationReason,
+      nextAction: ai.nextAction === "PREPARE_OUTREACH" ? ai.nextAction : "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: null
+    };
+  }
+  if (bestScore !== null && bestScore < PLAN_MIN_SCORE_RECOMMENDED && ai.recommendation === "RECOMMENDED") {
+    return {
+      ...base,
+      recommendation: "REVIEW_REQUIRED",
+      recommendationReason: ai.recommendationReason,
+      nextAction: ai.nextAction === "PREPARE_OUTREACH" ? ai.nextAction : "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: null
+    };
+  }
+  const executionBased = signals.placementMethod !== "OUTREACH";
+  if (!signals.providerAvailable && executionBased && ai.recommendation !== "NOT_RECOMMENDED") {
+    return {
+      ...base,
+      recommendation: "NOT_RECOMMENDED",
+      recommendationReason: ai.recommendationReason,
+      nextAction: "REVIEW_PROVIDER",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: {
+        kind: "NO_PROVIDER",
+        text: "\u0414\u043B\u044F \u044D\u0442\u043E\u0433\u043E \u043C\u0435\u0442\u043E\u0434\u0430 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440 \u0441 \u043D\u0443\u0436\u043D\u044B\u043C\u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044F\u043C\u0438."
+      }
+    };
+  }
+  if (ai.recommendation === "RECOMMENDED" && !signals.strategySupportsType && bestScore !== null && bestScore < PLAN_MIN_SCORE_RECOMMENDED) {
+    return {
+      ...base,
+      recommendation: "REVIEW_REQUIRED",
+      recommendationReason: ai.recommendationReason,
+      nextAction: "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED",
+      rejectionReason: null
+    };
+  }
+  if (base.recommendation === "NOT_RECOMMENDED") {
+    return { ...base, nextAction: "REJECT", rejectionReason: deriveRejectionReason(signals) };
+  }
+  const { nextAction, automationLevel } = bindExecution(signals, base);
+  return { ...base, nextAction, automationLevel };
+}
+function deriveRejectionReason(signals) {
+  const bestScore = effectiveScore(signals.score, signals.overallScore);
+  if (bestScore !== null && bestScore < PLAN_MIN_SCORE_REVIEW_REQUIRED) {
+    return {
+      kind: "LOW_SCORE",
+      text: `\u0418\u0442\u043E\u0433\u043E\u0432\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430 ${bestScore} \u043D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0440\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u0438\u044F (${PLAN_MIN_SCORE_REVIEW_REQUIRED}).`
+    };
+  }
+  if (signals.riskLevel === "HIGH") {
+    return {
+      kind: "HIGH_RISK",
+      text: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0435\u0441\u0451\u0442 \u0432\u044B\u0441\u043E\u043A\u0438\u0439 \u0440\u0438\u0441\u043A (\u0441\u043F\u0430\u043C, \u0438\u043D\u0434\u0435\u043A\u0441\u0430\u0446\u0438\u044F, \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u043E)."
+    };
+  }
+  if (!signals.providerAvailable) {
+    return {
+      kind: "NO_PROVIDER",
+      text: "\u0414\u043B\u044F \u044D\u0442\u043E\u0433\u043E \u043C\u0435\u0442\u043E\u0434\u0430 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440 \u0441 \u043D\u0443\u0436\u043D\u044B\u043C\u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044F\u043C\u0438."
+    };
+  }
+  if (!signals.strategySupportsType) {
+    return {
+      kind: "UNSUITABLE_PLACEMENT_TYPE",
+      text: "\u0412\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0439 \u0442\u0438\u043F \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F \u043D\u0435 \u0432\u0445\u043E\u0434\u0438\u0442 \u0432 \u0441\u0442\u0440\u0430\u0442\u0435\u0433\u0438\u044E \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u0434\u043B\u044F \u044D\u0442\u043E\u0439 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438."
+    };
+  }
+  if (signals.placementMethod === "OUTREACH" || signals.placementMethod === "MANUAL") {
+    return {
+      kind: "MANUAL_NEGOTIATION_REQUIRED",
+      text: "\u0420\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u043E\u0432 \u0438 \u0440\u0443\u0447\u043D\u043E\u0439 \u0440\u0430\u0431\u043E\u0442\u044B, \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0438\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 \u043D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E."
+    };
+  }
+  if (bestScore !== null && bestScore < PLAN_MIN_SCORE_RECOMMENDED) {
+    return {
+      kind: "LOW_SCORE",
+      text: `\u0418\u0442\u043E\u0433\u043E\u0432\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430 ${bestScore} \u043D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0443\u0432\u0435\u0440\u0435\u043D\u043D\u043E\u0441\u0442\u0438 (${PLAN_MIN_SCORE_RECOMMENDED}).`
+    };
+  }
+  return {
+    kind: "LOW_RELEVANCE",
+    text: "\u041E\u0446\u0435\u043D\u043A\u0430 AI \u0443\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u043D\u0430 \u043D\u0438\u0437\u043A\u0443\u044E \u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0443\u044E \u0440\u0435\u043B\u0435\u0432\u0430\u043D\u0442\u043D\u043E\u0441\u0442\u044C \u0434\u043B\u044F \u044D\u0442\u043E\u0439 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438."
+  };
+}
+function bindExecution(signals, decision) {
+  if (decision.recommendation === "INSUFFICIENT_DATA") {
+    return { nextAction: "REVIEW_OPPORTUNITY", automationLevel: "HUMAN_REQUIRED" };
+  }
+  if (decision.recommendation !== "RECOMMENDED") {
+    return {
+      nextAction: decision.nextAction === "REJECT" ? "REJECT" : "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED"
+    };
+  }
+  let nextAction = decision.nextAction;
+  switch (signals.placementMethod) {
+    case "API":
+      nextAction = "EXECUTE_AUTOMATICALLY";
+      break;
+    case "BROWSER":
+      nextAction = signals.providerCapabilitiesVerified ? "EXECUTE_AUTOMATICALLY" : "REVIEW_PROVIDER";
+      break;
+    case "OUTREACH":
+      nextAction = "PREPARE_OUTREACH";
+      break;
+    case "MANUAL":
+      nextAction = "REQUEST_MANUAL_PLACEMENT";
+      break;
+    default:
+      nextAction = "REVIEW_OPPORTUNITY";
+      break;
+  }
+  let automationLevel = decision.automationLevel;
+  if (signals.placementMethod === "OUTREACH" || signals.placementMethod === "MANUAL") {
+    automationLevel = "HUMAN_REQUIRED";
+  } else if (signals.placementMethod === "BROWSER" || !signals.providerCapabilitiesVerified) {
+    automationLevel = automationLevel === "HUMAN_REQUIRED" ? "HUMAN_REQUIRED" : "AI_ASSISTED";
+  } else {
+    automationLevel = automationLevel === "HUMAN_REQUIRED" ? "HUMAN_REQUIRED" : "AUTOMATIC";
+  }
+  return { nextAction, automationLevel };
+}
+function effectiveScore(score, overallScore) {
+  if (score !== null && overallScore !== null) {
+    return Math.round((score + overallScore) / 2);
+  }
+  return score ?? overallScore;
+}
+function buildPlanSummary(items) {
+  let recommended = 0;
+  let reviewRequired = 0;
+  let notRecommended = 0;
+  let insufficientData = 0;
+  let automationWeight = 0;
+  const rejectionReasons = [];
+  for (const item of items) {
+    switch (item.decision.recommendation) {
+      case "RECOMMENDED":
+        recommended += 1;
+        break;
+      case "REVIEW_REQUIRED":
+        reviewRequired += 1;
+        break;
+      case "NOT_RECOMMENDED":
+        notRecommended += 1;
+        break;
+      case "INSUFFICIENT_DATA":
+        insufficientData += 1;
+        break;
+    }
+    switch (item.decision.automationLevel) {
+      case "AUTOMATIC":
+        automationWeight += 1;
+        break;
+      case "AI_ASSISTED":
+        automationWeight += 0.5;
+        break;
+      case "HUMAN_REQUIRED":
+        break;
+    }
+    const reason = item.decision.rejectionReason;
+    if (reason !== null && !rejectionReasons.includes(reason.kind)) {
+      rejectionReasons.push(reason.kind);
+    }
+  }
+  const total = items.length;
+  const automationPercent = total === 0 ? 0 : Math.round(automationWeight / total * 100);
+  return {
+    total,
+    recommended,
+    reviewRequired,
+    notRecommended,
+    insufficientData,
+    automationPercent,
+    byRejectionReason: rejectionReasons
+  };
+}
+function pickRecommendedToStart(items, limit = 3) {
+  return [...items].filter((item) => item.decision.recommendation === "RECOMMENDED").sort(
+    (a, b) => (b.overallScore ?? b.score ?? -1) - (a.overallScore ?? a.score ?? -1) || (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName)
+  ).slice(0, limit).map((item) => ({
+    opportunityId: item.opportunityId,
+    platformName: item.platformName,
+    placementType: item.placementType
+  }));
+}
+
 // packages/application/src/errors.ts
 var NotFoundError = class extends DomainError {
   constructor(entityType, entityId) {
@@ -2422,6 +3333,81 @@ var NoProviderAssignedError = class extends DomainError {
     this.placementId = placementId;
   }
   placementId;
+};
+var PlanGenerationFailedError = class extends DomainError {
+  constructor(campaignId, reason) {
+    super(`Placement plan generation failed for campaign "${campaignId}": ${reason}`);
+    this.campaignId = campaignId;
+  }
+  campaignId;
+};
+var NoPlacementPlanError = class extends DomainError {
+  constructor(campaignId) {
+    super(`No placement plan generated for campaign "${campaignId}"`);
+    this.campaignId = campaignId;
+  }
+  campaignId;
+};
+
+// packages/application/src/use-cases/company/create-company.use-case.ts
+var CreateCompanyUseCase = class {
+  constructor(companies, auditLog) {
+    this.companies = companies;
+    this.auditLog = auditLog;
+  }
+  companies;
+  auditLog;
+  async execute(command) {
+    validateCompany(command);
+    const company = await this.companies.create(command);
+    await this.auditLog.append({
+      actor: "system",
+      action: "COMPANY_CREATED",
+      entityType: "Company",
+      entityId: company.id,
+      metadata: null
+    });
+    return company;
+  }
+};
+
+// packages/application/src/use-cases/campaign/create-campaign.use-case.ts
+var CreateCampaignUseCase = class {
+  constructor(companies, campaigns, auditLog) {
+    this.companies = companies;
+    this.campaigns = campaigns;
+    this.auditLog = auditLog;
+  }
+  companies;
+  campaigns;
+  auditLog;
+  async execute(command) {
+    validateCampaign(command);
+    const company = await this.companies.findById(command.companyId);
+    if (company === null) {
+      throw new NotFoundError("Company", command.companyId);
+    }
+    const campaign = await this.campaigns.create(command);
+    await this.auditLog.append({
+      actor: "system",
+      action: "CAMPAIGN_CREATED",
+      entityType: "Campaign",
+      entityId: campaign.id,
+      metadata: null
+    });
+    return campaign;
+  }
+};
+
+// packages/application/src/use-cases/campaign/list-campaigns-by-company.use-case.ts
+var ListCampaignsByCompanyUseCase = class {
+  constructor(campaigns) {
+    this.campaigns = campaigns;
+  }
+  campaigns;
+  async execute(companyId) {
+    return this.campaigns.findByCompanyId(companyId);
+  }
 };
 
 // packages/application/src/use-cases/opportunity/discover-opportunities.use-case.ts
@@ -2458,6 +3444,7 @@ var DiscoverOpportunitiesUseCase = class {
     const allowedCategoryCodes = categoryCodes.length === 0 ? null : new Set(categoryCodes.map((code) => code.trim().toLowerCase()));
     const existing = await this.opportunities.findByCampaignId(command.campaignId);
     const existingPlatformIds = new Set(existing.map((opportunity) => opportunity.platformId));
+    const createdPlatformIds = /* @__PURE__ */ new Set();
     const opportunities = [];
     for (const source of this.sources) {
       const result = await source.discover({
@@ -2472,9 +3459,10 @@ var DiscoverOpportunitiesUseCase = class {
         if (candidate.platformId === null) {
           continue;
         }
-        if (existingPlatformIds.has(candidate.platformId)) {
+        if (existingPlatformIds.has(candidate.platformId) || createdPlatformIds.has(candidate.platformId)) {
           continue;
         }
+        createdPlatformIds.add(candidate.platformId);
         validateOpportunity({
           campaignId: command.campaignId,
           platformId: candidate.platformId,
@@ -2487,7 +3475,8 @@ var DiscoverOpportunitiesUseCase = class {
           platformId: candidate.platformId,
           placementType: command.placementType,
           placementMethod: "UNKNOWN",
-          categoryId
+          categoryId,
+          metadata: { discoverySource: source.name }
         });
         await this.auditLog.append({
           actor: "system",
@@ -3009,7 +3998,7 @@ __export(core_exports2, {
   parse: () => parse,
   parseAsync: () => parseAsync,
   prettifyError: () => prettifyError,
-  process: () => process,
+  process: () => process2,
   regexes: () => regexes_exports,
   registry: () => registry,
   safeDecode: () => safeDecode,
@@ -13934,7 +14923,7 @@ function initializeContext(params) {
     external: params?.external ?? void 0
   };
 }
-function process(schema, ctx, _params = { path: [], schemaPath: [] }) {
+function process2(schema, ctx, _params = { path: [], schemaPath: [] }) {
   var _a3;
   const def = schema._zod.def;
   const seen = ctx.seen.get(schema);
@@ -13971,7 +14960,7 @@ function process(schema, ctx, _params = { path: [], schemaPath: [] }) {
     if (parent) {
       if (!result.ref)
         result.ref = parent;
-      process(parent, ctx, params);
+      process2(parent, ctx, params);
       ctx.seen.get(parent).isParent = true;
     }
   }
@@ -14259,14 +15248,14 @@ function isTransforming(_schema, _ctx) {
 }
 var createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
   const ctx = initializeContext({ ...params, processors });
-  process(schema, ctx);
+  process2(schema, ctx);
   extractDefs(ctx, schema);
   return finalize(ctx, schema);
 };
 var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) => {
   const { libraryOptions, target } = params ?? {};
   const ctx = initializeContext({ ...libraryOptions ?? {}, target, io, processors });
-  process(schema, ctx);
+  process2(schema, ctx);
   extractDefs(ctx, schema);
   return finalize(ctx, schema);
 };
@@ -14512,7 +15501,7 @@ var arrayProcessor = (schema, ctx, _json, params) => {
   if (typeof maximum === "number")
     json2.maxItems = maximum;
   json2.type = "array";
-  json2.items = process(def.element, ctx, {
+  json2.items = process2(def.element, ctx, {
     ...params,
     path: [...params.path, "items"]
   });
@@ -14524,7 +15513,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
   json2.properties = {};
   const shape = def.shape;
   for (const key in shape) {
-    json2.properties[key] = process(shape[key], ctx, {
+    json2.properties[key] = process2(shape[key], ctx, {
       ...params,
       path: [...params.path, "properties", key]
     });
@@ -14547,7 +15536,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
     if (ctx.io === "output")
       json2.additionalProperties = false;
   } else if (def.catchall) {
-    json2.additionalProperties = process(def.catchall, ctx, {
+    json2.additionalProperties = process2(def.catchall, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
@@ -14556,7 +15545,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
 var unionProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
   const isExclusive = def.inclusive === false;
-  const options = def.options.map((x, i) => process(x, ctx, {
+  const options = def.options.map((x, i) => process2(x, ctx, {
     ...params,
     path: [...params.path, isExclusive ? "oneOf" : "anyOf", i]
   }));
@@ -14568,11 +15557,11 @@ var unionProcessor = (schema, ctx, json2, params) => {
 };
 var intersectionProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  const a = process(def.left, ctx, {
+  const a = process2(def.left, ctx, {
     ...params,
     path: [...params.path, "allOf", 0]
   });
-  const b = process(def.right, ctx, {
+  const b = process2(def.right, ctx, {
     ...params,
     path: [...params.path, "allOf", 1]
   });
@@ -14589,11 +15578,11 @@ var tupleProcessor = (schema, ctx, _json, params) => {
   json2.type = "array";
   const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
   const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
-  const prefixItems = def.items.map((x, i) => process(x, ctx, {
+  const prefixItems = def.items.map((x, i) => process2(x, ctx, {
     ...params,
     path: [...params.path, prefixPath, i]
   }));
-  const rest = def.rest ? process(def.rest, ctx, {
+  const rest = def.rest ? process2(def.rest, ctx, {
     ...params,
     path: [...params.path, restPath, ...ctx.target === "openapi-3.0" ? [def.items.length] : []]
   }) : null;
@@ -14633,7 +15622,7 @@ var recordProcessor = (schema, ctx, _json, params) => {
   const keyBag = keyType._zod.bag;
   const patterns = keyBag?.patterns;
   if (def.mode === "loose" && patterns && patterns.size > 0) {
-    const valueSchema = process(def.valueType, ctx, {
+    const valueSchema = process2(def.valueType, ctx, {
       ...params,
       path: [...params.path, "patternProperties", "*"]
     });
@@ -14643,12 +15632,12 @@ var recordProcessor = (schema, ctx, _json, params) => {
     }
   } else {
     if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
-      json2.propertyNames = process(def.keyType, ctx, {
+      json2.propertyNames = process2(def.keyType, ctx, {
         ...params,
         path: [...params.path, "propertyNames"]
       });
     }
-    json2.additionalProperties = process(def.valueType, ctx, {
+    json2.additionalProperties = process2(def.valueType, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
@@ -14663,7 +15652,7 @@ var recordProcessor = (schema, ctx, _json, params) => {
 };
 var nullableProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  const inner = process(def.innerType, ctx, params);
+  const inner = process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   if (ctx.target === "openapi-3.0") {
     seen.ref = def.innerType;
@@ -14674,20 +15663,20 @@ var nullableProcessor = (schema, ctx, json2, params) => {
 };
 var nonoptionalProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var defaultProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   json2.default = JSON.parse(JSON.stringify(def.defaultValue));
 };
 var prefaultProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   if (ctx.io === "input")
@@ -14695,7 +15684,7 @@ var prefaultProcessor = (schema, ctx, json2, params) => {
 };
 var catchProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   let catchValue;
@@ -14710,32 +15699,32 @@ var pipeProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
   const inIsTransform = def.in._zod.traits.has("$ZodTransform");
   const innerType = ctx.io === "input" ? inIsTransform ? def.out : def.in : def.out;
-  process(innerType, ctx, params);
+  process2(innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = innerType;
 };
 var readonlyProcessor = (schema, ctx, json2, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   json2.readOnly = true;
 };
 var promiseProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var optionalProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process(def.innerType, ctx, params);
+  process2(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var lazyProcessor = (schema, ctx, _json, params) => {
   const innerType = schema._zod.innerType;
-  process(innerType, ctx, params);
+  process2(innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = innerType;
 };
@@ -14787,7 +15776,7 @@ function toJSONSchema(input, params) {
     const defs = {};
     for (const entry of registry2._idmap.entries()) {
       const [_, schema] = entry;
-      process(schema, ctx2);
+      process2(schema, ctx2);
     }
     const schemas = {};
     const external = {
@@ -14810,7 +15799,7 @@ function toJSONSchema(input, params) {
     return { schemas };
   }
   const ctx = initializeContext({ ...params, processors: allProcessors });
-  process(input, ctx);
+  process2(input, ctx);
   extractDefs(ctx, input);
   return finalize(ctx, input);
 }
@@ -14868,7 +15857,7 @@ var JSONSchemaGenerator = class {
    * This must be called before emit().
    */
   process(schema, _params = { path: [], schemaPath: [] }) {
-    return process(schema, this.ctx, _params);
+    return process2(schema, this.ctx, _params);
   }
   /**
    * Emit the final JSON Schema after processing.
@@ -17036,6 +18025,92 @@ var opportunityClassificationSchema = external_exports.strictObject({
 var contentDraftSchema = external_exports.strictObject({
   content: external_exports.string().min(1)
 });
+var pageAnalysisSchema = external_exports.strictObject({
+  targetPage: external_exports.string().min(1),
+  pageTitle: external_exports.string().min(1),
+  pageType: external_exports.enum(PAGE_TYPES),
+  topicalRelevance: external_exports.number().min(0).max(100),
+  linkInsertSuitability: external_exports.number().min(0).max(100),
+  indexation: external_exports.enum(["INDEXED", "PARTIAL", "NOT_INDEXED"]),
+  suggestedPlacementLocation: external_exports.string().min(1),
+  summary: external_exports.string().min(1)
+});
+var linkInsertSchema = external_exports.strictObject({
+  anchor: external_exports.string().min(1),
+  anchorAlternatives: external_exports.array(external_exports.string().min(1)).min(2).max(3),
+  suggestedInsertionPoint: external_exports.string().min(1),
+  text: external_exports.string().min(1),
+  explanation: external_exports.string().min(1),
+  confidence: external_exports.number().min(0).max(100)
+});
+var anchorRecommendationSchema = external_exports.strictObject({
+  anchorType: external_exports.enum(ANCHOR_TYPES),
+  anchor: external_exports.string().min(1),
+  alternatives: external_exports.array(external_exports.string().min(1)).min(1),
+  explanation: external_exports.string().min(1),
+  confidence: external_exports.number().min(0).max(100)
+});
+var outreachMessageSchema = external_exports.strictObject({
+  subject: external_exports.string().min(1),
+  message: external_exports.string().min(1),
+  shortVersion: external_exports.string().min(1),
+  opening: external_exports.string().min(1),
+  valueProposition: external_exports.string().min(1),
+  placementRequest: external_exports.string().min(1),
+  cta: external_exports.string().min(1)
+});
+var negotiationAnalysisSchema = external_exports.strictObject({
+  intent: external_exports.enum(NEGOTIATION_INTENTS),
+  suggestedResponse: external_exports.string().min(1),
+  strategy: external_exports.string().min(1),
+  recommendedPrice: external_exports.strictObject({
+    min: external_exports.number().nonnegative(),
+    max: external_exports.number().nonnegative(),
+    currency: external_exports.string().min(1)
+  }).nullable(),
+  fallbackOption: external_exports.string().nullable(),
+  risks: external_exports.array(external_exports.string().min(1)),
+  confidence: external_exports.number().min(0).max(100)
+});
+var donorQualityEstimatesSchema = external_exports.strictObject({
+  topicalRelevance: external_exports.number().min(0).max(100),
+  audienceMatch: external_exports.number().min(0).max(100),
+  geographicRelevance: external_exports.number().min(0).max(100),
+  placementQuality: external_exports.number().min(0).max(100),
+  automationPotential: external_exports.number().min(0).max(100),
+  overallAssessment: external_exports.string().min(1)
+});
+var donorRiskSchema = external_exports.strictObject({
+  level: external_exports.enum(RISK_LEVELS),
+  reasons: external_exports.array(external_exports.string().min(1))
+});
+var placementPlanItemSchema = external_exports.strictObject({
+  opportunityId: external_exports.string().min(1),
+  recommendation: external_exports.enum(PLACEMENT_RECOMMENDATIONS),
+  recommendationReason: external_exports.string().min(1),
+  nextAction: external_exports.enum(RECOMMENDED_ACTIONS),
+  automationLevel: external_exports.enum(AUTOMATION_LEVELS),
+  riskExplanation: external_exports.string().min(1).nullable(),
+  suggestedPlacementApproach: external_exports.string().min(1).nullable(),
+  anchorRecommendation: external_exports.strictObject({
+    anchorType: external_exports.enum(ANCHOR_TYPES),
+    anchor: external_exports.string().min(1),
+    explanation: external_exports.string().min(1)
+  }).nullable()
+});
+var placementPlanSchema = external_exports.strictObject({
+  items: external_exports.array(placementPlanItemSchema),
+  overview: external_exports.string().min(1).nullable()
+});
+var searchQueryPlanSchema = external_exports.strictObject({
+  intents: external_exports.array(
+    external_exports.strictObject({
+      intent: external_exports.string().min(3).max(160),
+      categoryCode: external_exports.string().min(3).max(60).nullable(),
+      queries: external_exports.array(external_exports.string().min(5).max(240)).min(1).max(3)
+    })
+  ).min(1).max(10)
+});
 
 // packages/ai/src/validate.ts
 var AIOutputValidationError = class extends Error {
@@ -17057,6 +18132,627 @@ function validateAIOutput(schema, raw2, context) {
     );
   }
   return result.data;
+}
+
+// packages/ai/src/providers/opencode-errors.ts
+var defaultOpenCodeBaseUrl = "https://opencode.ai/zen/go/v1";
+var OpenCodeModelConfigError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OpenCodeModelConfigError";
+  }
+};
+var OpenCodeProviderUnavailableError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OpenCodeProviderUnavailableError";
+  }
+};
+var OpenCodeProviderAuthError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OpenCodeProviderAuthError";
+  }
+};
+var OpenCodeProviderRateLimitError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "OpenCodeProviderRateLimitError";
+  }
+};
+
+// packages/ai/src/providers/opencode-client.ts
+var DEFAULT_TIMEOUT_MS = 3e4;
+var MAX_RETRIES = 2;
+var BACKOFF_BASE_MS = 800;
+var OpenCodeClientError = class extends Error {
+  constructor(category, message, status) {
+    super(message);
+    this.category = category;
+    this.status = status;
+    this.name = "OpenCodeClientError";
+  }
+  category;
+  status;
+};
+var OpenCodeClient = class {
+  model;
+  apiKey;
+  baseUrl;
+  timeoutMs;
+  fetchImpl;
+  constructor(config2) {
+    if (config2.apiKey.trim() === "") {
+      throw new OpenCodeModelConfigError("OPENCODE_API_KEY is required to construct the client");
+    }
+    this.apiKey = config2.apiKey.trim();
+    this.baseUrl = (config2.baseUrl ?? defaultOpenCodeBaseUrl).trim().replace(/\/+$/, "");
+    this.model = (config2.model ?? "").trim();
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
+  }
+  /**
+   * Calls chat completions with retry/backoff. Returns the parsed JSON from
+   * the assistant message content. Throws OpenCodeClientError on transport
+   * or response failures; the caller maps it to application errors.
+   */
+  async chat(messages, options) {
+    if (this.model === "") {
+      throw new OpenCodeModelConfigError("OPENCODE_MODEL is required to call OpenCode Go");
+    }
+    const body = {
+      model: this.model,
+      messages,
+      temperature: 0.2,
+      max_tokens: 3e3
+    };
+    if (options?.jsonMode === true) {
+      body.response_format = { type: "json_object" };
+    }
+    let lastError = null;
+    let correctiveApplied = false;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      if (attempt > 0 && lastError !== null) {
+        await sleep(BACKOFF_BASE_MS * 2 ** (attempt - 1));
+      }
+      const corrective = correctiveApplied ? [
+        {
+          role: "system",
+          content: "Your previous answer was not valid JSON. Reply again with ONLY a valid JSON object \u2014 no prose, no markdown fences, no trailing text."
+        }
+      ] : [];
+      try {
+        return await this.completeOnce({ ...body, messages: [...messages, ...corrective] });
+      } catch (error51) {
+        if (!(error51 instanceof OpenCodeClientError)) {
+          throw error51;
+        }
+        if (error51.category === "response") {
+          if (!correctiveApplied) {
+            correctiveApplied = true;
+            lastError = error51;
+            continue;
+          }
+          throw error51;
+        }
+        if (!isRetryable(error51) || attempt >= MAX_RETRIES) {
+          throw error51;
+        }
+        lastError = error51;
+      }
+    }
+    if (lastError !== null) throw lastError;
+    throw new OpenCodeClientError("response", "OpenCode Go returned no response", null);
+  }
+  async completeOnce(body) {
+    let response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(this.timeoutMs)
+      });
+    } catch (error51) {
+      if (error51 instanceof Error && error51.name === "TimeoutError") {
+        throw new OpenCodeClientError(
+          "timeout",
+          `OpenCode Go request timed out after ${this.timeoutMs}ms`,
+          null
+        );
+      }
+      throw new OpenCodeClientError(
+        "network",
+        "OpenCode Go network error while calling chat completions",
+        null
+      );
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new OpenCodeClientError(
+        "auth",
+        "OpenCode Go rejected the API key (HTTP 401/403)",
+        response.status
+      );
+    }
+    if (response.status === 429) {
+      throw new OpenCodeClientError(
+        "rate-limit",
+        "OpenCode Go rate limit exceeded (429)",
+        response.status
+      );
+    }
+    if (response.status >= 500) {
+      throw new OpenCodeClientError(
+        "server",
+        `OpenCode Go server error (HTTP ${response.status})`,
+        response.status
+      );
+    }
+    if (response.status >= 400 && response.status < 500) {
+      throw new OpenCodeClientError(
+        "validation",
+        `OpenCode Go rejected the request (HTTP ${response.status}) \u2014 check OPENCODE_MODEL and the payload`,
+        response.status
+      );
+    }
+    if (!response.ok) {
+      throw new OpenCodeClientError(
+        "response",
+        `OpenCode Go rejected the request (HTTP ${response.status})`,
+        response.status
+      );
+    }
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new OpenCodeClientError(
+        "response",
+        "OpenCode Go returned malformed JSON envelope",
+        response.status
+      );
+    }
+    const content = extractAssistantContent(payload);
+    if (content === null) {
+      throw new OpenCodeClientError(
+        "response",
+        "OpenCode Go response had no assistant content",
+        response.status
+      );
+    }
+    const parsed = extractJson(content);
+    if (parsed === void 0) {
+      throw new OpenCodeClientError(
+        "response",
+        "OpenCode Go returned unparseable JSON content",
+        response.status
+      );
+    }
+    return parsed;
+  }
+};
+function extractAssistantContent(payload) {
+  if (payload === null || typeof payload !== "object") return null;
+  const record2 = payload;
+  const choices = record2.choices;
+  if (choices.length === 0) return null;
+  const first = choices[0];
+  if (first === null || typeof first !== "object") return null;
+  const message = first.message;
+  if (message === null || typeof message !== "object") return null;
+  const content = message.content;
+  return typeof content === "string" && content.trim() !== "" ? content : null;
+}
+function extractJson(content) {
+  const trimmed = content.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(trimmed);
+  const candidate = fenced === null ? trimmed : fenced[1] ?? trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(candidate.slice(start, end + 1));
+      } catch {
+        return void 0;
+      }
+    }
+    return void 0;
+  }
+}
+function isRetryable(error51) {
+  return error51.category === "rate-limit" || error51.category === "server" || error51.category === "network" || error51.category === "timeout";
+}
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// packages/ai/src/providers/opencode-ai-provider.ts
+var DEFAULT_OPENCODE_MODEL = "deepseek-v4-pro";
+var OpenCodeAIProvider = class {
+  name;
+  /** Configured model id (surfaced to the UI as provenance). */
+  model;
+  client;
+  constructor(config2) {
+    if (config2.apiKey.trim() === "") {
+      throw new OpenCodeModelConfigError("OPENCODE_API_KEY is required for AI_MODE=real");
+    }
+    this.name = config2.name ?? "opencode-go";
+    this.client = new OpenCodeClient(config2);
+    this.model = this.client.model;
+  }
+  analyzeCompany(input) {
+    return this.structured("analyzeCompany", companyAnalysisPrompt(input));
+  }
+  classifyOpportunity(input) {
+    return this.structured("classifyOpportunity", classificationPrompt(input));
+  }
+  prepareContent(input) {
+    return this.structured("prepareContent", contentDraftPrompt(input));
+  }
+  analyzePage(input) {
+    return this.structured("analyzePage", pageAnalysisPrompt(input));
+  }
+  generateLinkInsert(input) {
+    return this.structured("generateLinkInsert", linkInsertPrompt(input));
+  }
+  recommendAnchor(input) {
+    return this.structured("recommendAnchor", anchorPrompt(input));
+  }
+  generateOutreach(input) {
+    return this.structured("generateOutreach", outreachPrompt(input));
+  }
+  analyzeNegotiationReply(input) {
+    return this.structured("analyzeNegotiationReply", negotiationPrompt(input));
+  }
+  estimateDonorQuality(input) {
+    return this.structured("estimateDonorQuality", donorQualityPrompt(input));
+  }
+  assessDonorRisk(input) {
+    return this.structured("assessDonorRisk", donorRiskPrompt(input));
+  }
+  generatePlacementPlan(input) {
+    return this.structured("generatePlacementPlan", placementPlanPrompt(input));
+  }
+  generateSearchQueries(input) {
+    return this.structured("generateSearchQueries", searchQueriesPrompt(input));
+  }
+  /** Runs the prompt through OpenCode Go, mapping failures to typed errors. */
+  async structured(operation, messages) {
+    try {
+      const parsed = await this.client.chat(messages, { jsonMode: true });
+      return parsed;
+    } catch (error51) {
+      if (error51 instanceof OpenCodeModelConfigError) {
+        throw error51;
+      }
+      if (error51 instanceof OpenCodeClientError) {
+        switch (error51.category) {
+          case "auth":
+            throw new OpenCodeProviderAuthError(
+              `AI provider unavailable (${this.name}): invalid API key \u2014 check OPENCODE_API_KEY`
+            );
+          case "rate-limit":
+            throw new OpenCodeProviderRateLimitError(
+              `AI provider rate limit exceeded (${this.name}); retry later`
+            );
+          case "timeout":
+          case "network":
+          case "server":
+            throw new OpenCodeProviderUnavailableError(
+              `AI provider unavailable (${this.name}): ${error51.message}`
+            );
+          case "validation":
+            throw new OpenCodeModelConfigError(
+              `AI provider rejected the request (${this.name}): ${error51.message}`
+            );
+          default:
+            throw new OpenCodeProviderUnavailableError(
+              `AI provider failed (${this.name}) during ${operation}: ${error51.message}`
+            );
+        }
+      }
+      throw error51;
+    }
+  }
+};
+var SYSTEM = (task, schema) => [
+  "You are the intelligence engine of an AI link-building platform.",
+  `Task: ${task}`,
+  "Respond with ONLY a single valid JSON object matching this exact shape:",
+  schema,
+  "Rules: use Russian for all human-readable strings; numbers are 0-100 integers; do not invent facts about the company; do not add prose, explanations or markdown fences."
+].join("\n");
+var USER = (label, data) => `${label}:
+${JSON.stringify(data, null, 2)}`;
+function companyAnalysisPrompt(input) {
+  const schema = `{
+  "businessType": string,
+  "topics": string[],
+  "audiences": string[],
+  "relevantCategories": string[],
+  "strategicRecommendations": string[]
+}`;
+  const context = {
+    companyName: input.companyName,
+    description: input.description,
+    industry: input.industry,
+    website: input.website,
+    geography: input.geography,
+    locations: input.locations,
+    products: input.products,
+    targetAudience: input.targetAudience,
+    campaignGoals: input.campaignGoals
+  };
+  return [
+    { role: "system", content: SYSTEM("analyze the company profile", schema) },
+    {
+      role: "user",
+      content: USER("company profile", context) + "\n\nReturn: businessType (one phrase), topics (3-6), audiences (3-6), relevantCategories (codes of placement categories relevant for this business; use the codes from the list passed when provided), strategicRecommendations (2-4 concrete placement/PR directions)."
+    }
+  ];
+}
+function classificationPrompt(input) {
+  const schema = `{
+  "category": string,
+  "placementType": "BACKLINK" | "BRAND_MENTION" | "BUSINESS_PROFILE" | "DIRECTORY_LISTING" | "PRODUCT_LISTING" | "EDITORIAL_PUBLICATION" | "SOCIAL_PROFILE" | "REFERRAL_TRAFFIC" | "LINK_INSERT" | "GUEST_POST" | "RESOURCE_PAGE" | "PARTNER_PAGE",
+  "topicalRelevance": 0-100,
+  "audienceMatch": 0-100,
+  "geographicRelevance": 0-100,
+  "recommendationReason": string
+}`;
+  return [
+    { role: "system", content: SYSTEM("classify a discovered platform for the company", schema) },
+    {
+      role: "user",
+      content: USER("platform", input.platform) + "\n\n" + USER("company analysis", input.companyAnalysis) + "\n\n" + (input.pageMetadata !== null ? USER("page metadata (if available)", input.pageMetadata) + "\n\n" : "") + "Return: category (the catalog category code, when it matches; otherwise a short category phrase), placementType (one enum value), relevance dimensions (0-100), recommendationReason (why this platform fits)."
+    }
+  ];
+}
+function contentDraftPrompt(input) {
+  const schema = `{ "content": string }`;
+  return [
+    { role: "system", content: SYSTEM("prepare content for a placement", schema) },
+    {
+      role: "user",
+      content: USER("company", input.company) + "\n\n" + USER("platform", input.platformName) + "\n\n" + USER("placement type", input.placementType) + "\n\nReturn: content (ready-to-use text for the placement)."
+    }
+  ];
+}
+function pageAnalysisPrompt(input) {
+  const schema = `{
+  "targetPage": string,
+  "pageTitle": string,
+  "pageType": "EDITORIAL" | "RESOURCE" | "BLOG" | "PRODUCT" | "PROFILE" | "LISTING" | "NEWS" | "CATEGORY" | "OTHER" | "UNKNOWN",
+  "topicalRelevance": 0-100,
+  "linkInsertSuitability": 0-100,
+  "indexation": "INDEXED" | "PARTIAL" | "NOT_INDEXED",
+  "suggestedPlacementLocation": string,
+  "summary": string
+}`;
+  return [
+    { role: "system", content: SYSTEM("analyze a donor page for link placement", schema) },
+    {
+      role: "user",
+      content: USER("company", input.company) + "\n\n" + USER("platform", input.platform) + "\n\n" + USER("donor quality context", sanitizeUnknown(input.donorQuality)) + "\n\nReturn: pageType (one enum), topicalRelevance and linkInsertSuitability (0-100), indexation (estimate when not measured), suggestedPlacementLocation (where the link fits), summary (2-3 sentences)."
+    }
+  ];
+}
+function linkInsertPrompt(input) {
+  const schema = `{
+  "anchor": string,
+  "anchorAlternatives": string[2..3],
+  "suggestedInsertionPoint": string,
+  "text": string,
+  "explanation": string,
+  "confidence": 0-100
+}`;
+  return [
+    { role: "system", content: SYSTEM("write a natural link insert for a donor page", schema) },
+    {
+      role: "user",
+      content: USER("company", input.company) + "\n\n" + USER("platform", input.platform) + `
+
+targetUrl: ${input.targetUrl}
+desiredAnchor: ${input.desiredAnchor ?? "auto"}
+placementObjective: ${input.placementObjective}
+` + (input.targetPage !== null ? `targetPage: ${input.targetPage}
+` : "") + (input.surroundingContext !== null ? `surroundingContext (excerpt): ${truncate(input.surroundingContext, 3e3)}
+` : "") + "\nReturn: anchor (primary), anchorAlternatives (2-3), suggestedInsertionPoint, text (natural sentence(s) containing the link), explanation, confidence (0-100)."
+    }
+  ];
+}
+function anchorPrompt(input) {
+  const schema = `{
+  "anchorType": "EXACT_MATCH" | "PARTIAL_MATCH" | "BRANDED" | "GENERIC" | "URL" | "LONG_TAIL",
+  "anchor": string,
+  "alternatives": string[],
+  "explanation": string,
+  "confidence": 0-100
+}`;
+  return [
+    { role: "system", content: SYSTEM("recommend an anchor strategy for a link", schema) },
+    {
+      role: "user",
+      content: USER("company", input.companyName) + "\n\n" + USER("platform", input.platformName) + `
+
+placementObjective: ${input.placementObjective}
+targetKeyword: ${input.targetKeyword ?? "none"}
+anchorProfileAvailable: ${input.anchorProfileAvailable}
+targetPageRelevance: ${input.targetPageRelevance ?? "unknown"}
+` + (input.surroundingContext !== null ? `surroundingContext (excerpt): ${truncate(input.surroundingContext, 1500)}
+` : "") + "\nReturn: anchorType (one enum), anchor (the recommended anchor), alternatives (2-4), explanation, confidence (0-100)."
+    }
+  ];
+}
+function outreachPrompt(input) {
+  const schema = `{
+  "subject": string,
+  "message": string,
+  "shortVersion": string,
+  "opening": string,
+  "valueProposition": string,
+  "placementRequest": string,
+  "cta": string
+}`;
+  return [
+    {
+      role: "system",
+      content: SYSTEM("write a polite outreach email proposing a placement", schema)
+    },
+    {
+      role: "user",
+      content: USER("company", input.company) + "\n\n" + USER("platform", input.platform) + "\n\n" + USER("campaign goals", input.goals) + `
+
+placementType: ${input.placementType}
+pageTitle: ${input.pageTitle ?? "not known"}
+pageSummary: ${input.pageSummary !== null ? truncate(input.pageSummary, 800) : "not known"}
+anchor: ${input.anchor ?? "not decided yet"}
+` + (input.linkInsertText !== null ? `linkInsertText: ${truncate(input.linkInsertText, 800)}
+` : "") + "\nReturn: subject (short), message (full, 3-5 paragraphs), shortVersion (2-3 sentences), opening, valueProposition, placementRequest, cta."
+    }
+  ];
+}
+function negotiationPrompt(input) {
+  const schema = `{
+  "intent": "ACCEPTED" | "REJECTED" | "PRICE_NEGOTIATION" | "CONTENT_REQUIREMENTS" | "LINK_ATTRIBUTE_REQUEST" | "NEEDS_CLARIFICATION" | "MANUAL_REVIEW",
+  "suggestedResponse": string,
+  "strategy": string,
+  "recommendedPrice": { "min": number, "max": number, "currency": string } | null,
+  "fallbackOption": string | null,
+  "risks": string[],
+  "confidence": 0-100
+}`;
+  return [
+    {
+      role: "system",
+      content: SYSTEM("analyze a donor reply in a placement negotiation", schema)
+    },
+    {
+      role: "user",
+      content: `donorReply:
+${truncate(input.donorReply, 3e3)}
+
+` + USER("company", input.company) + `
+
+platform: ${input.platformName}
+placementType: ${input.placementType}
+` + USER("campaign goals", input.campaignGoals) + "\n\nReturn: intent (one enum), suggestedResponse (ready to send after human approval), strategy, recommendedPrice (null when the reply has no price), fallbackOption, risks (1-4), confidence (0-100)."
+    }
+  ];
+}
+function donorQualityPrompt(input) {
+  const schema = `{
+  "topicalRelevance": 0-100,
+  "audienceMatch": 0-100,
+  "geographicRelevance": 0-100,
+  "placementQuality": 0-100,
+  "automationPotential": 0-100,
+  "overallAssessment": string
+}`;
+  return [
+    {
+      role: "system",
+      content: SYSTEM("estimate donor quality dimensions for a platform", schema)
+    },
+    {
+      role: "user",
+      content: USER("platform", input.platform) + "\n\n" + USER("company analysis", input.companyAnalysis) + "\n\nReturn: quality dimensions (0-100) and overallAssessment (1-2 sentences). These are AI estimates only \u2014 never fabricate traffic or authority metrics."
+    }
+  ];
+}
+function donorRiskPrompt(input) {
+  const schema = `{
+  "level": "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN",
+  "reasons": string[]
+}`;
+  return [
+    { role: "system", content: SYSTEM("assess donor risk for a platform", schema) },
+    {
+      role: "user",
+      content: USER("platform", input.platform) + "\n\n" + USER("donor quality context", sanitizeUnknown(input.donorQuality)) + "\n\nReturn: level (one enum), reasons (1-4). Base the level only on the provided signals."
+    }
+  ];
+}
+function placementPlanPrompt(input) {
+  const schema = `{
+  "items": [{
+    "opportunityId": string,
+    "recommendation": "RECOMMENDED" | "REVIEW_REQUIRED" | "NOT_RECOMMENDED" | "INSUFFICIENT_DATA",
+    "recommendationReason": string,
+    "nextAction": "PREPARE_OUTREACH" | "REQUEST_MANUAL_PLACEMENT" | "EXECUTE_AUTOMATICALLY" | "REVIEW_PROVIDER" | "REVIEW_OPPORTUNITY" | "REJECT",
+    "automationLevel": "AUTOMATIC" | "AI_ASSISTED" | "HUMAN_REQUIRED",
+    "riskExplanation": string | null,
+    "suggestedPlacementApproach": string | null,
+    "anchorRecommendation": { "anchorType": "EXACT_MATCH" | "PARTIAL_MATCH" | "BRANDED" | "GENERIC" | "URL" | "LONG_TAIL", "anchor": string, "explanation": string } | null
+  }],
+  "overview": string | null
+}`;
+  const rows = input.opportunities.map((opportunity) => ({
+    opportunityId: opportunity.opportunityId,
+    platform: opportunity.platform.name,
+    url: opportunity.platform.url,
+    placementType: opportunity.placementType,
+    placementMethod: opportunity.placementMethod,
+    status: opportunity.status,
+    score: opportunity.score,
+    overallScore: opportunity.overallScore,
+    donorQuality: opportunity.donorQuality,
+    traffic: opportunity.traffic,
+    riskLevel: opportunity.riskLevel,
+    providerAvailable: opportunity.providerAvailable,
+    providerCapabilitiesVerified: opportunity.providerCapabilitiesVerified,
+    automationAvailable: opportunity.automationAvailable,
+    hasIntel: opportunity.hasIntel,
+    strategySupportsType: opportunity.strategySupportsType
+  }));
+  return [
+    {
+      role: "system",
+      content: SYSTEM("build a placement plan decision map from deterministic signals", schema)
+    },
+    {
+      role: "user",
+      content: USER("campaign", input.campaign) + "\n\n" + USER("company", input.company) + "\n\n" + USER("company analysis", input.companyAnalysis) + "\n\n" + USER("strategy", input.strategy) + "\n\n" + USER("opportunities", rows) + "\n\nInterpret ONLY the given deterministic signals (score, overallScore, donorQuality, riskLevel, provider, strategy). The final numbers are computed by the domain \u2014 you only interpret them. Return one item per opportunity id (exact ids), an overview sentence and a decision per item."
+    }
+  ];
+}
+function searchQueriesPrompt(input) {
+  const schema = `{
+  "intents": [{
+    "intent": string,
+    "categoryCode": string | null,
+    "queries": string[1..3]
+  }]
+}`;
+  return [
+    {
+      role: "system",
+      content: SYSTEM("plan web search intents for link-building discovery", schema)
+    },
+    {
+      role: "user",
+      content: USER("company", input.company) + "\n\n" + USER("campaign goals", input.campaignGoals) + `
+
+relevantCategoryCodes: ${JSON.stringify(input.relevantCategoryCodes)}
+availableCategoryCodes: ${JSON.stringify(input.availableCategoryCodes)}
+
+Return 4-8 research intents. For each intent: a short direction name (e.g. "\u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438"), the catalog categoryCode from the available list when it matches (otherwise null), and 1-3 concrete web search queries. Queries must be site-discovery oriented (catalogs, directories, media, resource pages, industry portals), not product searches.`
+    }
+  ];
+}
+function truncate(value, max) {
+  return value.length <= max ? value : `${value.slice(0, max)}\u2026`;
+}
+function sanitizeUnknown(value) {
+  if (value === null || typeof value !== "object") return value;
+  return value;
 }
 
 // packages/application/src/use-cases/opportunity/classify-opportunity.use-case.ts
@@ -17114,7 +18810,7 @@ var ClassifyOpportunityUseCase = class {
       scoreBreakdown: breakdown,
       recommendation: validated.recommendationReason,
       whyRecommended: describeBreakdown(breakdown),
-      placementMethod: alignment.method,
+      placementMethod: derivePlacementMethodForType(validated.placementType, alignment),
       providerCapabilities: alignment.provider?.capabilities ?? [],
       status: "QUALIFIED",
       updatedAt: /* @__PURE__ */ new Date()
@@ -17299,18 +18995,22 @@ var GeneratePlacementStrategyUseCase = class {
 
 // packages/application/src/use-cases/opportunity/catalog-platform-discovery-source.ts
 var CatalogPlatformDiscoverySource = class {
-  constructor(lookups) {
+  constructor(lookups, platformIds) {
     this.lookups = lookups;
+    this.platformIds = platformIds;
   }
   lookups;
+  platformIds;
   name = "catalog";
   async discover(_input) {
     const [platforms, categories] = await Promise.all([
       this.lookups.listPlatforms(),
       this.lookups.listCategories()
     ]);
+    const allowed = this.platformIds;
+    const owned = allowed === void 0 ? platforms : platforms.filter((platform) => allowed.includes(platform.id));
     const categoryCodeById = new Map(categories.map((category) => [category.id, category.code]));
-    const candidates = platforms.map((platform) => ({
+    const candidates = owned.map((platform) => ({
       platformId: platform.id,
       name: platform.name,
       url: platform.url,
@@ -17321,6 +19021,355 @@ var CatalogPlatformDiscoverySource = class {
     return { candidates };
   }
 };
+
+// packages/application/src/use-cases/opportunity/search-platform-discovery-source.ts
+var SearchPlatformDiscoverySource = class {
+  constructor(platforms, categories) {
+    this.platforms = platforms;
+    this.categories = categories;
+  }
+  platforms;
+  categories;
+  name = "search";
+  discover(_input) {
+    const categoryCodeById = new Map(
+      this.categories.map((category) => [category.id, category.code])
+    );
+    const candidates = this.platforms.map((platform) => ({
+      platformId: platform.id,
+      name: platform.name,
+      url: platform.url,
+      country: platform.country,
+      categoryCode: platform.categoryId === null ? null : categoryCodeById.get(platform.categoryId) ?? null,
+      notes: platform.notes
+    }));
+    return Promise.resolve({ candidates });
+  }
+};
+
+// packages/application/src/use-cases/opportunity/web-search-platform-discovery-source.ts
+var DEFAULT_OPTIONS = {
+  maxQueries: 10,
+  maxResultsPerQuery: 8,
+  maxCandidates: 40,
+  concurrency: 2,
+  dedupe: true
+};
+var WebSearchPlatformDiscoverySource = class {
+  constructor(lookups, search, queryGenerator, options = {}) {
+    this.lookups = lookups;
+    this.search = search;
+    this.queryGenerator = queryGenerator;
+    this.options = options;
+  }
+  lookups;
+  search;
+  queryGenerator;
+  options;
+  name = "web-search";
+  async discover(input) {
+    const categories = await this.lookups.listCategories();
+    const platforms = await this.lookups.listPlatforms();
+    const options = { ...DEFAULT_OPTIONS, ...this.options };
+    const plan = await this.queryGenerator.generate({
+      company: {
+        name: input.companyName,
+        description: null,
+        industry: null,
+        website: null,
+        geography: input.geography,
+        products: [],
+        targetAudience: []
+      },
+      campaignGoals: input.goals,
+      relevantCategoryCodes: categories.map((category) => category.code),
+      availableCategoryCodes: categories.map((category) => category.code)
+    });
+    const availableCodes = new Set(categories.map((category) => category.code));
+    const queries = plan.intents.flatMap(
+      (intent) => intent.categoryCode !== null && !availableCodes.has(intent.categoryCode) ? [] : intent.queries
+    ).slice(0, options.maxQueries);
+    const rawResults = await this.runSearches(queries, options);
+    const normalized = normalizeResults(rawResults, options);
+    const categoryByUrl = categoryHintByUrl(normalized, plan.intents);
+    const existingByUrl = new Map(
+      platforms.filter((platform) => platform.url !== null).map((platform) => [normalizeUrlKey(platform.url ?? ""), platform])
+    );
+    const candidates = [];
+    for (const result of normalized) {
+      const key = normalizeUrlKey(result.url);
+      const existing = existingByUrl.get(key);
+      let platform;
+      if (existing !== void 0) {
+        platform = existing;
+      } else {
+        platform = await this.lookups.createPlatform({
+          id: platformIdFor(result),
+          name: platformNameFor(result),
+          url: result.url,
+          country: countryFor(input.geography),
+          categoryId: null,
+          notes: `Web-discovered platform (${this.search.name}; query: ${result.query ?? ""})`,
+          metadata: {
+            discoveredVia: "web-search",
+            searchEngine: this.search.name,
+            title: result.title,
+            snippet: result.snippet
+          }
+        });
+        existingByUrl.set(key, platform);
+      }
+      const categoryId = categoryByUrl.has(result.url) ? categoryByUrl.get(result.url) ?? null : null;
+      candidates.push({
+        platformId: platform.id,
+        name: platform.name,
+        url: platform.url,
+        country: platform.country,
+        categoryCode: categoryId,
+        notes: result.title ?? null
+      });
+      if (candidates.length >= options.maxCandidates) break;
+    }
+    return { candidates };
+  }
+  /** Runs searches with bounded concurrency; a single query failure is recorded, not fatal. */
+  async runSearches(queries, options) {
+    const results = [];
+    let index = 0;
+    let failures = 0;
+    const workers = Array.from(
+      { length: Math.max(1, Math.min(options.concurrency, queries.length)) },
+      async () => {
+        while (index < queries.length) {
+          const query = queries[index];
+          index += 1;
+          if (query === void 0) continue;
+          try {
+            const found = await this.search.search(query, {
+              maxResults: options.maxResultsPerQuery
+            });
+            for (const item of found) {
+              results.push({ ...item, query });
+            }
+          } catch (error51) {
+            failures += 1;
+            void error51;
+          }
+        }
+      }
+    );
+    await Promise.all(workers);
+    if (queries.length > 0 && failures === queries.length) {
+      throw new DiscoverySearchFailedError(this.search.name, queries.length);
+    }
+    return results.slice(0, options.maxResultsPerQuery * options.maxQueries);
+  }
+};
+var DiscoverySearchFailedError = class extends Error {
+  constructor(providerName, attemptedQueries) {
+    super(
+      `Web search failed (${providerName}): ${attemptedQueries} query(ies) attempted, no results returned`
+    );
+    this.providerName = providerName;
+    this.attemptedQueries = attemptedQueries;
+    this.name = "DiscoverySearchFailedError";
+  }
+  providerName;
+  attemptedQueries;
+};
+function normalizeResults(results, options) {
+  const seen = /* @__PURE__ */ new Set();
+  const unique3 = [];
+  for (const result of results) {
+    if (options.dedupe) {
+      const key = normalizeUrlKey(result.url);
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    unique3.push(result);
+    if (unique3.length >= options.maxCandidates) break;
+  }
+  return unique3;
+}
+function categoryHintByUrl(results, intents) {
+  const categoryByQuery = /* @__PURE__ */ new Map();
+  for (const intent of intents) {
+    for (const query of intent.queries) {
+      categoryByQuery.set(query.trim().toLowerCase(), intent.categoryCode);
+    }
+  }
+  const map2 = /* @__PURE__ */ new Map();
+  for (const result of results) {
+    const category = categoryByQuery.get((result.query ?? "").trim().toLowerCase()) ?? null;
+    map2.set(result.url, category);
+  }
+  return map2;
+}
+function platformIdFor(result) {
+  const domain2 = (result.url.match(/^https?:\/\/([^/]+)/i) ?? [null, "unknown"])[1] ?? "unknown";
+  const slug = domain2.toLowerCase().replace(/^www\./, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+  const hash3 = shortHash(result.url);
+  return `platform-ws-${slug}-${hash3}`;
+}
+function platformNameFor(result) {
+  const cleanTitle = (result.title ?? "").replace(/\s+/g, " ").trim();
+  if (cleanTitle.length >= 3) {
+    return cleanTitle.length <= 72 ? cleanTitle : `${cleanTitle.slice(0, 69)}\u2026`;
+  }
+  return result.domain ?? new URL(result.url).hostname;
+}
+function countryFor(geography) {
+  const region = geography.find((entry) => /^(росси|рф|russia)/i.test(entry));
+  if (region !== void 0) return "Russia";
+  return geography[0] ?? null;
+}
+function normalizeUrlKey(value) {
+  try {
+    const url2 = new URL(value);
+    url2.hash = "";
+    url2.search = "";
+    const pathname = url2.pathname.replace(/\/+$/, "");
+    return `${url2.protocol}//${url2.hostname.toLowerCase()}${pathname}`;
+  } catch {
+    return value.toLowerCase();
+  }
+}
+function shortHash(value) {
+  let hash3 = 0;
+  for (const char of value) {
+    hash3 = hash3 * 31 + char.charCodeAt(0) | 0;
+  }
+  return (Math.abs(hash3) % 4294967295).toString(36);
+}
+
+// packages/application/src/use-cases/opportunity/ai-backed-search-query-generator.ts
+var AIBackedSearchQueryGenerator = class {
+  constructor(aiProvider) {
+    this.aiProvider = aiProvider;
+    this.name = `${aiProvider.name}-search-intents`;
+  }
+  aiProvider;
+  name;
+  async generate(input) {
+    const raw2 = await this.aiProvider.generateSearchQueries(input);
+    return validateAIOutput(searchQueryPlanSchema, raw2, "generateSearchQueries");
+  }
+};
+
+// packages/application/src/use-cases/opportunity/deterministic-search-query-generator.ts
+var DeterministicSearchQueryGenerator = class {
+  constructor(templates = DEFAULT_TEMPLATES, industryCategories = {}, defaultCategories = DEFAULT_FALLBACK_CATEGORIES) {
+    this.templates = templates;
+    this.industryCategories = industryCategories;
+    this.defaultCategories = defaultCategories;
+  }
+  templates;
+  industryCategories;
+  defaultCategories;
+  name = "deterministic-search-intents";
+  generate(input) {
+    const industry = normalizeIndustry(input.company.industry, input.company.description);
+    const fromIndustry = this.industryCategories[industry] ?? this.defaultCategories;
+    const relevant = unique([...input.relevantCategoryCodes, ...fromIndustry]);
+    const available = new Set(input.availableCategoryCodes);
+    const codes = relevant.filter((code) => available.has(code)).slice(0, 6);
+    const geography = input.company.geography[0] ?? "\u0420\u043E\u0441\u0441\u0438\u044F";
+    const products = input.company.products.length > 0 ? input.company.products.slice(0, 3).join(" \u0438\u043B\u0438 ") : input.company.name;
+    const intents = [];
+    for (const code of codes) {
+      const template = this.templates[code];
+      if (template === void 0) continue;
+      intents.push({
+        intent: template.intent,
+        categoryCode: code,
+        queries: template.build(products, geography).slice(0, 3)
+      });
+    }
+    if (intents.length === 0) {
+      intents.push({
+        intent: `\u041F\u0440\u043E\u0444\u0438\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0434\u043B\u044F \xAB${input.company.name}\xBB`,
+        categoryCode: input.availableCategoryCodes[0] ?? null,
+        queries: [`${input.company.name} \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 \u0438 \u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0438 ${geography}`]
+      });
+    }
+    return Promise.resolve({ intents });
+  }
+};
+var DEFAULT_FALLBACK_CATEGORIES = ["professional-platforms", "media-pr"];
+var DEFAULT_TEMPLATES = {
+  "maps-local": {
+    intent: "\u041A\u0430\u0440\u0442\u044B \u0438 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439",
+    build: (products, geography) => [
+      `\u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439 ${products} ${geography}`,
+      `\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A \u043E\u0440\u0433\u0430\u043D\u0438\u0437\u0430\u0446\u0438\u0439 ${geography} ${products}`
+    ]
+  },
+  "furniture-directories": {
+    intent: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438",
+    build: (products, geography) => [
+      `\u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u0435\u0439 ${products}`,
+      `\u0440\u0435\u0435\u0441\u0442\u0440 \u0444\u0430\u0431\u0440\u0438\u043A \u0438 \u043C\u0430\u0441\u0442\u0435\u0440\u0441\u043A\u0438\u0445 ${products} ${geography}`
+    ]
+  },
+  "interior-design": {
+    intent: "\u0418\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u0438 \u0434\u0438\u0437\u0430\u0439\u043D-\u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products) => [
+      `\u0436\u0443\u0440\u043D\u0430\u043B \u043E \u0434\u0438\u0437\u0430\u0439\u043D\u0435 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430 \u0438 ${products} \u043D\u0430 \u0437\u0430\u043A\u0430\u0437`,
+      `\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432`
+    ]
+  },
+  architecture: {
+    intent: "\u0410\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0435 \u043C\u0435\u0434\u0438\u0430",
+    build: (products) => [
+      `\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0439 \u043F\u043E\u0440\u0442\u0430\u043B \u043C\u0435\u0431\u0435\u043B\u044C \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u044B`,
+      `\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u043E ${products}`
+    ]
+  },
+  "professional-platforms": {
+    intent: "\u041F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products) => [
+      `\u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0441\u043F\u0435\u0446\u0438\u0430\u043B\u0438\u0441\u0442\u043E\u0432 \u043F\u043E ${products}`,
+      `\u043F\u0440\u043E\u0444\u0438\u043B\u0438 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439 ${products} \u043D\u0430 \u0430\u0433\u0440\u0435\u0433\u0430\u0442\u043E\u0440\u0430\u0445 \u0443\u0441\u043B\u0443\u0433`
+    ]
+  },
+  "media-pr": {
+    intent: "\u041C\u0435\u0434\u0438\u0430 \u0438 PR",
+    build: (products) => [
+      `\u043E\u0442\u0440\u0430\u0441\u043B\u0435\u0432\u044B\u0435 \u0421\u041C\u0418 \u043E ${products}`,
+      `\u0440\u0435\u0441\u0443\u0440\u0441\u043D\u044B\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B \u0438 \u043F\u043E\u0434\u0431\u043E\u0440\u043A\u0438 ${products}`
+    ]
+  },
+  "social-platforms": {
+    intent: "\u0421\u043E\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B",
+    build: (products) => [
+      `\u0441\u043E\u043E\u0431\u0449\u0435\u0441\u0442\u0432\u0430 \u0438 \u043F\u0430\u0431\u043B\u0438\u043A\u0438 \u043E ${products}`,
+      `\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B \u043E\u0442\u0437\u044B\u0432\u043E\u0432 \u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0439 ${products}`
+    ]
+  },
+  "b2b-regional": {
+    intent: "B2B \u0438 \u0440\u0435\u0433\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products, geography) => [
+      `\u043E\u043F\u0442\u043E\u0432\u044B\u0435 \u0438 b2b \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 ${products} ${geography}`,
+      `\u0440\u0435\u0433\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 ${geography} ${products}`
+    ]
+  }
+};
+function normalizeIndustry(industry, description) {
+  if (industry !== null && industry.trim() !== "") {
+    return industry.trim().toLowerCase();
+  }
+  const text = (description ?? "").toLowerCase();
+  if (/(мебел|furniture)/.test(text)) return "furniture";
+  if (/(недвижимост|real estate|жил)/.test(text)) return "real-estate";
+  if (/(программ|software|разработк)/.test(text)) return "software";
+  if (/(дизайн|design)/.test(text)) return "design";
+  if (/(клиник|здоровь|медицин)/.test(text)) return "health";
+  if (/(образован|обучен|курс)/.test(text)) return "education";
+  return industry ?? "";
+}
+function unique(values) {
+  return [...new Set(values)];
+}
 
 // packages/application/src/use-cases/placement/approve-opportunity.use-case.ts
 var ApproveOpportunityUseCase = class {
@@ -17551,6 +19600,401 @@ var InMemoryPlacementProviderRegistry = class {
   }
 };
 
+// packages/integrations/src/web/duckduckgo-search.ts
+var DEFAULT_SEARCH_URL = "https://html.duckduckgo.com/html/";
+var DEFAULT_TIMEOUT_MS2 = 1e4;
+var DEFAULT_MAX_RESULTS = 10;
+var USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+var DuckDuckGoSearchProvider = class {
+  name = "duckduckgo";
+  baseUrl;
+  timeoutMs;
+  fetchImpl;
+  constructor(config2 = {}) {
+    this.baseUrl = (config2.baseUrl ?? DEFAULT_SEARCH_URL).trim().replace(/\/+$/, "") + "/";
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS2;
+    this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
+  }
+  async search(query, options) {
+    if (query.trim() === "") {
+      return [];
+    }
+    const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS;
+    const url2 = new URL(this.baseUrl);
+    url2.searchParams.set("q", query);
+    let response;
+    try {
+      response = await this.fetchImpl(url2.toString(), {
+        method: "GET",
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "ru,en;q=0.8"
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(options?.timeoutMs ?? this.timeoutMs)
+      });
+    } catch (error51) {
+      const timedOut = error51 instanceof Error && error51.name === "TimeoutError";
+      throw new ProviderError(
+        this.name,
+        "search",
+        timedOut ? "TIMEOUT" : "NETWORK",
+        timedOut ? `Web search timed out after ${options?.timeoutMs ?? this.timeoutMs}ms` : "Web search network error",
+        { cause: error51 }
+      );
+    }
+    if (!response.ok) {
+      if (response.status === 429 || response.status === 202) {
+        throw new ProviderError(
+          this.name,
+          "search",
+          "RATE_LIMIT",
+          `Web search engine rate-limited the request (HTTP ${response.status})`
+        );
+      }
+      throw new ProviderError(
+        this.name,
+        "search",
+        "PLATFORM",
+        `Web search engine responded with HTTP ${response.status}`
+      );
+    }
+    const html = await response.text();
+    const results = parseResults(html, this.name);
+    return results.slice(0, Math.max(1, maxResults));
+  }
+};
+function parseResults(html, source) {
+  const blocks = html.split(/<div class="result[^"]*"/);
+  blocks.shift();
+  const results = [];
+  for (const block of blocks) {
+    if (results.length >= 50) break;
+    const titleMatch = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i.exec(
+      block
+    );
+    if (titleMatch === null) continue;
+    const rawHref = decodeHtml(titleMatch[1] ?? "");
+    const url2 = unwrapDuckDuckGoUrl(rawHref);
+    if (!isHttpUrl2(url2)) continue;
+    const title = stripTags(decodeHtml(titleMatch[2] ?? "")).trim();
+    if (title === "") continue;
+    const snippetMatch = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i.exec(block);
+    const snippet = snippetMatch === null ? null : stripTags(decodeHtml(snippetMatch[1] ?? "")).trim();
+    results.push({ url: url2, title, snippet: snippet === "" ? null : snippet });
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const deduped = [];
+  for (const result of results) {
+    const normalized = normalizeUrlForDedupe(result.url);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    deduped.push({
+      url: result.url,
+      title: result.title,
+      snippet: result.snippet,
+      domain: domainOf(result.url),
+      source
+    });
+  }
+  return deduped;
+}
+function unwrapDuckDuckGoUrl(href) {
+  const absolute = href.startsWith("//") ? `https:${href}` : href;
+  try {
+    const parsed = new URL(absolute);
+    if (parsed.hostname.endsWith("duckduckgo.com") && parsed.pathname.startsWith("/l/")) {
+      const target = parsed.searchParams.get("uddg");
+      if (target !== null && target !== "") return target;
+    }
+  } catch {
+    return href;
+  }
+  return absolute;
+}
+function isHttpUrl2(value) {
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "http:" || url2.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+function normalizeUrlForDedupe(value) {
+  try {
+    const url2 = new URL(value);
+    url2.hash = "";
+    url2.search = "";
+    return url2.toString().replace(/\/$/, "").toLowerCase();
+  } catch {
+    return value.toLowerCase();
+  }
+}
+function domainOf(value) {
+  if (value === null) return null;
+  try {
+    return new URL(value).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+function stripTags(html) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+function decodeHtml(value) {
+  return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&nbsp;/g, " ");
+}
+
+// packages/integrations/src/web/html.ts
+var TAG_SKIP = /* @__PURE__ */ new Set([
+  "script",
+  "style",
+  "noscript",
+  "template",
+  "svg",
+  "head",
+  "iframe",
+  "form",
+  "nav",
+  "footer",
+  "header"
+]);
+function parseHtmlDocument(html) {
+  const charset = detectCharset(html);
+  const text = decodeHtml2(html, charset);
+  const title = firstMeta(text, /<title[^>]*>([\s\S]*?)<\/title>/i);
+  const canonical = firstMeta(text, /<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i);
+  const description = firstMeta(
+    text,
+    /<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i
+  );
+  const robotsMeta = firstMeta(text, /<meta[^>]*name=["']robots["'][^>]*content=["']([^"']*)["']/i);
+  const headings = [...text.matchAll(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi)].map(
+    (match2) => stripTags2(match2[2] ?? "").replace(/\s+/g, " ").trim()
+  ).filter((heading) => heading !== "").slice(0, 20);
+  const body = bodyContent(text);
+  const visible = stripTags2(body).replace(/\s+/g, " ").trim();
+  const wordCount = visible === "" ? 0 : visible.split(" ").length;
+  const outbound = countOutboundLinks(text);
+  return {
+    title: clean(title),
+    canonical: clean(canonical),
+    description: clean(description),
+    robots: robotsFrom(robotsMeta),
+    headings,
+    text: visible.slice(0, 12e3),
+    wordCount,
+    outboundLinks: outbound
+  };
+}
+function indexationFromHeaders(headers) {
+  const robots = headers.get("x-robots-tag");
+  if (robots === null) return "INDEXED";
+  const value = robots.toLowerCase();
+  if (value.includes("noindex") || value.includes("none")) return "NOT_INDEXED";
+  if (value.includes("noindex,follow") || value.includes("noarchive")) return "PARTIAL";
+  return "INDEXED";
+}
+function guessPageType(page) {
+  const url2 = page.canonical ?? "";
+  if (/\b(katalog|каталог|catalog|directory|list|список)\b/.test(url2) || page.wordCount < 250) {
+    if (page.wordCount < 250 && page.wordCount > 0) return "LISTING";
+  }
+  if (/\b(категори|category|catalog|каталог)\b/.test(url2)) return "CATEGORY";
+  if (/\b(blog|блог|стать|article|magazine|журнал)\b/.test(url2)) return "BLOG";
+  if (/\b(news|новост|новост)\b/.test(url2)) return "NEWS";
+  if (/\b(profile|профиль|company|компани|about|о компании)\b/.test(url2)) return "PROFILE";
+  if (/\b(product|товар|купить|buy|product)\b/.test(url2)) return "PRODUCT";
+  if (page.wordCount >= 400) return "EDITORIAL";
+  if (page.wordCount > 0 && page.wordCount < 120) return "PROFILE";
+  return "OTHER";
+}
+function bodyContent(html) {
+  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(html);
+  let body = bodyMatch === null ? html : bodyMatch[1] ?? html;
+  for (const tag of TAG_SKIP) {
+    body = body.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
+  }
+  return body;
+}
+function countOutboundLinks(html) {
+  const links = [...html.matchAll(/<a[^>]*href=["']([^"']+)["'][^>]*>/gi)].map((match2) => match2[1] ?? "").filter((href) => href !== "");
+  let external = 0;
+  const total = links.length;
+  for (const href of links) {
+    if (/^(https?:)?\/\//.test(href) || href.startsWith("www.")) external += 1;
+  }
+  return { total, external };
+}
+function robotsFrom(value) {
+  if (value === null) return "UNKNOWN";
+  const lowered = value.toLowerCase();
+  if (lowered.includes("noindex") || lowered.includes("none")) return "NOT_INDEXED";
+  if (lowered.includes("noindex,follow")) return "PARTIAL";
+  return "INDEXED";
+}
+function firstMeta(html, pattern) {
+  const match2 = pattern.exec(html);
+  return match2 === null ? null : match2[1] ?? null;
+}
+function clean(value) {
+  if (value === null) return null;
+  const cleaned = stripTags2(value).replace(/\s+/g, " ").trim();
+  return cleaned === "" ? null : cleaned;
+}
+function detectCharset(html) {
+  const match2 = /<meta[^>]*charset=["']?([a-z0-9-]+)/i.exec(html);
+  return match2 === null ? "utf-8" : match2[1] ?? "utf-8";
+}
+function decodeHtml2(html, charset) {
+  let decoded;
+  try {
+    const normalized = charset.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    const label = normalized === "" ? "utf-8" : normalized;
+    decoded = new TextDecoder(label).decode(new TextEncoder().encode(html));
+  } catch {
+    decoded = html;
+  }
+  return decoded.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&nbsp;/g, " ");
+}
+function stripTags2(html) {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// packages/integrations/src/web/http-page-analysis-provider.ts
+var DEFAULT_TIMEOUT_MS3 = 8e3;
+var MAX_REDIRECTS = 5;
+var MAX_BODY_BYTES = 512 * 1024;
+var USER_AGENT2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+var HttpPageAnalysisProvider = class {
+  name = "http-page-analysis";
+  timeoutMs;
+  maxRedirects;
+  fetchImpl;
+  constructor(config2 = {}) {
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS3;
+    this.maxRedirects = config2.maxRedirects ?? MAX_REDIRECTS;
+    this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
+  }
+  async analyzePage(input) {
+    const url2 = normalizeUrl(input.url);
+    if (url2 === null) {
+      return unmeasured(input.platformName);
+    }
+    let current = url2;
+    let redirects = 0;
+    while (true) {
+      let response;
+      try {
+        response = await this.fetchImpl(current, {
+          method: "GET",
+          headers: {
+            "User-Agent": USER_AGENT2,
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ru,en;q=0.8"
+          },
+          redirect: "manual",
+          signal: AbortSignal.timeout(this.timeoutMs)
+        });
+      } catch {
+        break;
+      }
+      if (isRedirect(response.status)) {
+        const location = response.headers.get("location");
+        const next = location === null ? null : new URL(location, current).toString();
+        redirects += 1;
+        if (next === null || redirects > this.maxRedirects) {
+          break;
+        }
+        current = next;
+        continue;
+      }
+      if (response.status !== 200) {
+        break;
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.toLowerCase().includes("text/html") && !contentType.toLowerCase().includes("application/xhtml")) {
+        break;
+      }
+      const isTooLarge = (response.headers.get("content-length") ?? "0") !== "0" && Number(response.headers.get("content-length")) > MAX_BODY_BYTES;
+      if (isTooLarge) {
+        break;
+      }
+      let body;
+      try {
+        const buffer = await response.arrayBuffer();
+        body = new TextDecoder("utf-8", { fatal: false }).decode(buffer.slice(0, MAX_BODY_BYTES));
+      } catch {
+        break;
+      }
+      const parsed = parseHtmlDocument(body);
+      const targetDomain = new URL(current).hostname.replace(/^www\./, "").toLowerCase();
+      const indexation = parsed.robots === "UNKNOWN" ? indexationFromHeaders(response.headers) : parsed.robots;
+      return {
+        targetDomain,
+        targetPage: parsed.canonical ?? current,
+        pageTitle: parsed.title ?? parsed.headings[0] ?? null,
+        pageType: guessPageType(parsed),
+        topicalRelevance: unknownDatum(),
+        linkInsertSuitability: unknownDatum(),
+        indexation: {
+          value: indexation,
+          source: "http",
+          status: "MEASURED",
+          confidence: 100,
+          measuredAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        traffic: unknownDatum(),
+        outboundLinkSignals: {
+          value: {
+            total: parsed.outboundLinks.total,
+            external: parsed.outboundLinks.external,
+            dofollow: null
+          },
+          source: "http",
+          status: "MEASURED",
+          confidence: 100,
+          measuredAt: (/* @__PURE__ */ new Date()).toISOString()
+        },
+        suggestedPlacementLocation: null,
+        summary: parsed.text === "" ? null : parsed.text.slice(0, 400),
+        analyzedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+    }
+    return unmeasured(input.platformName);
+  }
+};
+function normalizeUrl(url2) {
+  if (url2 === null) return null;
+  try {
+    const parsed = new URL(url2);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+function isRedirect(status) {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+function unmeasured(platformName) {
+  return {
+    targetDomain: platformName,
+    targetPage: null,
+    pageTitle: null,
+    pageType: "UNKNOWN",
+    topicalRelevance: unknownDatum(),
+    linkInsertSuitability: unknownDatum(),
+    indexation: unknownDatum(),
+    traffic: unknownDatum(),
+    outboundLinkSignals: unknownDatum(),
+    suggestedPlacementLocation: null,
+    summary: null,
+    analyzedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
 // packages/application/src/use-cases/placement/execute-placement.use-case.ts
 var ExecutePlacementUseCase = class {
   constructor(opportunities, placements, campaigns, companies, providers, auditLog) {
@@ -17611,16 +20055,16 @@ var ExecutePlacementUseCase = class {
     if (published) {
       assertTransitionPlacement("SUBMITTED", "PUBLISHED");
     }
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const executed = {
       ...placement,
       status: published ? "PUBLISHED" : "SUBMITTED",
       externalId: result.externalId,
-      submittedAt: now,
-      publishedAt: published ? now : null,
+      submittedAt: now2,
+      publishedAt: published ? now2 : null,
       liveUrl: published ? result.liveUrl ?? placement.liveUrl : null,
       metadata: { ...placement.metadata, providerStatus: result.status },
-      updatedAt: now
+      updatedAt: now2
     };
     const saved = await this.placements.save(executed);
     await this.auditLog.append({
@@ -17727,13 +20171,13 @@ var MonitorPlacementUseCase = class {
     let next;
     if (status.status === "published") {
       assertTransitionPlacement(placement.status, "PUBLISHED");
-      const now = /* @__PURE__ */ new Date();
+      const now2 = /* @__PURE__ */ new Date();
       next = {
         ...placement,
         status: "PUBLISHED",
-        publishedAt: status.publishedAt !== null ? new Date(status.publishedAt) : now,
+        publishedAt: status.publishedAt !== null ? new Date(status.publishedAt) : now2,
         liveUrl: status.liveUrl ?? placement.liveUrl,
-        updatedAt: now
+        updatedAt: now2
       };
     } else if (status.status === "pending_publication" || status.status === "processing") {
       assertTransitionPlacement(placement.status, "PENDING_PUBLICATION");
@@ -17904,6 +20348,78 @@ var VerifyPlacementUseCase = class {
   }
 };
 
+// packages/application/src/intel/metadata.ts
+function readIntel(metadata) {
+  if (metadata === null) {
+    return emptyIntel();
+  }
+  return {
+    donorQuality: recordOrNull(metadata.donorQuality),
+    pageAnalysis: recordOrNull(metadata.pageAnalysis),
+    risk: recordOrNull(metadata.riskAssessment),
+    scoreV2: recordOrNull(metadata.scoreV2),
+    linkInsert: recordOrNull(metadata.linkInsert),
+    anchorStrategy: recordOrNull(metadata.anchorStrategy),
+    outreach: recordOrNull(metadata.outreach),
+    negotiation: recordOrNull(metadata.negotiation)
+  };
+}
+function emptyIntel() {
+  return {
+    donorQuality: null,
+    pageAnalysis: null,
+    risk: null,
+    scoreV2: null,
+    linkInsert: null,
+    anchorStrategy: null,
+    outreach: null,
+    negotiation: null
+  };
+}
+function writeIntel(metadata, patch) {
+  const current = metadata ?? {};
+  const next = { ...current };
+  if (patch.donorQuality !== void 0) {
+    if (patch.donorQuality === null) delete next.donorQuality;
+    else next.donorQuality = patch.donorQuality;
+  }
+  if (patch.pageAnalysis !== void 0) {
+    if (patch.pageAnalysis === null) delete next.pageAnalysis;
+    else next.pageAnalysis = patch.pageAnalysis;
+  }
+  if (patch.risk !== void 0) {
+    if (patch.risk === null) delete next.riskAssessment;
+    else next.riskAssessment = patch.risk;
+  }
+  if (patch.scoreV2 !== void 0) {
+    if (patch.scoreV2 === null) delete next.scoreV2;
+    else next.scoreV2 = patch.scoreV2;
+  }
+  if (patch.linkInsert !== void 0) {
+    if (patch.linkInsert === null) delete next.linkInsert;
+    else next.linkInsert = patch.linkInsert;
+  }
+  if (patch.anchorStrategy !== void 0) {
+    if (patch.anchorStrategy === null) delete next.anchorStrategy;
+    else next.anchorStrategy = patch.anchorStrategy;
+  }
+  if (patch.outreach !== void 0) {
+    if (patch.outreach === null) delete next.outreach;
+    else next.outreach = patch.outreach;
+  }
+  if (patch.negotiation !== void 0) {
+    if (patch.negotiation === null) delete next.negotiation;
+    else next.negotiation = patch.negotiation;
+  }
+  return next;
+}
+function recordOrNull(value) {
+  if (value === null || value === void 0 || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value;
+}
+
 // packages/application/src/use-cases/placement/request-manual-placement.use-case.ts
 var RequestManualPlacementUseCase = class {
   constructor(opportunities, placements, providers, auditLog) {
@@ -17923,28 +20439,35 @@ var RequestManualPlacementUseCase = class {
     }
     validateManualPlacementRequest({ reason: command.reason });
     assertTransitionPlacement(opportunity.status, "NEEDS_MANUAL");
-    if (opportunity.placementMethod !== "MANUAL") {
+    const intel = readIntel(opportunity.metadata);
+    const isManual = opportunity.placementMethod === "MANUAL";
+    const isAgreedOutreach = opportunity.placementMethod === "OUTREACH" && intel.outreach?.status === "AGREED";
+    if (!isManual && !isAgreedOutreach) {
       throw new ValidationError(
-        `Opportunity ${opportunity.id} is not aligned for manual placement (method ${opportunity.placementMethod})`
+        `Opportunity ${opportunity.id} is not aligned for manual placement (method ${opportunity.placementMethod}, outreach ${intel.outreach?.status ?? "none"})`
       );
     }
-    const providers = await this.providers.listByPlatformId(opportunity.platformId);
-    const manualProvider = providers.find(
-      (provider) => provider.providerType === "MANUAL" && provider.capabilitiesVerified
-    );
-    if (manualProvider === void 0) {
-      throw new ValidationError(
-        `No verified manual provider available for platform ${opportunity.platformId}`
+    let providerId = null;
+    if (isManual) {
+      const providers = await this.providers.listByPlatformId(opportunity.platformId);
+      const manualProvider = providers.find(
+        (provider) => provider.providerType === "MANUAL" && provider.capabilitiesVerified
       );
+      if (manualProvider === void 0) {
+        throw new ValidationError(
+          `No verified manual provider available for platform ${opportunity.platformId}`
+        );
+      }
+      providerId = manualProvider.id;
     }
     validatePlacement({
       opportunityId: opportunity.id,
-      providerId: manualProvider.id,
+      providerId,
       status: "NEEDS_MANUAL"
     });
     const placement = await this.placements.create({
       opportunityId: opportunity.id,
-      providerId: manualProvider.id,
+      providerId,
       status: "NEEDS_MANUAL"
     });
     const needsManual = {
@@ -17982,20 +20505,20 @@ var CompleteManualPlacementUseCase = class {
       liveUrl: command.liveUrl
     });
     assertTransitionPlacement(placement.status, "PUBLISHED");
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const completed = {
       ...placement,
       status: "PUBLISHED",
       externalId: command.externalId,
-      submittedAt: now,
-      publishedAt: now,
+      submittedAt: now2,
+      publishedAt: now2,
       liveUrl: command.liveUrl,
       metadata: {
         ...placement.metadata ?? {},
         manual: true,
         notes: command.notes ?? null
       },
-      updatedAt: now
+      updatedAt: now2
     };
     const saved = await this.placements.save(completed);
     await this.auditLog.append({
@@ -18013,6 +20536,1142 @@ var CompleteManualPlacementUseCase = class {
   }
 };
 
+// packages/application/src/intel/context.ts
+async function loadOpportunityContext(deps, opportunityId) {
+  const opportunity = await deps.opportunities.findById(opportunityId);
+  if (opportunity === null) {
+    throw new NotFoundError("PlacementOpportunity", opportunityId);
+  }
+  const campaign = await deps.campaigns.findById(opportunity.campaignId);
+  if (campaign === null) {
+    throw new NotFoundError("Campaign", opportunity.campaignId);
+  }
+  const company = await deps.companies.findById(campaign.companyId);
+  if (company === null) {
+    throw new NotFoundError("Company", campaign.companyId);
+  }
+  const platforms = await deps.lookups.listPlatforms();
+  const platform = platforms.find((candidate) => candidate.id === opportunity.platformId);
+  if (platform === void 0) {
+    throw new NotFoundError("Platform", opportunity.platformId);
+  }
+  const categories = await deps.lookups.listCategories();
+  const category = categories.find((candidate) => candidate.id === platform.categoryId);
+  return {
+    opportunity,
+    campaign,
+    company,
+    platform: { name: platform.name, url: platform.url, category: category?.name ?? null },
+    intel: readIntel(opportunity.metadata)
+  };
+}
+
+// packages/application/src/use-cases/intel/assess-opportunity.use-case.ts
+var INTEL_SCHEMA_VERSION = "1";
+var AI_CONFIDENCE = 70;
+var AssessOpportunityUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, analyses, aiProvider, seoMetrics, pageAnalysis, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.analyses = analyses;
+    this.aiProvider = aiProvider;
+    this.seoMetrics = seoMetrics;
+    this.pageAnalysis = pageAnalysis;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  analyses;
+  aiProvider;
+  seoMetrics;
+  pageAnalysis;
+  auditLog;
+  async execute(command) {
+    const opportunity = await this.opportunities.findById(command.opportunityId);
+    if (opportunity === null) {
+      throw new NotFoundError("PlacementOpportunity", command.opportunityId);
+    }
+    const campaign = await this.campaigns.findById(opportunity.campaignId);
+    if (campaign === null) {
+      throw new NotFoundError("Campaign", opportunity.campaignId);
+    }
+    const company = await this.companies.findById(campaign.companyId);
+    if (company === null) {
+      throw new NotFoundError("Company", campaign.companyId);
+    }
+    const platform = await this.loadPlatform(opportunity.platformId);
+    const companyAnalysis = await this.loadCompanyAnalysis(opportunity.campaignId);
+    const snapshot = this.seoMetrics ? await this.seoMetrics.fetchDonorProfile({ platformName: platform.name, url: platform.url }) : null;
+    const estimates = validateAIOutput(
+      donorQualityEstimatesSchema,
+      await this.aiProvider.estimateDonorQuality({
+        platform,
+        companyAnalysis
+      }),
+      "estimateDonorQuality"
+    );
+    const donorQuality = this.buildDonorQualityProfile(snapshot, estimates);
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "DONOR_QUALITY_ESTIMATES",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId },
+      structuredOutput: estimates,
+      schemaVersion: INTEL_SCHEMA_VERSION,
+      validationStatus: "VALID"
+    });
+    const page = await this.analyzePage(platform, opportunity.platformId, donorQuality);
+    const deterministicRisk = assessDonorRisk(donorQuality, {
+      companyGeography: company.geography
+    });
+    const aiRisk = validateAIOutput(
+      donorRiskSchema,
+      await this.aiProvider.assessDonorRisk({ platform, donorQuality }),
+      "assessDonorRisk"
+    );
+    const risk = {
+      ...deterministicRisk,
+      aiReasons: aiRisk.reasons,
+      level: deterministicRisk.level === "UNKNOWN" && aiRisk.level !== "UNKNOWN" ? aiRisk.level : deterministicRisk.level
+    };
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "DONOR_RISK",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId },
+      structuredOutput: aiRisk,
+      schemaVersion: INTEL_SCHEMA_VERSION,
+      validationStatus: "VALID"
+    });
+    const scoreV2 = scoreV2From({
+      breakdown: opportunity.scoreBreakdown,
+      donorQuality,
+      risk,
+      placementMethod: opportunity.placementMethod,
+      pageLinkInsertSuitability: isKnownDatum(page.linkInsertSuitability) && typeof page.linkInsertSuitability.value === "number" ? page.linkInsertSuitability.value : null
+    });
+    const metadata = writeIntel(opportunity.metadata, {
+      donorQuality,
+      pageAnalysis: page,
+      risk,
+      scoreV2
+    });
+    const updated = await this.opportunities.update({ ...opportunity, metadata, updatedAt: /* @__PURE__ */ new Date() });
+    await this.auditLog.append({
+      actor: "system",
+      action: "OPPORTUNITY_INTEL_ASSESSED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: {
+        donorQuality: donorQuality.overallDonorQuality,
+        donorLevel: donorQuality.overallLevel,
+        riskLevel: risk.level,
+        overallScore: scoreV2?.overall ?? null,
+        pageAnalysis: page.targetPage,
+        seoSource: this.seoMetrics?.name ?? null
+      }
+    });
+    return updated;
+  }
+  async analyzePage(platform, platformId, donorQuality) {
+    if (this.pageAnalysis !== null) {
+      return this.pageAnalysis.analyzePage({ platformName: platform.name, url: platform.url });
+    }
+    const output = validateAIOutput(
+      pageAnalysisSchema,
+      await this.aiProvider.analyzePage({
+        company: { name: "", description: null, website: null, products: [] },
+        platform,
+        donorQuality
+      }),
+      "analyzePage"
+    );
+    await this.analyses.create({
+      campaignId: null,
+      analysisType: "PAGE_ANALYSIS",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId },
+      structuredOutput: output,
+      schemaVersion: INTEL_SCHEMA_VERSION,
+      validationStatus: "VALID"
+    });
+    return {
+      targetDomain: platform.name,
+      targetPage: output.targetPage,
+      pageTitle: output.pageTitle,
+      pageType: output.pageType,
+      topicalRelevance: {
+        value: output.topicalRelevance,
+        source: this.aiProvider.name,
+        status: "AI_ESTIMATED",
+        confidence: AI_CONFIDENCE,
+        measuredAt: null
+      },
+      linkInsertSuitability: {
+        value: output.linkInsertSuitability,
+        source: this.aiProvider.name,
+        status: "AI_ESTIMATED",
+        confidence: AI_CONFIDENCE,
+        measuredAt: null
+      },
+      indexation: {
+        value: output.indexation,
+        source: this.aiProvider.name,
+        status: "AI_ESTIMATED",
+        confidence: AI_CONFIDENCE,
+        measuredAt: null
+      },
+      traffic: unknownDatum(),
+      outboundLinkSignals: unknownDatum(),
+      suggestedPlacementLocation: output.suggestedPlacementLocation,
+      summary: output.summary,
+      analyzedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  buildDonorQualityProfile(snapshot, estimates) {
+    const estimated = (value) => ({
+      value,
+      source: this.aiProvider.name,
+      status: "AI_ESTIMATED",
+      confidence: AI_CONFIDENCE,
+      measuredAt: null
+    });
+    const profile = {
+      organicTraffic: snapshot ? snapshot.organicTraffic : unknownDatum(),
+      trafficGeography: snapshot ? snapshot.trafficGeography : unknownDatum(),
+      keywordProfile: snapshot ? snapshot.keywordProfile : unknownDatum(),
+      backlinkProfile: snapshot ? snapshot.backlinkProfile : unknownDatum(),
+      authority: snapshot ? snapshot.authority : unknownDatum(),
+      spamRisk: snapshot ? snapshot.spamRisk : unknownDatum(),
+      indexingStatus: snapshot ? snapshot.indexingStatus : unknownDatum(),
+      estimatedRealTraffic: snapshot ? snapshot.estimatedRealTraffic : unknownDatum(),
+      topicalRelevance: estimated(estimates.topicalRelevance),
+      audienceMatch: estimated(estimates.audienceMatch),
+      geographicRelevance: estimated(estimates.geographicRelevance),
+      placementQuality: estimated(estimates.placementQuality),
+      automationPotential: estimated(estimates.automationPotential),
+      overallDonorQuality: null,
+      overallLevel: "UNKNOWN"
+    };
+    const computed = calculateDonorQuality(profile);
+    return { ...profile, ...computed };
+  }
+  async loadPlatform(platformId) {
+    const platforms = await this.lookups.listPlatforms();
+    const platform = platforms.find((candidate) => candidate.id === platformId);
+    if (platform === void 0) {
+      throw new NotFoundError("Platform", platformId);
+    }
+    const categories = await this.lookups.listCategories();
+    const category = categories.find((candidate) => candidate.id === platform.categoryId);
+    return { name: platform.name, url: platform.url, category: category?.name ?? null };
+  }
+  async loadCompanyAnalysis(campaignId) {
+    const analysis = await this.analyses.findLatestValidCompanyAnalysis(campaignId);
+    if (analysis === null) {
+      throw new NoCompanyAnalysisError(campaignId);
+    }
+    return validateAIOutput(companyAnalysisSchema, analysis.structuredOutput, "stored companyAnalysis");
+  }
+};
+
+// packages/application/src/use-cases/intel/generate-link-insert.use-case.ts
+var SCHEMA_VERSION = "1";
+var GenerateLinkInsertUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, analyses, aiProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.analyses = analyses;
+    this.aiProvider = aiProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  analyses;
+  aiProvider;
+  auditLog;
+  async execute(command) {
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity, company, platform, intel } = context;
+    const page = intel.pageAnalysis;
+    const placementObjective = command.placementObjective?.trim() || context.campaign.goals[0] || "\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u043A\u0438";
+    const output = validateAIOutput(
+      linkInsertSchema,
+      await this.aiProvider.generateLinkInsert({
+        company: {
+          name: company.name,
+          website: company.website,
+          products: company.products
+        },
+        platform,
+        targetPage: page?.targetPage ?? null,
+        surroundingContext: page?.summary ?? null,
+        targetUrl: company.website ?? opportunity.platformId,
+        desiredAnchor: command.desiredAnchor?.trim() || null,
+        placementObjective
+      }),
+      "generateLinkInsert"
+    );
+    const linkInsert = {
+      anchor: output.anchor,
+      anchorAlternatives: [...output.anchorAlternatives],
+      suggestedInsertionPoint: output.suggestedInsertionPoint,
+      text: output.text,
+      explanation: output.explanation,
+      confidence: output.confidence,
+      placementObjective
+    };
+    const metadata = writeIntel(opportunity.metadata, { linkInsert });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "LINK_INSERT_PREPARATION",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId, placementObjective },
+      structuredOutput: output,
+      schemaVersion: SCHEMA_VERSION,
+      validationStatus: "VALID"
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "LINK_INSERT_GENERATED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { anchor: output.anchor, confidence: output.confidence }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/use-cases/intel/recommend-anchor.use-case.ts
+var SCHEMA_VERSION2 = "1";
+var RecommendAnchorUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, analyses, aiProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.analyses = analyses;
+    this.aiProvider = aiProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  analyses;
+  aiProvider;
+  auditLog;
+  async execute(command) {
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity, company, platform, intel } = context;
+    const page = intel.pageAnalysis;
+    const profileAvailable = command.anchorProfileAvailable ?? false;
+    const targetKeyword = company.products[0] ?? (company.industry ? `\u0443\u0441\u043B\u0443\u0433\u0438 ${company.industry}` : null);
+    const output = validateAIOutput(
+      anchorRecommendationSchema,
+      await this.aiProvider.recommendAnchor({
+        companyName: company.name,
+        platformName: platform.name,
+        targetPage: page?.targetPage ?? null,
+        surroundingContext: page?.summary ?? null,
+        placementObjective: context.campaign.goals[0] ?? "\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u043A\u0438",
+        targetKeyword: targetKeyword ?? null,
+        anchorProfileAvailable: profileAvailable,
+        targetPageRelevance: page !== null && isKnownDatum(page.topicalRelevance) && typeof page.topicalRelevance.value === "number" ? page.topicalRelevance.value : null
+      }),
+      "recommendAnchor"
+    );
+    const anchorStrategy = {
+      anchorType: output.anchorType,
+      anchor: output.anchor,
+      alternatives: [...output.alternatives],
+      explanation: output.explanation,
+      confidence: output.confidence,
+      profileAvailable
+    };
+    const metadata = writeIntel(opportunity.metadata, { anchorStrategy });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "ANCHOR_RECOMMENDATION",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId, profileAvailable },
+      structuredOutput: output,
+      schemaVersion: SCHEMA_VERSION2,
+      validationStatus: "VALID"
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "ANCHOR_RECOMMENDED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { anchorType: output.anchorType, anchor: output.anchor }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/use-cases/intel/generate-outreach.use-case.ts
+var SCHEMA_VERSION3 = "1";
+var GenerateOutreachUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, analyses, aiProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.analyses = analyses;
+    this.aiProvider = aiProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  analyses;
+  aiProvider;
+  auditLog;
+  async execute(command) {
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity, company, platform, intel } = context;
+    const output = validateAIOutput(
+      outreachMessageSchema,
+      await this.aiProvider.generateOutreach({
+        company: {
+          name: company.name,
+          description: company.description,
+          website: company.website,
+          products: company.products
+        },
+        platform,
+        placementType: opportunity.placementType,
+        goals: context.campaign.goals,
+        pageTitle: intel.pageAnalysis?.pageTitle ?? null,
+        pageSummary: intel.pageAnalysis?.summary ?? null,
+        anchor: intel.linkInsert?.anchor ?? intel.anchorStrategy?.anchor ?? null,
+        linkInsertText: intel.linkInsert?.text ?? null
+      }),
+      "generateOutreach"
+    );
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const outreach = initialOutreachDraft(now2);
+    outreach.message = {
+      subject: output.subject,
+      message: output.message,
+      shortVersion: output.shortVersion,
+      opening: output.opening,
+      valueProposition: output.valueProposition,
+      placementRequest: output.placementRequest,
+      cta: output.cta
+    };
+    const metadata = writeIntel(opportunity.metadata, { outreach });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "OUTREACH_MESSAGE",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId },
+      structuredOutput: output,
+      schemaVersion: SCHEMA_VERSION3,
+      validationStatus: "VALID"
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "OUTREACH_GENERATED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { subject: output.subject }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/use-cases/intel/update-outreach-status.use-case.ts
+var UpdateOutreachStatusUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, outreachProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.outreachProvider = outreachProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  outreachProvider;
+  auditLog;
+  async execute(command) {
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity } = context;
+    const intel = readIntel(opportunity.metadata);
+    const outreach = intel.outreach;
+    if (outreach === null) {
+      throw new ValidationError("Outreach has not been prepared for this opportunity yet");
+    }
+    if (outreach.message === null) {
+      throw new ValidationError("Outreach message is empty");
+    }
+    assertTransitionOutreach(outreach.status, command.status);
+    const next = { ...outreach, status: command.status, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    if (command.status === "SENT") {
+      let provider = outreach.provider;
+      let externalId = outreach.externalId;
+      if (this.outreachProvider !== null) {
+        const result = await this.outreachProvider.send({
+          to: context.platform.name,
+          subject: outreach.message.subject,
+          body: outreach.message.message
+        });
+        provider = this.outreachProvider.name;
+        externalId = result.externalId;
+      } else {
+        provider = "manual";
+      }
+      next.provider = provider;
+      next.externalId = externalId;
+      next.sentAt = (/* @__PURE__ */ new Date()).toISOString();
+    }
+    const metadata = writeIntel(opportunity.metadata, { outreach: next });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: command.status === "SENT" ? "OUTREACH_SENT" : "OUTREACH_STATUS_CHANGED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: {
+        from: outreach.status,
+        to: command.status,
+        provider: next.provider,
+        externalId: next.externalId
+      }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/use-cases/intel/analyze-negotiation-reply.use-case.ts
+var SCHEMA_VERSION4 = "1";
+var AnalyzeNegotiationReplyUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, analyses, aiProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.analyses = analyses;
+    this.aiProvider = aiProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  analyses;
+  aiProvider;
+  auditLog;
+  async execute(command) {
+    const reply = command.reply.trim();
+    if (reply.length === 0) {
+      throw new ValidationError("Donor reply must not be empty");
+    }
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity, company, platform } = context;
+    const intel = readIntel(opportunity.metadata);
+    const output = validateAIOutput(
+      negotiationAnalysisSchema,
+      await this.aiProvider.analyzeNegotiationReply({
+        donorReply: reply,
+        company: { name: company.name, website: company.website },
+        platformName: platform.name,
+        placementType: opportunity.placementType,
+        campaignGoals: context.campaign.goals
+      }),
+      "analyzeNegotiationReply"
+    );
+    const analysis = {
+      intent: output.intent,
+      donorReply: reply,
+      suggestedResponse: output.suggestedResponse,
+      strategy: output.strategy,
+      recommendedPrice: output.recommendedPrice === null ? null : {
+        min: output.recommendedPrice.min,
+        max: output.recommendedPrice.max,
+        currency: output.recommendedPrice.currency
+      },
+      fallbackOption: output.fallbackOption,
+      risks: [...output.risks],
+      confidence: output.confidence,
+      analyzedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const session = intel.negotiation ?? emptyNegotiationSession();
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    session.replies.push({ role: "donor", text: reply, at: now2 });
+    session.analysis = analysis;
+    const outreach = intel.outreach;
+    let updatedOutreach = outreach;
+    if (outreach !== null && outreach.status === "SENT" && (analysis.intent === "ACCEPTED" || analysis.intent === "REJECTED" || analysis.intent === "PRICE_NEGOTIATION" || analysis.intent === "CONTENT_REQUIREMENTS" || analysis.intent === "LINK_ATTRIBUTE_REQUEST")) {
+      const next = { ...outreach, status: "REPLIED", updatedAt: now2 };
+      assertTransitionOutreach(outreach.status, "REPLIED");
+      updatedOutreach = next;
+    }
+    const metadata = writeIntel(opportunity.metadata, {
+      negotiation: session,
+      ...updatedOutreach === null ? {} : { outreach: updatedOutreach }
+    });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.analyses.create({
+      campaignId: opportunity.campaignId,
+      analysisType: "NEGOTIATION_ANALYSIS",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { platformId: opportunity.platformId },
+      structuredOutput: output,
+      schemaVersion: SCHEMA_VERSION4,
+      validationStatus: "VALID"
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "DONOR_REPLY_RECEIVED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { intent: analysis.intent }
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "NEGOTIATION_ANALYZED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { intent: analysis.intent }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/use-cases/intel/respond-negotiation.use-case.ts
+var RespondNegotiationUseCase = class {
+  constructor(opportunities, campaigns, companies, lookups, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.lookups = lookups;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  lookups;
+  auditLog;
+  async execute(command) {
+    const context = await loadOpportunityContext(
+      {
+        opportunities: this.opportunities,
+        campaigns: this.campaigns,
+        companies: this.companies,
+        lookups: this.lookups
+      },
+      command.opportunityId
+    );
+    const { opportunity } = context;
+    const intel = readIntel(opportunity.metadata);
+    const session = intel.negotiation;
+    if (session === null || session.analysis === null) {
+      throw new ValidationError("No negotiation analysis found \u2014 analyze the donor reply first");
+    }
+    const outreach = intel.outreach;
+    if (outreach === null) {
+      throw new ValidationError("Outreach has not been prepared for this opportunity");
+    }
+    const now2 = (/* @__PURE__ */ new Date()).toISOString();
+    const hasCustomResponse = command.customResponse !== void 0 && command.customResponse.trim().length > 0;
+    const response = hasCustomResponse ? command.customResponse.trim() : command.agree ? "\u0421\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u043D\u043E, \u0440\u0430\u0437\u043C\u0435\u0449\u0430\u0435\u043C." : "\u041E\u0442\u043A\u043B\u043E\u043D\u044F\u0435\u043C.";
+    session.replies.push({ role: "human", text: response, at: now2 });
+    let nextOutreach = outreach;
+    if (command.agree) {
+      if (outreach.status !== "AGREED") {
+        assertTransitionOutreach(outreach.status, "AGREED");
+        nextOutreach = { ...outreach, status: "AGREED", updatedAt: now2 };
+      }
+      session.status = "RESOLVED";
+    } else if (hasCustomResponse) {
+      if (outreach.status === "REPLIED") {
+        assertTransitionOutreach(outreach.status, "NEGOTIATING");
+        nextOutreach = { ...outreach, status: "NEGOTIATING", updatedAt: now2 };
+      }
+    } else if (outreach.status === "REPLIED" || outreach.status === "NEGOTIATING") {
+      assertTransitionOutreach(outreach.status, "REJECTED");
+      nextOutreach = { ...outreach, status: "REJECTED", updatedAt: now2 };
+      session.status = "RESOLVED";
+    }
+    const metadata = writeIntel(opportunity.metadata, { negotiation: session, outreach: nextOutreach });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.auditLog.append({
+      actor: "user",
+      action: command.agree ? "NEGOTIATION_AGREED" : "NEGOTIATION_RESPONDED",
+      entityType: "PlacementOpportunity",
+      entityId: opportunity.id,
+      metadata: { outreachStatus: nextOutreach.status, response }
+    });
+    return updated;
+  }
+};
+
+// packages/application/src/plan/plan-builder.ts
+var PLAN_SCHEMA_VERSION = "1";
+async function loadPlanData(deps, campaignId) {
+  const campaign = await deps.campaigns.findById(campaignId);
+  if (campaign === null) {
+    throw new NotFoundError("Campaign", campaignId);
+  }
+  const company = await deps.companies.findById(campaign.companyId);
+  if (company === null) {
+    throw new NotFoundError("Company", campaign.companyId);
+  }
+  const analysis = await deps.analyses.findLatestValidCompanyAnalysis(campaignId);
+  if (analysis === null) {
+    throw new NoCompanyAnalysisError(campaignId);
+  }
+  const companyAnalysis = validateAIOutput(
+    companyAnalysisSchema,
+    analysis.structuredOutput,
+    "stored companyAnalysis"
+  );
+  const [categories, platforms, providers, opportunities] = await Promise.all([
+    deps.lookups.listCategories(),
+    deps.lookups.listPlatforms(),
+    deps.lookups.listProviders(),
+    deps.opportunities.findByCampaignId(campaignId)
+  ]);
+  const relevantCodes = new Set(
+    companyAnalysis.relevantCategories.map((code) => code.trim().toLowerCase())
+  );
+  const strategyItems = categories.filter((category) => relevantCodes.has(category.code.toLowerCase())).map((category) => ({
+    categoryCode: category.code,
+    categoryName: category.name,
+    placementType: placementTypeForCategory(category)
+  }));
+  const platformById = new Map(platforms.map((platform) => [platform.id, platform]));
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const providersByPlatform = /* @__PURE__ */ new Map();
+  for (const provider of providers) {
+    const existing = providersByPlatform.get(provider.platformId) ?? [];
+    existing.push(provider);
+    providersByPlatform.set(provider.platformId, existing);
+  }
+  const rows = opportunities.map((opportunity) => {
+    const platform = platformById.get(opportunity.platformId);
+    const category = opportunity.categoryId === null ? void 0 : categoryById.get(opportunity.categoryId);
+    const intel = readIntel(opportunity.metadata);
+    const strategyItem = category === void 0 ? void 0 : strategyItems.find((item) => item.categoryCode === category.code);
+    const alignment = providerAlignment(
+      opportunity,
+      providersByPlatform.get(opportunity.platformId) ?? []
+    );
+    return {
+      opportunity,
+      platform: {
+        id: platform?.id ?? opportunity.platformId,
+        name: platform?.name ?? opportunity.platformId,
+        url: platform?.url ?? null,
+        categoryId: platform?.categoryId ?? null
+      },
+      categoryName: category?.name ?? null,
+      score: opportunity.score,
+      overallScore: intel.scoreV2?.overall ?? null,
+      donorQuality: intel.donorQuality?.overallDonorQuality ?? null,
+      traffic: typeof intel.donorQuality?.organicTraffic?.value === "number" ? intel.donorQuality.organicTraffic.value : null,
+      riskLevel: intel.risk?.level ?? null,
+      hasIntel: intel.donorQuality !== null || intel.pageAnalysis !== null,
+      providerAvailable: alignment.providerAvailable,
+      providerCapabilitiesVerified: alignment.capabilitiesVerified,
+      strategySupportsType: strategyItem !== void 0 && strategyItem.placementType === opportunity.placementType
+    };
+  });
+  return { campaign, company, companyAnalysis, strategyItems, rows };
+}
+function providerAlignment(opportunity, providers) {
+  if (opportunity.placementMethod === "OUTREACH") {
+    return { providerAvailable: true, capabilitiesVerified: true };
+  }
+  const required2 = opportunity.placementMethod === "MANUAL" ? ["VERIFY"] : EXECUTION_REQUIRED_CAPABILITIES;
+  const selected = selectBestProvider(providers, required2);
+  return {
+    providerAvailable: selected !== null,
+    capabilitiesVerified: selected?.capabilitiesVerified ?? false
+  };
+}
+function planAiInput(data) {
+  return {
+    campaign: {
+      id: data.campaign.id,
+      name: data.campaign.name,
+      goals: [...data.campaign.goals]
+    },
+    company: {
+      name: data.company.name,
+      industry: data.company.industry,
+      description: data.company.description,
+      website: data.company.website,
+      geography: [...data.company.geography],
+      products: [...data.company.products],
+      targetAudience: [...data.company.targetAudience]
+    },
+    companyAnalysis: data.companyAnalysis,
+    strategy: data.strategyItems.map((item) => ({
+      categoryCode: item.categoryCode,
+      categoryName: item.categoryName,
+      placementType: item.placementType
+    })),
+    opportunities: data.rows.map((row) => ({
+      opportunityId: row.opportunity.id,
+      platform: {
+        name: row.platform.name,
+        url: row.platform.url,
+        category: row.categoryName
+      },
+      placementType: row.opportunity.placementType,
+      placementMethod: row.opportunity.placementMethod,
+      status: row.opportunity.status,
+      score: row.score,
+      overallScore: row.overallScore,
+      donorQuality: row.donorQuality,
+      traffic: row.traffic,
+      riskLevel: row.riskLevel,
+      providerAvailable: row.providerAvailable,
+      providerCapabilitiesVerified: row.providerCapabilitiesVerified,
+      automationAvailable: row.opportunity.placementMethod === "API" || row.opportunity.placementMethod === "BROWSER" || row.opportunity.placementMethod === "OUTREACH",
+      hasIntel: row.hasIntel,
+      strategySupportsType: row.strategySupportsType
+    }))
+  };
+}
+function buildPlacementPlan(data, decisionMap, meta3) {
+  const aiByOpportunityId = new Map(decisionMap.items.map((item) => [item.opportunityId, item]));
+  const items = data.rows.map((row) => {
+    const ai = aiByOpportunityId.get(row.opportunity.id);
+    if (ai === void 0) {
+      return null;
+    }
+    const suggestion = {
+      recommendation: ai.recommendation,
+      recommendationReason: ai.recommendationReason,
+      nextAction: ai.nextAction,
+      automationLevel: ai.automationLevel,
+      riskExplanation: ai.riskExplanation,
+      suggestedPlacementApproach: ai.suggestedPlacementApproach
+    };
+    const intel = readIntel(row.opportunity.metadata);
+    return {
+      opportunityId: row.opportunity.id,
+      platformId: row.platform.id,
+      platformName: row.platform.name,
+      placementType: row.opportunity.placementType,
+      placementMethod: row.opportunity.placementMethod,
+      score: row.score,
+      overallScore: row.overallScore,
+      donorQuality: row.donorQuality,
+      riskLevel: row.riskLevel,
+      providerAvailable: row.providerAvailable,
+      decision: reconcilePlanDecision(
+        {
+          score: row.score,
+          overallScore: row.overallScore,
+          riskLevel: row.riskLevel,
+          placementMethod: row.opportunity.placementMethod,
+          placementType: row.opportunity.placementType,
+          providerAvailable: row.providerAvailable,
+          providerCapabilitiesVerified: row.providerCapabilitiesVerified,
+          hasIntel: row.hasIntel,
+          strategySupportsType: row.strategySupportsType
+        },
+        suggestion
+      ),
+      anchorRecommendation: ai.anchorRecommendation === null ? intel.anchorStrategy === null ? null : {
+        anchorType: intel.anchorStrategy.anchorType,
+        anchor: intel.anchorStrategy.anchor,
+        explanation: intel.anchorStrategy.explanation
+      } : {
+        anchorType: ai.anchorRecommendation.anchorType,
+        anchor: ai.anchorRecommendation.anchor,
+        explanation: ai.anchorRecommendation.explanation
+      }
+    };
+  }).filter((item) => item !== null);
+  const sorted = sortPlanItems(items);
+  const summary = buildPlanSummary(sorted);
+  return {
+    campaignId: data.campaign.id,
+    generatedAt: meta3.generatedAt,
+    provider: meta3.provider,
+    model: meta3.model,
+    schemaVersion: meta3.schemaVersion,
+    summary,
+    recommendedToStart: pickRecommendedToStart(sorted),
+    items: sorted
+  };
+}
+function assertDecisionMapCoverage(opportunityIds, decisionMap) {
+  const inputIds = new Set(opportunityIds);
+  const outputIds = decisionMap.items.map((item) => item.opportunityId);
+  const hasUnknown = outputIds.some((id) => !inputIds.has(id));
+  if (outputIds.length !== inputIds.size || hasUnknown) {
+    throw new PlanCoverageError(
+      "decision map does not match the opportunity set (missing or unknown opportunity ids)"
+    );
+  }
+}
+var PlanCoverageError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "PlanCoverageError";
+  }
+};
+function sortPlanItems(items) {
+  const priority = {
+    RECOMMENDED: 0,
+    REVIEW_REQUIRED: 1,
+    INSUFFICIENT_DATA: 2,
+    NOT_RECOMMENDED: 3
+  };
+  return [...items].sort(
+    (a, b) => (priority[a.decision.recommendation] ?? 9) - (priority[b.decision.recommendation] ?? 9) || (b.overallScore ?? b.score ?? -1) - (a.overallScore ?? a.score ?? -1) || a.platformName.localeCompare(b.platformName)
+  );
+}
+
+// packages/application/src/use-cases/plan/generate-placement-plan.use-case.ts
+var GeneratePlacementPlanUseCase = class {
+  constructor(opportunities, campaigns, companies, analyses, lookups, aiProvider, auditLog) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.analyses = analyses;
+    this.lookups = lookups;
+    this.aiProvider = aiProvider;
+    this.auditLog = auditLog;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  analyses;
+  lookups;
+  aiProvider;
+  auditLog;
+  async execute(command) {
+    const data = await loadPlanData(
+      {
+        campaigns: this.campaigns,
+        companies: this.companies,
+        analyses: this.analyses,
+        lookups: this.lookups,
+        opportunities: this.opportunities
+      },
+      command.campaignId
+    );
+    let decisionMap;
+    try {
+      decisionMap = validateAIOutput(
+        placementPlanSchema,
+        await this.aiProvider.generatePlacementPlan(planAiInput(data)),
+        "generatePlacementPlan"
+      );
+      assertDecisionMapCoverage(
+        data.rows.map((row) => row.opportunity.id),
+        decisionMap
+      );
+    } catch (error51) {
+      await this.auditLog.append({
+        actor: "system",
+        action: "PLACEMENT_PLAN_GENERATED",
+        entityType: "Campaign",
+        entityId: data.campaign.id,
+        metadata: {
+          status: "FAILED",
+          reason: safeReason(error51)
+        }
+      });
+      throw new PlanGenerationFailedError(data.campaign.id, failureKind(error51));
+    }
+    const plan = buildPlacementPlan(data, decisionMap, {
+      provider: this.aiProvider.name,
+      model: null,
+      schemaVersion: PLAN_SCHEMA_VERSION,
+      generatedAt: /* @__PURE__ */ new Date()
+    });
+    await this.analyses.create({
+      campaignId: data.campaign.id,
+      analysisType: "PLACEMENT_PLAN",
+      provider: this.aiProvider.name,
+      model: null,
+      inputReference: { opportunityCount: data.rows.length },
+      structuredOutput: decisionMap,
+      schemaVersion: PLAN_SCHEMA_VERSION,
+      validationStatus: "VALID"
+    });
+    await this.auditLog.append({
+      actor: "system",
+      action: "PLACEMENT_PLAN_GENERATED",
+      entityType: "Campaign",
+      entityId: data.campaign.id,
+      metadata: {
+        status: "COMPLETE",
+        provider: this.aiProvider.name,
+        opportunityCount: plan.summary.total,
+        recommended: plan.summary.recommended,
+        reviewRequired: plan.summary.reviewRequired,
+        notRecommended: plan.summary.notRecommended,
+        insufficientData: plan.summary.insufficientData,
+        automationPercent: plan.summary.automationPercent
+      }
+    });
+    return plan;
+  }
+};
+function failureKind(error51) {
+  if (error51 instanceof Error && error51.name === "AIOutputValidationError") {
+    return "AI output failed schema validation";
+  }
+  if (error51 instanceof Error && error51.name === "PlanCoverageError") {
+    return "AI decision map does not cover the discovered opportunities";
+  }
+  return "AI provider failed to produce a decision map";
+}
+function safeReason(error51) {
+  return error51 instanceof Error ? error51.message : String(error51);
+}
+
+// packages/application/src/use-cases/plan/get-placement-plan.use-case.ts
+var GetPlacementPlanUseCase = class {
+  constructor(opportunities, campaigns, companies, analyses, lookups) {
+    this.opportunities = opportunities;
+    this.campaigns = campaigns;
+    this.companies = companies;
+    this.analyses = analyses;
+    this.lookups = lookups;
+  }
+  opportunities;
+  campaigns;
+  companies;
+  analyses;
+  lookups;
+  async execute(command) {
+    const data = await loadPlanData(
+      {
+        campaigns: this.campaigns,
+        companies: this.companies,
+        analyses: this.analyses,
+        lookups: this.lookups,
+        opportunities: this.opportunities
+      },
+      command.campaignId
+    );
+    const stored = await this.analyses.findLatestValidPlacementPlan(command.campaignId);
+    if (stored === null) {
+      throw new NoPlacementPlanError(command.campaignId);
+    }
+    let decisionMap;
+    try {
+      decisionMap = validateAIOutput(
+        placementPlanSchema,
+        stored.structuredOutput,
+        "stored placementPlan"
+      );
+      assertDecisionMapCoverage(
+        data.rows.map((row) => row.opportunity.id),
+        decisionMap
+      );
+    } catch (error51) {
+      throw new PlanGenerationFailedError(
+        command.campaignId,
+        `stored plan is invalid: ${error51 instanceof Error ? error51.message : String(error51)}`
+      );
+    }
+    return buildPlacementPlan(data, decisionMap, {
+      provider: stored.provider,
+      model: stored.model,
+      schemaVersion: stored.schemaVersion,
+      generatedAt: stored.createdAt
+    });
+  }
+};
+
 // apps/api/src/dto.ts
 function buildLookupMaps(platforms, categories, providers) {
   return {
@@ -18021,15 +21680,21 @@ function buildLookupMaps(platforms, categories, providers) {
     providerById: new Map(providers.map((provider) => [provider.id, provider]))
   };
 }
-function opportunityActions(opportunity) {
+function opportunityActions(opportunity, intel) {
   if (opportunity.status === "QUALIFIED") {
     return ["approve"];
   }
   if (opportunity.status === "SELECTED") {
+    if (opportunity.placementMethod === "OUTREACH") {
+      return intel?.outreach?.status === "AGREED" ? ["requestManual"] : [];
+    }
     return opportunity.placementMethod === "MANUAL" ? ["requestManual", "execute"] : ["execute"];
   }
   if (opportunity.status === "READY") {
     return ["execute"];
+  }
+  if (opportunity.status === "NEEDS_MANUAL" && intel?.outreach?.status === "AGREED") {
+    return [];
   }
   return [];
 }
@@ -18095,6 +21760,12 @@ function mapOpportunity(opportunity, placements, verificationsByPlacement, evide
   const platform = context.maps.platformById.get(opportunity.platformId);
   const category = opportunity.categoryId === null ? void 0 : context.maps.categoryById.get(opportunity.categoryId);
   const candidateProvider = candidateForDisplay(opportunity, context);
+  const metadata = opportunity.metadata ?? {};
+  const discoverySource = typeof metadata.discoverySource === "string" ? metadata.discoverySource : null;
+  const intel = readIntel(opportunity.metadata);
+  const donorQualityScore = intel.donorQuality?.overallDonorQuality ?? null;
+  const traffic = intel.donorQuality?.organicTraffic.value !== null && typeof intel.donorQuality?.organicTraffic.value === "number" ? intel.donorQuality.organicTraffic.value : null;
+  const geography = intel.donorQuality?.trafficGeography.value ?? null;
   return {
     id: opportunity.id,
     campaignId: opportunity.campaignId,
@@ -18114,13 +21785,29 @@ function mapOpportunity(opportunity, placements, verificationsByPlacement, evide
     placementMethod: opportunity.placementMethod,
     providerCapabilities: [...opportunity.providerCapabilities],
     provider: candidateProvider,
+    discoverySource,
     status: opportunity.status,
     createdAt: toIso(opportunity.createdAt),
     updatedAt: toIso(opportunity.updatedAt),
-    allowedActions: opportunityActions(opportunity),
+    allowedActions: opportunityActions(opportunity, intel),
     placements: placements.map(
       (placement) => mapPlacement(placement, verificationsByPlacement, evidenceByVerification, context.maps)
-    )
+    ),
+    donorQuality: intel.donorQuality,
+    donorQualityScore,
+    pageAnalysis: intel.pageAnalysis,
+    risk: intel.risk,
+    scoreV2: intel.scoreV2,
+    overallScore: intel.scoreV2?.overall ?? null,
+    linkInsert: intel.linkInsert,
+    anchorStrategy: intel.anchorStrategy,
+    outreach: intel.outreach,
+    negotiation: intel.negotiation,
+    workflow: mapWorkflow(opportunity, intel),
+    humanActions: mapHumanActions(opportunity, intel, placements),
+    traffic,
+    geography,
+    automationAvailable: automationAvailability(opportunity)
   };
 }
 function mapPlacement(placement, verificationsByPlacement, evidenceByVerification, maps) {
@@ -18184,6 +21871,61 @@ function mapAuditEvent(entry) {
 function lastOf(items) {
   return items.length === 0 ? void 0 : items[items.length - 1];
 }
+function mapWorkflow(opportunity, intel) {
+  const workflow = workflowForType(opportunity.placementType);
+  const currentKind = workflowCurrentStageKind(
+    opportunity.placementType,
+    opportunity.status,
+    intel.outreach?.status ?? null
+  );
+  return {
+    placementType: workflow.placementType,
+    label: workflow.label,
+    stages: workflow.stages.map((stage2) => ({
+      kind: stage2.kind,
+      label: stage2.label,
+      automated: stage2.automated,
+      hitl: stage2.hitl,
+      required: stage2.required,
+      current: stage2.kind === currentKind
+    })),
+    currentStageKind: currentKind
+  };
+}
+function mapHumanActions(opportunity, intel, placements) {
+  const manualPlacements = placements.filter((placement) => placement.status === "NEEDS_MANUAL").map((placement) => ({
+    id: placement.id,
+    reason: typeof placement.metadata?.reason === "string" ? placement.metadata.reason : null
+  }));
+  const items = deriveHumanActions({
+    opportunityId: opportunity.id,
+    opportunityStatus: opportunity.status,
+    placementMethod: opportunity.placementMethod,
+    placementType: opportunity.placementType,
+    risk: intel.risk,
+    hasIntel: intel.donorQuality !== null || intel.pageAnalysis !== null,
+    outreach: intel.outreach,
+    negotiation: intel.negotiation,
+    manualPlacements
+  });
+  return items.map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    title: item.title,
+    why: item.why,
+    aiPrepared: item.aiPrepared,
+    humanTask: item.humanTask,
+    actionLabel: item.actionLabel,
+    opportunityId: item.opportunityId,
+    placementId: item.placementId
+  }));
+}
+function automationAvailability(opportunity) {
+  if (opportunity.placementMethod === "OUTREACH") {
+    return true;
+  }
+  return opportunity.placementMethod === "API" || opportunity.placementMethod === "BROWSER";
+}
 function candidateForDisplay(opportunity, context) {
   const platformProviders = context.envProviders.filter(
     (provider) => provider.platformId === opportunity.platformId
@@ -18193,6 +21935,56 @@ function candidateForDisplay(opportunity, context) {
     opportunity.placementMethod === "MANUAL" ? ["VERIFY"] : EXECUTION_REQUIRED_CAPABILITIES
   );
   return candidate === null ? null : mapProvider(candidate);
+}
+function mapPlacementPlan(plan) {
+  return {
+    campaignId: plan.campaignId,
+    generatedAt: toIso(plan.generatedAt),
+    provider: plan.provider,
+    model: plan.model,
+    schemaVersion: plan.schemaVersion,
+    summary: {
+      total: plan.summary.total,
+      recommended: plan.summary.recommended,
+      reviewRequired: plan.summary.reviewRequired,
+      notRecommended: plan.summary.notRecommended,
+      insufficientData: plan.summary.insufficientData,
+      automationPercent: plan.summary.automationPercent,
+      byRejectionReason: [...plan.summary.byRejectionReason]
+    },
+    recommendedToStart: plan.recommendedToStart.map((item) => ({
+      opportunityId: item.opportunityId,
+      platformName: item.platformName,
+      placementType: item.placementType
+    })),
+    items: plan.items.map((item) => ({
+      opportunityId: item.opportunityId,
+      platformId: item.platformId,
+      platformName: item.platformName,
+      placementType: item.placementType,
+      placementMethod: item.placementMethod,
+      score: item.score,
+      overallScore: item.overallScore,
+      donorQuality: item.donorQuality,
+      riskLevel: item.riskLevel,
+      providerAvailable: item.providerAvailable,
+      recommendation: item.decision.recommendation,
+      recommendationReason: item.decision.recommendationReason,
+      nextAction: item.decision.nextAction,
+      automationLevel: item.decision.automationLevel,
+      riskExplanation: item.decision.riskExplanation,
+      suggestedPlacementApproach: item.decision.suggestedPlacementApproach,
+      rejectionReason: item.decision.rejectionReason === null ? null : {
+        kind: item.decision.rejectionReason.kind,
+        text: item.decision.rejectionReason.text
+      },
+      anchorRecommendation: item.anchorRecommendation === null ? null : {
+        anchorType: item.anchorRecommendation.anchorType,
+        anchor: item.anchorRecommendation.anchor,
+        explanation: item.anchorRecommendation.explanation
+      }
+    }))
+  };
 }
 
 // apps/api/src/app.ts
@@ -18206,11 +21998,32 @@ function httpError(error51) {
   if (error51 instanceof ValidationError) {
     return { status: 400, code: "VALIDATION", message: error51.message };
   }
+  if (error51 instanceof NoCompanyAnalysisError) {
+    return { status: 409, code: "NO_ANALYSIS", message: error51.message };
+  }
+  if (error51 instanceof NoPlacementPlanError) {
+    return { status: 404, code: "NO_PLACEMENT_PLAN", message: error51.message };
+  }
+  if (error51 instanceof PlanGenerationFailedError) {
+    return { status: 502, code: "PLAN_GENERATION_FAILED", message: error51.message };
+  }
   if (error51 instanceof NoProviderAvailableError || error51 instanceof NoProviderAssignedError) {
     return { status: 422, code: "NO_PROVIDER", message: error51.message };
   }
-  if (error51 instanceof ProviderError) {
+  if (error51 instanceof ProviderError || error51 instanceof DiscoverySearchFailedError) {
     return { status: 502, code: "PROVIDER_ERROR", message: error51.message };
+  }
+  if (error51 instanceof OpenCodeProviderRateLimitError) {
+    return { status: 429, code: "AI_RATE_LIMIT", message: error51.message };
+  }
+  if (error51 instanceof OpenCodeProviderAuthError) {
+    return { status: 502, code: "AI_PROVIDER_AUTH", message: error51.message };
+  }
+  if (error51 instanceof OpenCodeProviderUnavailableError) {
+    return { status: 502, code: "AI_PROVIDER_UNAVAILABLE", message: error51.message };
+  }
+  if (error51 instanceof OpenCodeModelConfigError) {
+    return { status: 500, code: "AI_CONFIG", message: error51.message };
   }
   if (error51 instanceof Error) {
     return { status: 500, code: "INTERNAL", message: error51.message };
@@ -18260,6 +22073,122 @@ function createApiApp(services) {
     env.analyses,
     env.lookups
   );
+  const createCompany = new CreateCompanyUseCase(env.companies, env.auditLog);
+  const createCampaign = new CreateCampaignUseCase(env.companies, env.campaigns, env.auditLog);
+  const listCampaigns = new ListCampaignsByCompanyUseCase(env.campaigns);
+  const discover = new DiscoverOpportunitiesUseCase(
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.opportunities,
+    env.auditLog,
+    buildDiscoverySources(env)
+  );
+  const classify = new ClassifyOpportunityUseCase(
+    env.ai,
+    env.opportunities,
+    env.analyses,
+    env.lookups,
+    env.registry,
+    env.auditLog
+  );
+  const assess = new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog
+  );
+  const linkInsert = new GenerateLinkInsertUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  );
+  const recommendAnchor = new RecommendAnchorUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  );
+  const generateOutreach = new GenerateOutreachUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  );
+  const updateOutreach = new UpdateOutreachStatusUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.outreach,
+    env.auditLog
+  );
+  const analyzeNegotiation = new AnalyzeNegotiationReplyUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  );
+  const respondNegotiation = new RespondNegotiationUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.auditLog
+  );
+  const generatePlacementPlan = new GeneratePlacementPlanUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.analyses,
+    env.lookups,
+    env.ai,
+    env.auditLog
+  );
+  const getPlacementPlan = new GetPlacementPlanUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.analyses,
+    env.lookups
+  );
+  const resolveCampaign = async (c) => {
+    const paramId = c.req.param("id");
+    if (paramId !== void 0 && paramId !== "") {
+      const campaign2 = await env.campaigns.findById(paramId);
+      if (campaign2 === null) {
+        throw new NotFoundError("Campaign", paramId);
+      }
+      return campaign2;
+    }
+    const id = c.req.query("campaignId");
+    if (id === void 0 || id === "" || id === services.campaign.id) {
+      return services.campaign;
+    }
+    const campaign = await env.campaigns.findById(id);
+    if (campaign === null) {
+      throw new NotFoundError("Campaign", id);
+    }
+    return campaign;
+  };
   app.get("/api/meta", async (c) => {
     const categories = (await env.lookups.listCategories()).map((category) => ({
       id: category.id,
@@ -18268,30 +22197,123 @@ function createApiApp(services) {
     }));
     return c.json({ categories });
   });
+  app.post("/api/companies", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    if (body === null || typeof body !== "object") {
+      throw new ValidationError("company payload is required");
+    }
+    const record2 = body;
+    const name = typeof record2.name === "string" ? record2.name.trim() : "";
+    if (name === "") {
+      throw new ValidationError("name is required");
+    }
+    const company = await createCompany.execute({
+      name,
+      ...typeof record2.website === "string" && record2.website.trim() !== "" ? { website: record2.website.trim() } : {},
+      ...typeof record2.industry === "string" && record2.industry.trim() !== "" ? { industry: record2.industry.trim() } : {},
+      ...typeof record2.description === "string" && record2.description.trim() !== "" ? { description: record2.description.trim() } : {},
+      geography: stringList2(record2.geography),
+      locations: stringList2(record2.locations),
+      products: stringList2(record2.products),
+      targetAudience: stringList2(record2.targetAudience)
+    });
+    return c.json(mapCompany(company, null), 201);
+  });
+  app.get("/api/companies", async (c) => {
+    const companies = await env.companies.all();
+    const items = [];
+    for (const company of companies) {
+      const campaigns = await listCampaigns.execute(company.id);
+      items.push({
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        website: company.website,
+        description: company.description,
+        createdAt: company.createdAt.toISOString(),
+        campaigns: campaigns.map(mapCampaignListItem)
+      });
+    }
+    return c.json({ items });
+  });
+  app.post("/api/companies/:id/campaigns", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    if (body === null || typeof body !== "object") {
+      throw new ValidationError("campaign payload is required");
+    }
+    const record2 = body;
+    const name = typeof record2.name === "string" ? record2.name.trim() : "";
+    if (name === "") {
+      throw new ValidationError("name is required");
+    }
+    const campaign = await createCampaign.execute({
+      companyId: c.req.param("id"),
+      name,
+      goals: stringList2(record2.goals)
+    });
+    return c.json(mapCampaignListItem(campaign), 201);
+  });
+  app.get("/api/campaigns", async (c) => {
+    const companyId = c.req.query("companyId");
+    if (companyId === void 0 || companyId === "") {
+      return c.json({ items: [] });
+    }
+    const campaigns = await listCampaigns.execute(companyId);
+    return c.json({ items: campaigns.map(mapCampaignListItem) });
+  });
   app.get("/api/company", async (c) => {
-    const analysis = await env.analyses.findLatestValidCompanyAnalysis(services.campaign.id);
-    const company = mapCompany(services.company, analysis);
-    return c.json(company);
+    const campaign = await resolveCampaign(c);
+    const company = await requiredCompany(campaign, env);
+    const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
+    return c.json(mapCompany(company, analysis));
   });
   app.post("/api/company/analyze", async (c) => {
-    await analyze.execute({ campaignId: services.campaign.id });
-    const analysis = await env.analyses.findLatestValidCompanyAnalysis(services.campaign.id);
-    return c.json(mapCompany(services.company, analysis), 200);
+    const campaign = await resolveCampaign(c);
+    await analyze.execute({ campaignId: campaign.id });
+    const company = await requiredCompany(campaign, env);
+    const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
+    return c.json(mapCompany(company, analysis), 200);
   });
   app.get("/api/strategy", async (c) => {
-    const result = await strategy.execute({ campaignId: services.campaign.id });
-    const categoryNames = new Map(
-      (await env.lookups.listCategories()).map((category) => [category.code, category.name])
-    );
+    const campaign = await resolveCampaign(c);
+    const result = await strategy.execute({ campaignId: campaign.id });
+    const categories = await env.lookups.listCategories();
+    const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
+    const opportunities = await env.opportunities.findByCampaignId(campaign.id);
+    const countByCategoryId = /* @__PURE__ */ new Map();
+    for (const opportunity of opportunities) {
+      if (opportunity.categoryId === null) continue;
+      countByCategoryId.set(
+        opportunity.categoryId,
+        (countByCategoryId.get(opportunity.categoryId) ?? 0) + 1
+      );
+    }
     const items = result.items.map((item) => ({
+      categoryId: item.categoryId,
       categoryCode: item.categoryCode,
-      categoryName: categoryNames.get(item.categoryCode) ?? item.categoryCode,
-      placementType: item.placementType
+      categoryName: categoryNameById.get(item.categoryId) ?? item.categoryName,
+      placementType: item.placementType,
+      opportunityCount: countByCategoryId.get(item.categoryId) ?? 0
     }));
     return c.json({ items });
   });
+  const generatePlacementPlanRoute = async (c) => {
+    const campaign = await resolveCampaign(c);
+    const plan = await generatePlacementPlan.execute({ campaignId: campaign.id });
+    return c.json(mapPlacementPlan(plan), 200);
+  };
+  app.post("/api/campaigns/:id/placement-plan", generatePlacementPlanRoute);
+  app.post("/api/placement-plan", generatePlacementPlanRoute);
+  const getPlacementPlanRoute = async (c) => {
+    const campaign = await resolveCampaign(c);
+    const plan = await getPlacementPlan.execute({ campaignId: campaign.id });
+    return c.json(mapPlacementPlan(plan), 200);
+  };
+  app.get("/api/campaigns/:id/placement-plan", getPlacementPlanRoute);
+  app.get("/api/placement-plan", getPlacementPlanRoute);
   app.get("/api/opportunities", async (c) => {
-    const opportunities = await env.opportunities.findByCampaignId(services.campaign.id);
+    const campaign = await resolveCampaign(c);
+    const opportunities = await env.opportunities.findByCampaignId(campaign.id);
     const context = await opportunityContext(env);
     const all = await Promise.all(
       opportunities.map((opportunity) => mapOpportunityWithRelations(env, opportunity, context))
@@ -18299,7 +22321,13 @@ function createApiApp(services) {
     const category = c.req.query("category");
     const method = c.req.query("method");
     const status = c.req.query("status");
+    const source = c.req.query("source");
     const minScoreRaw = c.req.query("minScore");
+    const placementType = c.req.query("placementType");
+    const risk = c.req.query("risk");
+    const sort = c.req.query("sort") ?? "score";
+    const donorQualityMinRaw = c.req.query("donorQuality");
+    const minTrafficRaw = c.req.query("minTraffic");
     let filtered = all;
     if (category !== void 0 && category !== "all") {
       filtered = filtered.filter((item) => item.categoryCode === category);
@@ -18310,15 +22338,34 @@ function createApiApp(services) {
     if (status !== void 0 && status !== "all") {
       filtered = filtered.filter((item) => item.status === status);
     }
+    if (source !== void 0 && source !== "all") {
+      filtered = filtered.filter((item) => item.discoverySource === source);
+    }
+    if (placementType !== void 0 && placementType !== "all") {
+      filtered = filtered.filter((item) => item.placementType === placementType);
+    }
+    if (risk !== void 0 && risk !== "all") {
+      filtered = filtered.filter((item) => item.risk?.level === risk);
+    }
     if (minScoreRaw !== void 0 && minScoreRaw !== "") {
       const minScore = Number(minScoreRaw);
       if (Number.isFinite(minScore)) {
         filtered = filtered.filter((item) => (item.score ?? 0) >= minScore);
       }
     }
-    const ranked = [...filtered].sort(
-      (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName)
-    );
+    if (donorQualityMinRaw !== void 0 && donorQualityMinRaw !== "") {
+      const minDq = Number(donorQualityMinRaw);
+      if (Number.isFinite(minDq)) {
+        filtered = filtered.filter((item) => (item.donorQualityScore ?? 0) >= minDq);
+      }
+    }
+    if (minTrafficRaw !== void 0 && minTrafficRaw !== "") {
+      const minTraffic = Number(minTrafficRaw);
+      if (Number.isFinite(minTraffic)) {
+        filtered = filtered.filter((item) => (item.traffic ?? 0) >= minTraffic);
+      }
+    }
+    const ranked = sortOpportunities(filtered, sort);
     return c.json({ items: ranked });
   });
   app.get("/api/opportunities/:id", async (c) => {
@@ -18328,6 +22375,77 @@ function createApiApp(services) {
     }
     const context = await opportunityContext(env);
     return c.json(await mapOpportunityWithRelations(env, opportunity, context));
+  });
+  app.post("/api/opportunities/:id/intel", async (c) => {
+    const result = await assess.execute({ opportunityId: c.req.param("id") });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/:id/link-insert", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const desiredAnchor = body !== null && typeof body === "object" && typeof body.desiredAnchor === "string" ? body.desiredAnchor : void 0;
+    await linkInsert.execute({
+      opportunityId: c.req.param("id"),
+      ...desiredAnchor !== void 0 && desiredAnchor.trim() !== "" ? { desiredAnchor } : {}
+    });
+    const result = await recommendAnchor.execute({ opportunityId: c.req.param("id") });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/:id/outreach", async (c) => {
+    const result = await generateOutreach.execute({ opportunityId: c.req.param("id") });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/:id/outreach/status", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const status = body !== null && typeof body === "object" && typeof body.status === "string" ? body.status : "";
+    const result = await updateOutreach.execute({
+      opportunityId: c.req.param("id"),
+      status
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/:id/negotiation/analyze", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const reply = body !== null && typeof body === "object" && typeof body.reply === "string" ? body.reply : "";
+    const result = await analyzeNegotiation.execute({
+      opportunityId: c.req.param("id"),
+      reply
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/:id/negotiation/respond", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const record2 = body !== null && typeof body === "object" ? body : {};
+    const agree = record2.agree === true;
+    const customResponse = typeof record2.customResponse === "string" ? record2.customResponse : void 0;
+    const result = await respondNegotiation.execute({
+      opportunityId: c.req.param("id"),
+      agree,
+      ...customResponse !== void 0 ? { customResponse } : {}
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+  app.post("/api/opportunities/compare", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    const ids = body !== null && typeof body === "object" && Array.isArray(body.ids) ? body.ids.filter((id) => typeof id === "string") : [];
+    if (ids.length === 0) {
+      throw new ValidationError("compare requires at least one opportunity id");
+    }
+    const context = await opportunityContext(env);
+    const rows = [];
+    for (const id of ids) {
+      const opportunity = await env.opportunities.findById(id);
+      if (opportunity === null) {
+        throw new NotFoundError("PlacementOpportunity", id);
+      }
+      rows.push(await mapOpportunityWithRelations(env, opportunity, context));
+    }
+    return c.json(buildComparison(rows));
   });
   app.post("/api/opportunities/:id/approve", async (c) => {
     const result = await approve.execute({ opportunityId: c.req.param("id") });
@@ -18389,8 +22507,41 @@ function createApiApp(services) {
     });
     return c.json({ placementId: result.id, status: result.status }, 200);
   });
+  app.post("/api/discover", async (c) => {
+    const campaign = await resolveCampaign(c);
+    const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
+    if (analysis === null) {
+      throw new NoCompanyAnalysisError(campaign.id);
+    }
+    const output = analysis.structuredOutput;
+    const categoryCodes = Array.isArray(output.relevantCategories) ? output.relevantCategories.filter(
+      (entry) => typeof entry === "string" && entry.trim() !== ""
+    ) : [];
+    const discovered = await discover.execute({
+      campaignId: campaign.id,
+      placementType: "BUSINESS_PROFILE",
+      categoryCodes
+    });
+    const classified = [];
+    for (const opportunity of discovered) {
+      classified.push(await classify.execute({ opportunityId: opportunity.id }));
+    }
+    const context = await opportunityContext(env);
+    const items = await Promise.all(
+      classified.map((opportunity) => mapOpportunityWithRelations(env, opportunity, context))
+    );
+    const sources = [...new Set(classified.map((opportunity) => sourceOf(opportunity)))];
+    return c.json({
+      discovered: discovered.length,
+      classified: classified.length,
+      sources,
+      items
+    });
+  });
   app.get("/api/overview", async (c) => {
-    const opportunities = await env.opportunities.findByCampaignId(services.campaign.id);
+    const campaign = await resolveCampaign(c);
+    const company = await requiredCompany(campaign, env);
+    const opportunities = await env.opportunities.findByCampaignId(campaign.id);
     const context = await opportunityContext(env);
     const mapped = await Promise.all(
       opportunities.map((opportunity) => mapOpportunityWithRelations(env, opportunity, context))
@@ -18406,6 +22557,7 @@ function createApiApp(services) {
       approved: mapped.filter(
         (item) => item.status === "SELECTED" || item.status === "READY" || item.status === "NEEDS_MANUAL"
       ).length,
+      ready: mapped.filter((item) => item.status === "READY").length,
       executed: mapped.filter((item) => item.placements.length > 0).length,
       published: mapped.filter(
         (item) => item.placements.some((p) => p.status === "PUBLISHED" || p.status === "VERIFIED")
@@ -18431,30 +22583,40 @@ function createApiApp(services) {
         reason: placement.manual?.reason ?? ""
       }))
     ).filter((action) => action.reason !== "");
-    const recentActivity = [...env.auditLog.entries].slice(-10).map((entry) => mapAuditEvent(entry)).reverse();
+    const humanActions = mapped.flatMap((item) => item.humanActions);
+    const negotiations = mapped.filter((item) => item.negotiation !== null && item.negotiation.replies.length > 0).map((item) => ({
+      opportunityId: item.id,
+      platformName: item.platformName,
+      outreachStatus: item.outreach?.status ?? null,
+      negotiationIntent: item.negotiation?.analysis?.intent ?? null
+    }));
+    const recentActivity = [...env.auditLog.entries].filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId)).slice(-10).map((entry) => mapAuditEvent(entry)).reverse();
     const overview = {
       company: {
-        id: services.company.id,
-        name: services.company.name,
-        industry: services.company.industry,
-        website: services.company.website
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        website: company.website
       },
       campaign: {
-        id: services.campaign.id,
-        name: services.campaign.name,
-        goals: [...services.campaign.goals],
-        status: services.campaign.status
+        id: campaign.id,
+        name: campaign.name,
+        goals: [...campaign.goals],
+        status: campaign.status
       },
       counts,
       totalPlacements: placements.length,
       funnel,
       manualActions,
+      humanActions,
+      negotiations,
       recentActivity
     };
     return c.json(overview);
   });
   app.get("/api/activity", async (c) => {
-    const opportunities = await env.opportunities.findByCampaignId(services.campaign.id);
+    const campaign = await resolveCampaign(c);
+    const opportunities = await env.opportunities.findByCampaignId(campaign.id);
     const context = await opportunityContext(env);
     const mapped = await Promise.all(
       opportunities.map((opportunity) => mapOpportunityWithRelations(env, opportunity, context))
@@ -18477,7 +22639,7 @@ function createApiApp(services) {
         });
       }
     }
-    const audit = [...env.auditLog.entries].map((entry) => mapAuditEvent(entry)).reverse();
+    const audit = [...env.auditLog.entries].filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId)).map((entry) => mapAuditEvent(entry)).reverse();
     return c.json({ verifications, audit });
   });
   app.notFound((c) => {
@@ -18488,6 +22650,139 @@ function createApiApp(services) {
     return c.json({ error: { code: mapped.code, message: mapped.message } }, mapped.status);
   });
   return app;
+}
+function buildDiscoverySources(env) {
+  return env.discoverySources;
+}
+async function requiredCompany(campaign, env) {
+  const company = await env.companies.findById(campaign.companyId);
+  if (company === null) {
+    throw new NotFoundError("Company", campaign.companyId);
+  }
+  return company;
+}
+var SORTERS = {
+  score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName),
+  donorQuality: (a, b) => (b.donorQualityScore ?? -1) - (a.donorQualityScore ?? -1) || a.platformName.localeCompare(b.platformName),
+  traffic: (a, b) => (b.traffic ?? -1) - (a.traffic ?? -1) || a.platformName.localeCompare(b.platformName),
+  relevance: (a, b) => (b.scoreBreakdown?.topicalRelevance ?? -1) - (a.scoreBreakdown?.topicalRelevance ?? -1) || a.platformName.localeCompare(b.platformName),
+  lowestRisk: (a, b) => riskRank(a) - riskRank(b) || a.platformName.localeCompare(b.platformName),
+  ease: (a, b) => easeRank(a) - easeRank(b) || a.platformName.localeCompare(b.platformName)
+};
+function riskRank(row) {
+  switch (row.risk?.level) {
+    case "LOW":
+      return 0;
+    case "MEDIUM":
+      return 1;
+    case "UNKNOWN":
+      return 2;
+    case "HIGH":
+      return 3;
+    default:
+      return 2;
+  }
+}
+function easeRank(row) {
+  if (row.placementMethod === "API") return 0;
+  if (row.placementMethod === "BROWSER") return 1;
+  if (row.placementMethod === "OUTREACH") return 2;
+  if (row.placementMethod === "MANUAL") return 3;
+  return 4;
+}
+function sortOpportunities(items, sort) {
+  const sorter = SORTERS[sort] ?? SORTERS.score;
+  return [...items].sort(sorter);
+}
+function buildComparison(rows) {
+  const items = rows.map((row) => {
+    const authority = row.donorQuality?.authority.value ?? null;
+    const geographicRelevance = row.donorQuality?.geographicRelevance.value ?? row.scoreBreakdown?.geographicRelevance ?? null;
+    return {
+      id: row.id,
+      platformName: row.platformName,
+      platformUrl: row.platformUrl,
+      categoryName: row.categoryName,
+      placementType: row.placementType,
+      placementMethod: row.placementMethod,
+      status: row.status,
+      score: row.score,
+      overall: row.overallScore,
+      donorQuality: row.donorQualityScore,
+      risk: row.risk?.level ?? null,
+      traffic: row.traffic,
+      authority: typeof authority === "number" ? authority : null,
+      geographicRelevance: typeof geographicRelevance === "number" ? geographicRelevance : null,
+      automationAvailable: row.automationAvailable,
+      effort: easeRank(row)
+    };
+  });
+  const recommendation = recommendationFor(items);
+  return { items, recommendation };
+}
+function recommendationFor(items) {
+  if (items.length <= 1) return null;
+  const ranked = [...items].sort(
+    (a, b) => (b.overall ?? b.score ?? -1) - (a.overall ?? a.score ?? -1) || riskRankByLevel(a.risk) - riskRankByLevel(b.risk) || (b.donorQuality ?? -1) - (a.donorQuality ?? -1)
+  );
+  const winner = ranked[0];
+  if (winner === void 0) return null;
+  const breakdown = [];
+  breakdown.push(
+    `\u043D\u0430\u0438\u0432\u044B\u0441\u0448\u0430\u044F \u0438\u0442\u043E\u0433\u043E\u0432\u0430\u044F \u043E\u0446\u0435\u043D\u043A\u0430 ${winner.overall ?? winner.score ?? "\u2014"} \u0438\u0437 ${items.length} \u0441\u0440\u0430\u0432\u043D\u0438\u0432\u0430\u0435\u043C\u044B\u0445`
+  );
+  if (winner.donorQuality !== null) {
+    breakdown.push(`\u043B\u0443\u0447\u0448\u0435\u0435 \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u043E \u0434\u043E\u043D\u043E\u0440\u0430 (${winner.donorQuality})`);
+  }
+  breakdown.push(`\u0440\u0438\u0441\u043A: ${winner.risk ?? "\u043D\u0435 \u043E\u0446\u0435\u043D\u0438\u0432\u0430\u043B\u0441\u044F"}`);
+  if (winner.authority !== null) {
+    breakdown.push(`\u0430\u0432\u0442\u043E\u0440\u0438\u0442\u0435\u0442\u043D\u043E\u0441\u0442\u044C ${winner.authority}`);
+  }
+  return {
+    winnerId: winner.id,
+    reason: `\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \xAB${winner.platformName}\xBB \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0443\u0435\u0442\u0441\u044F \u043F\u0435\u0440\u0432\u043E\u0439, \u043F\u043E\u0442\u043E\u043C\u0443 \u0447\u0442\u043E ${breakdown.join("; ")}.`
+  };
+}
+function riskRankByLevel(level) {
+  switch (level) {
+    case "LOW":
+      return 0;
+    case "MEDIUM":
+      return 1;
+    case "UNKNOWN":
+      return 2;
+    case "HIGH":
+      return 3;
+    default:
+      return 2;
+  }
+}
+function stringList2(value) {
+  return Array.isArray(value) ? value.filter((entry) => typeof entry === "string" && entry.trim() !== "") : [];
+}
+function sourceOf(opportunity) {
+  const metadata = opportunity.metadata ?? {};
+  return typeof metadata.discoverySource === "string" ? metadata.discoverySource : "unknown";
+}
+function mapCampaignListItem(campaign) {
+  return {
+    id: campaign.id,
+    companyId: campaign.companyId,
+    name: campaign.name,
+    goals: [...campaign.goals],
+    status: campaign.status,
+    createdAt: campaign.createdAt.toISOString()
+  };
+}
+function campaignScopeIds(campaign, mapped) {
+  const ids = /* @__PURE__ */ new Set([campaign.id]);
+  for (const item of mapped) {
+    ids.add(item.id);
+    for (const placement of item.placements) {
+      ids.add(placement.id);
+    }
+  }
+  return ids;
 }
 async function opportunityContext(env) {
   const [categories, platforms, providers] = await Promise.all([
@@ -18527,8 +22822,11 @@ var InMemoryCompanyRepository = class {
   findById(id) {
     return Promise.resolve(this.companies.get(id) ?? null);
   }
+  all() {
+    return Promise.resolve([...this.companies.values()]);
+  }
   create(draft) {
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const company = {
       id: randomUUID(),
       name: draft.name,
@@ -18540,8 +22838,8 @@ var InMemoryCompanyRepository = class {
       targetAudience: draft.targetAudience ?? [],
       website: draft.website ?? null,
       metadata: null,
-      createdAt: now,
-      updatedAt: now
+      createdAt: now2,
+      updatedAt: now2
     };
     this.companies.set(company.id, company);
     return Promise.resolve(company);
@@ -18565,15 +22863,15 @@ var InMemoryCampaignRepository = class {
     );
   }
   create(draft) {
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const campaign = {
       id: randomUUID2(),
       companyId: draft.companyId,
       name: draft.name,
       goals: draft.goals,
       status: "DRAFT",
-      createdAt: now,
-      updatedAt: now
+      createdAt: now2,
+      updatedAt: now2
     };
     this.campaigns.set(campaign.id, campaign);
     return Promise.resolve(campaign);
@@ -18623,7 +22921,7 @@ var InMemoryPlacementOpportunityRepository = class {
     return Promise.resolve(match2 ?? null);
   }
   create(draft) {
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const opportunity = {
       id: randomUUID4(),
       campaignId: draft.campaignId,
@@ -18638,9 +22936,9 @@ var InMemoryPlacementOpportunityRepository = class {
       placementMethod: draft.placementMethod,
       providerCapabilities: [],
       status: "DISCOVERED",
-      metadata: null,
-      createdAt: now,
-      updatedAt: now
+      metadata: draft.metadata ?? null,
+      createdAt: now2,
+      updatedAt: now2
     };
     this.opportunities.set(opportunity.id, opportunity);
     return Promise.resolve(opportunity);
@@ -18665,7 +22963,39 @@ var InMemoryLookupRepository = class {
   listProviders() {
     return Promise.resolve(this.providers);
   }
+  createPlatform(platform) {
+    if (platform.url !== null) {
+      const existing = this.platforms.find(
+        (candidate) => candidate.url !== null && sameUrl(candidate.url, platform.url ?? "")
+      );
+      if (existing !== void 0) {
+        return Promise.resolve(existing);
+      }
+    } else {
+      const existing = this.platforms.find(
+        (candidate) => candidate.url === null && candidate.name === platform.name
+      );
+      if (existing !== void 0) {
+        return Promise.resolve(existing);
+      }
+    }
+    this.platforms.push(platform);
+    return Promise.resolve(platform);
+  }
 };
+function sameUrl(a, b) {
+  try {
+    return normalize(a) === normalize(b);
+  } catch {
+    return a.toLowerCase() === b.toLowerCase();
+  }
+}
+function normalize(value) {
+  const url2 = new URL(value);
+  url2.hash = "";
+  url2.search = "";
+  return url2.toString().replace(/\/$/, "").replace(/^https?:\/\/(www\.)?/, "").toLowerCase();
+}
 
 // packages/infrastructure/src/in-memory/ai-analysis.repository.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
@@ -18679,6 +23009,12 @@ var InMemoryAIAnalysisRepository = class {
   findLatestValidCompanyAnalysis(campaignId) {
     const candidates = [...this.analyses.values()].filter(
       (analysis) => analysis.campaignId === campaignId && analysis.analysisType === "COMPANY_ANALYSIS" && analysis.validationStatus === "VALID"
+    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Promise.resolve(candidates[0] ?? null);
+  }
+  findLatestValidPlacementPlan(campaignId) {
+    const candidates = [...this.analyses.values()].filter(
+      (analysis) => analysis.campaignId === campaignId && analysis.analysisType === "PLACEMENT_PLAN" && analysis.validationStatus === "VALID"
     ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return Promise.resolve(candidates[0] ?? null);
   }
@@ -18715,7 +23051,7 @@ var InMemoryPlacementRepository = class {
     );
   }
   create(draft) {
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const placement = {
       id: randomUUID6(),
       opportunityId: draft.opportunityId,
@@ -18726,8 +23062,8 @@ var InMemoryPlacementRepository = class {
       publishedAt: null,
       liveUrl: null,
       metadata: null,
-      createdAt: now,
-      updatedAt: now
+      createdAt: now2,
+      updatedAt: now2
     };
     this.placements.set(placement.id, placement);
     return Promise.resolve(placement);
@@ -18753,7 +23089,7 @@ var InMemoryVerificationRepository = class {
     );
   }
   create(draft) {
-    const now = /* @__PURE__ */ new Date();
+    const now2 = /* @__PURE__ */ new Date();
     const verification = {
       id: randomUUID7(),
       placementId: draft.placementId,
@@ -18761,8 +23097,8 @@ var InMemoryVerificationRepository = class {
       checkedAt: draft.checkedAt,
       result: draft.result,
       failureReason: draft.failureReason,
-      createdAt: now,
-      updatedAt: now
+      createdAt: now2,
+      updatedAt: now2
     };
     this.verifications.set(verification.id, verification);
     return Promise.resolve(verification);
@@ -18794,6 +23130,323 @@ var InMemoryEvidenceRepository = class {
     };
     this.evidence.set(entry.id, entry);
     return Promise.resolve(entry);
+  }
+};
+
+// apps/api/src/scenario/nordhaus-intel.ts
+var DEMO_SOURCE = "demo";
+var now = () => (/* @__PURE__ */ new Date()).toISOString();
+var DONOR_FIXTURES = {
+  "https://business.yandex.ru": {
+    organicTraffic: 21e5,
+    authority: 92,
+    spamRisk: 8,
+    indexing: "INDEXED",
+    referringDomains: 98e5,
+    totalBacklinks: 42e6,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F", "\u0421\u041D\u0413"],
+    keywords: ["\u043A\u0430\u0440\u0442\u044B", "\u043E\u0440\u0433\u0430\u043D\u0438\u0437\u0430\u0446\u0438\u0438", "\u043E\u0442\u0437\u044B\u0432\u044B"],
+    estimatedRealTraffic: 19e5
+  },
+  "https://2gis.ru": {
+    organicTraffic: 86e4,
+    authority: 88,
+    spamRisk: 10,
+    indexing: "INDEXED",
+    referringDomains: 42e5,
+    totalBacklinks: 18e6,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F", "\u041A\u0430\u0437\u0430\u0445\u0441\u0442\u0430\u043D"],
+    keywords: ["\u043E\u0440\u0433\u0430\u043D\u0438\u0437\u0430\u0446\u0438\u0438", "\u043A\u0430\u0440\u0442\u044B", "\u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438"],
+    estimatedRealTraffic: 78e4
+  },
+  "https://mebel.ru": {
+    organicTraffic: 42e3,
+    authority: 46,
+    spamRisk: 24,
+    indexing: "INDEXED",
+    referringDomains: 12e3,
+    totalBacklinks: 9e4,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u043C\u0435\u0431\u0435\u043B\u044C", "\u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0435 \u043C\u0430\u0433\u0430\u0437\u0438\u043D\u044B", "\u043A\u0443\u0445\u043D\u0438"],
+    estimatedRealTraffic: 38e3
+  },
+  "https://inmyroom.ru": {
+    organicTraffic: 51e3,
+    authority: 54,
+    spamRisk: 14,
+    indexing: "INDEXED",
+    referringDomains: 18e3,
+    totalBacklinks: 14e4,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440", "\u0434\u0438\u0437\u0430\u0439\u043D \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430", "\u043C\u0435\u0431\u0435\u043B\u044C"],
+    estimatedRealTraffic: 46e3
+  },
+  "https://salon.ru": {
+    organicTraffic: 63e3,
+    authority: 61,
+    spamRisk: 12,
+    indexing: "INDEXED",
+    referringDomains: 26e3,
+    totalBacklinks: 21e4,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440", "\u0434\u0438\u0437\u0430\u0439\u043D", "\u0434\u0435\u043A\u043E\u0440"],
+    estimatedRealTraffic: 57e3
+  },
+  "https://archi.ru": {
+    organicTraffic: 98e3,
+    authority: 67,
+    spamRisk: 9,
+    indexing: "INDEXED",
+    referringDomains: 31e3,
+    totalBacklinks: 26e4,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u0430", "\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u043E\u0440\u044B", "\u0433\u043E\u0440\u043E\u0434\u0441\u043A\u0430\u044F \u0441\u0440\u0435\u0434\u0430"],
+    estimatedRealTraffic: 9e4
+  },
+  "https://www.houzz.ru": {
+    organicTraffic: 125e3,
+    authority: 78,
+    spamRisk: 6,
+    indexing: "INDEXED",
+    referringDomains: 54e4,
+    totalBacklinks: 48e5,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F", "\u041C\u0438\u0440"],
+    keywords: ["\u0434\u0438\u0437\u0430\u0439\u043D \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430", "\u043C\u0435\u0431\u0435\u043B\u044C \u043D\u0430 \u0437\u0430\u043A\u0430\u0437", "\u043A\u0443\u0445\u043D\u0438"],
+    estimatedRealTraffic: 112e3
+  },
+  "https://vk.com": {
+    organicTraffic: 44e5,
+    authority: 94,
+    spamRisk: 15,
+    indexing: "INDEXED",
+    referringDomains: 12e6,
+    totalBacklinks: 88e6,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F", "\u0421\u041D\u0413"],
+    keywords: ["\u0441\u043E\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0435 \u0441\u0435\u0442\u0438", "\u0441\u043E\u043E\u0431\u0449\u0435\u0441\u0442\u0432\u0430"],
+    estimatedRealTraffic: 4e6
+  },
+  "https://profi.ru": {
+    organicTraffic: 12e4,
+    authority: 52,
+    spamRisk: 65,
+    indexing: "INDEXED",
+    referringDomains: 9e3,
+    totalBacklinks: 61e3,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u043C\u0430\u0441\u0442\u0435\u0440\u0430", "\u0441\u043F\u0435\u0446\u0438\u0430\u043B\u0438\u0441\u0442\u044B", "\u0443\u0441\u043B\u0443\u0433\u0438"],
+    estimatedRealTraffic: 95e3
+  },
+  "https://archspeech.com": {
+    organicTraffic: 44e3,
+    authority: 49,
+    spamRisk: 45,
+    indexing: "PARTIAL",
+    referringDomains: 7e3,
+    totalBacklinks: 48e3,
+    geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+    keywords: ["\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u0430", "\u0434\u0435\u0432\u0435\u043B\u043E\u043F\u043C\u0435\u043D\u0442"],
+    estimatedRealTraffic: 3e4
+  }
+};
+var PAGE_FIXTURES = {
+  "https://www.houzz.ru": {
+    targetDomain: "www.houzz.ru",
+    targetPage: "https://www.houzz.ru/magazine/ideas/kuhnja-na-zakaz",
+    pageTitle: "\u041A\u0443\u0445\u043D\u044F \u043D\u0430 \u0437\u0430\u043A\u0430\u0437: 12 \u0438\u0434\u0435\u0439 \u0434\u043B\u044F \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(94, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(91, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(8400, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 24, external: 18, dofollow: 12 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u0412\u0442\u043E\u0440\u043E\u0439 \u0430\u0431\u0437\u0430\u0446, \u043F\u043E\u0441\u043B\u0435 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u044F \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u0434\u043B\u044F \u043A\u0443\u0445\u043E\u043D\u044C",
+    summary: "\u041F\u043E\u0434\u0431\u043E\u0440\u043A\u0430 \u0438\u0434\u0435\u0439 \u0434\u043B\u044F \u043A\u0443\u0445\u043D\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437: \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B, \u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u043A\u0430, \u0431\u0440\u0435\u043D\u0434\u044B \u0438 \u0441\u043E\u0432\u0435\u0442\u044B \u0434\u0438\u0437\u0430\u0439\u043D\u0435\u0440\u043E\u0432. \u0421\u0442\u0430\u0442\u044C\u044F \u043E\u0442\u043A\u0440\u044B\u0442\u0430 \u0434\u043B\u044F \u0440\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u044B\u0445 \u0441\u0441\u044B\u043B\u043E\u043A \u043D\u0430 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u0435\u0439 \u043C\u0435\u0431\u0435\u043B\u0438.",
+    analyzedAt: now()
+  },
+  "https://inmyroom.ru": {
+    targetDomain: "inmyroom.ru",
+    targetPage: "https://inmyroom.ru/posts/kak-vybrat-mebel-dlya-malenkoy-kvartiry",
+    pageTitle: "\u041A\u0430\u043A \u0432\u044B\u0431\u0440\u0430\u0442\u044C \u043C\u0435\u0431\u0435\u043B\u044C \u0434\u043B\u044F \u043C\u0430\u043B\u0435\u043D\u044C\u043A\u043E\u0439 \u043A\u0432\u0430\u0440\u0442\u0438\u0440\u044B",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(90, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(86, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(5200, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 12, external: 9, dofollow: 6 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u0422\u0440\u0435\u0442\u0438\u0439 \u0430\u0431\u0437\u0430\u0446, \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438",
+    summary: "\u0413\u0438\u0434 \u043F\u043E \u0432\u044B\u0431\u043E\u0440\u0443 \u043C\u0435\u0431\u0435\u043B\u0438 \u0434\u043B\u044F \u043D\u0435\u0431\u043E\u043B\u044C\u0448\u0438\u0445 \u043A\u0432\u0430\u0440\u0442\u0438\u0440: \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0435 \u0448\u043A\u0430\u0444\u044B, \u0442\u0440\u0430\u043D\u0441\u0444\u043E\u0440\u043C\u0438\u0440\u0443\u0435\u043C\u0430\u044F \u043C\u0435\u0431\u0435\u043B\u044C, \u0441\u043E\u0432\u0435\u0442\u044B \u043F\u043E \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u0438 \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0430.",
+    analyzedAt: now()
+  },
+  "https://salon.ru": {
+    targetDomain: "salon.ru",
+    targetPage: "https://salon.ru/portfolio/interior/collection-2026",
+    pageTitle: "\u041A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u044F \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043E\u0432 2026: \u043C\u0435\u0431\u0435\u043B\u044C \u0438 \u0441\u0432\u0435\u0442",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(88, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(84, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(6900, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 16, external: 11, dofollow: 8 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u041F\u043E\u0441\u043B\u0435 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0441 \u043C\u044F\u0433\u043A\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u044C\u044E",
+    summary: "\u041E\u0431\u0437\u043E\u0440 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043E\u0432 \u0438\u0437 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438 \u0436\u0443\u0440\u043D\u0430\u043B\u0430: \u0430\u0432\u0442\u043E\u0440\u0441\u043A\u0438\u0435 \u0440\u0435\u0448\u0435\u043D\u0438\u044F, \u043C\u0435\u0431\u0435\u043B\u044C \u0438 \u0430\u043A\u0441\u0435\u0441\u0441\u0443\u0430\u0440\u044B \u0434\u043B\u044F \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u044B\u0445 \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432.",
+    analyzedAt: now()
+  },
+  "https://archi.ru": {
+    targetDomain: "archi.ru",
+    targetPage: "https://archi.ru/press/me\u0431\u0435\u043B\u044C-in-residence",
+    pageTitle: "\u041C\u0435\u0431\u0435\u043B\u044C \u0432 \u0440\u0435\u0437\u0438\u0434\u0435\u043D\u0446\u0438\u0438: \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u044B",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(82, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(79, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(7100, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 9, external: 7, dofollow: 4 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u0412\u043D\u0443\u0442\u0440\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u0430 \xAB\u041F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u044B\xBB",
+    summary: "\u0420\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u044B\u0439 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u043E \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u0435 \u043C\u0435\u0431\u0435\u043B\u0438 \u0438 \u0435\u0451 \u0440\u043E\u043B\u0438 \u0432 \u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0445 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430\u0445.",
+    analyzedAt: now()
+  },
+  "https://designmate.ru": {
+    targetDomain: "designmate.ru",
+    targetPage: "https://designmate.ru/articles/kuhni-premium-klassa",
+    pageTitle: "\u041A\u0443\u0445\u043D\u0438 \u043F\u0440\u0435\u043C\u0438\u0443\u043C-\u043A\u043B\u0430\u0441\u0441\u0430: \u0431\u0440\u0435\u043D\u0434\u044B \u0438 \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0438",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(89, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(87, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(3800, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 14, external: 10, dofollow: 7 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u041F\u0435\u0440\u0432\u044B\u0439 \u0430\u0431\u0437\u0430\u0446, \u043F\u043E\u0441\u043B\u0435 \u0432\u0432\u043E\u0434\u043D\u043E\u0433\u043E \u0442\u0435\u043A\u0441\u0442\u0430 \u043E \u0440\u044B\u043D\u043A\u0435",
+    summary: "\u041E\u0431\u0437\u043E\u0440 \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u044B\u0445 \u043A\u0443\u0445\u043E\u043D\u044C: \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0438 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u0430, \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B, \u0432\u0435\u0434\u0443\u0449\u0438\u0435 \u0444\u0430\u0431\u0440\u0438\u043A\u0438 \u0438 \u0431\u0440\u0435\u043D\u0434\u044B.",
+    analyzedAt: now()
+  },
+  "https://roomble.com": {
+    targetDomain: "roomble.com",
+    targetPage: "https://roomble.com/ideas/sdelat/sovremennaya-vstraivaemaya-mebel",
+    pageTitle: "\u0421\u043E\u0432\u0440\u0435\u043C\u0435\u043D\u043D\u0430\u044F \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u0430\u044F \u043C\u0435\u0431\u0435\u043B\u044C: \u0438\u0434\u0435\u0438 \u0438 \u0440\u0435\u0448\u0435\u043D\u0438\u044F",
+    pageType: "EDITORIAL",
+    topicalRelevance: syntheticDatum(87, DEMO_SOURCE),
+    linkInsertSuitability: syntheticDatum(83, DEMO_SOURCE),
+    indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+    traffic: syntheticDatum(4400, DEMO_SOURCE),
+    outboundLinkSignals: syntheticDatum(
+      { total: 18, external: 13, dofollow: 9 },
+      DEMO_SOURCE
+    ),
+    suggestedPlacementLocation: "\u0420\u0430\u0437\u0434\u0435\u043B \xAB\u0412\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0435 \u0448\u043A\u0430\u0444\u044B\xBB",
+    summary: "\u0418\u0434\u0435\u0438 \u043F\u043E \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438: \u0448\u043A\u0430\u0444\u044B-\u043A\u0443\u043F\u0435, \u0433\u0430\u0440\u0434\u0435\u0440\u043E\u0431\u043D\u044B\u0435, \u043C\u0435\u0431\u0435\u043B\u044C \u0434\u043B\u044F \u043D\u0438\u0448 \u0438 \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u044F \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0430.",
+    analyzedAt: now()
+  }
+};
+var BASE_SEARCH_FIXTURE = {
+  organicTraffic: 3e4,
+  authority: 45,
+  spamRisk: 20,
+  indexing: "INDEXED",
+  referringDomains: 8e3,
+  totalBacklinks: 6e4,
+  geography: ["\u0420\u043E\u0441\u0441\u0438\u044F"],
+  keywords: ["\u043C\u0435\u0431\u0435\u043B\u044C", "\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440"],
+  estimatedRealTraffic: 27e3
+};
+function hash2(value) {
+  let result = 0;
+  for (const char of value) {
+    result = result * 31 + char.charCodeAt(0) | 0;
+  }
+  return Math.abs(result);
+}
+function deterministicSnapshot(platformName, url2) {
+  const key = url2 ?? platformName;
+  const h = hash2(key);
+  const fixture = {
+    ...BASE_SEARCH_FIXTURE,
+    organicTraffic: 15e3 + h % 6e4,
+    authority: 35 + h % 30,
+    spamRisk: 10 + h % 25,
+    referringDomains: 3e3 + h % 12e3,
+    totalBacklinks: 2e4 + h % 9e4
+  };
+  return snapshotFromFixture(fixture, platformName, url2, key);
+}
+function snapshotFromFixture(fixture, platformName, url2, key) {
+  const backlinks = {
+    referringDomains: fixture.referringDomains,
+    totalBacklinks: fixture.totalBacklinks,
+    dofollowRatio: 0.55 + hash2(`${key}:df`) % 35 / 100
+  };
+  return {
+    platformName,
+    url: url2,
+    organicTraffic: syntheticDatum(fixture.organicTraffic, DEMO_SOURCE),
+    trafficGeography: syntheticDatum([...fixture.geography], DEMO_SOURCE),
+    keywordProfile: syntheticDatum([...fixture.keywords], DEMO_SOURCE),
+    backlinkProfile: syntheticDatum(backlinks, DEMO_SOURCE),
+    authority: syntheticDatum(fixture.authority, DEMO_SOURCE),
+    spamRisk: syntheticDatum(fixture.spamRisk, DEMO_SOURCE),
+    indexingStatus: syntheticDatum(fixture.indexing, DEMO_SOURCE),
+    estimatedRealTraffic: syntheticDatum(fixture.estimatedRealTraffic, DEMO_SOURCE),
+    fetchedAt: now()
+  };
+}
+var ScenarioSeoMetricsProvider = class {
+  name = "demo-seo-metrics";
+  fetchDonorProfile(input) {
+    const fixture = input.url === null ? void 0 : DONOR_FIXTURES[input.url];
+    const key = input.url ?? input.platformName;
+    return Promise.resolve(
+      fixture === void 0 ? deterministicSnapshot(input.platformName, input.url) : snapshotFromFixture(fixture, input.platformName, input.url, key)
+    );
+  }
+};
+var ScenarioPageAnalysisProvider = class {
+  name = "demo-page-analysis";
+  analyzePage(input) {
+    const fixture = input.url === null ? void 0 : PAGE_FIXTURES[input.url];
+    if (fixture !== void 0) {
+      return Promise.resolve(fixture);
+    }
+    const h = hash2(input.platformName);
+    return Promise.resolve({
+      targetDomain: new URL(input.url ?? "https://demo.example").hostname,
+      targetPage: input.url,
+      pageTitle: input.platformName,
+      pageType: "PROFILE",
+      topicalRelevance: syntheticDatum(80, DEMO_SOURCE),
+      linkInsertSuitability: syntheticDatum(70, DEMO_SOURCE),
+      indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
+      traffic: unknownDatum(),
+      outboundLinkSignals: syntheticDatum(
+        { total: 5 + h % 15, external: 3 + h % 10, dofollow: 2 + h % 6 },
+        DEMO_SOURCE
+      ),
+      suggestedPlacementLocation: "\u0421\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u043F\u0440\u043E\u0444\u0438\u043B\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438",
+      summary: `\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \xAB${input.platformName}\xBB \u2014 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438.`,
+      analyzedAt: now()
+    });
+  }
+};
+var ScenarioOutreachProvider = class {
+  name = "demo-outreach";
+  send(input) {
+    return Promise.resolve({
+      externalId: `outreach-${hash2(`${input.to}:${input.subject}`)}`,
+      sentAt: now()
+    });
   }
 };
 
@@ -18928,7 +23581,139 @@ var NORDHAUS_PLATFORMS = [
     categoryId: "cat-social-platforms",
     notes: "Demo platform (synthetic seed data)",
     metadata: null
+  },
+  {
+    id: "platform-zoon",
+    name: "Zoon.ru",
+    url: "https://zoon.ru",
+    country: "Russia",
+    categoryId: "cat-maps-local",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-flamp",
+    name: "Flamp",
+    url: "https://flamp.ru",
+    country: "Russia",
+    categoryId: "cat-maps-local",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-divan-ru",
+    name: "Divan.ru",
+    url: "https://divan.ru",
+    country: "Russia",
+    categoryId: "cat-furniture-directories",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-mebelion",
+    name: "Mebelion",
+    url: "https://mebelion.ru",
+    country: "Russia",
+    categoryId: "cat-furniture-directories",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-mebel-ot-fabrik",
+    name: "\u041C\u0435\u0431\u0435\u043B\u044C \u043E\u0442 \u0444\u0430\u0431\u0440\u0438\u043A",
+    url: "https://mebel-ot-fabrik.ru",
+    country: "Russia",
+    categoryId: "cat-furniture-directories",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-designmate",
+    name: "Design Mate",
+    url: "https://designmate.ru",
+    country: "Russia",
+    categoryId: "cat-interior-design",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-roomble",
+    name: "Roomble",
+    url: "https://roomble.com",
+    country: "Russia",
+    categoryId: "cat-interior-design",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-mydecor",
+    name: "MyDecor",
+    url: "https://mydecor.ru",
+    country: "Russia",
+    categoryId: "cat-interior-design",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-archspeech",
+    name: "Archspeech",
+    url: "https://archspeech.com",
+    country: "Russia",
+    categoryId: "cat-architecture",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-profi-ru",
+    name: "\u041F\u0440\u043E\u0444\u0438.\u0440\u0443",
+    url: "https://profi.ru",
+    country: "Russia",
+    categoryId: "cat-professional-platforms",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-vc-ru",
+    name: "VC.ru",
+    url: "https://vc.ru",
+    country: "Russia",
+    categoryId: "cat-media-pr",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
+  },
+  {
+    id: "platform-dzen",
+    name: "\u0414\u0437\u0435\u043D",
+    url: "https://dzen.ru",
+    country: "Russia",
+    categoryId: "cat-media-pr",
+    notes: "Search-discovered platform (synthetic seed data)",
+    metadata: null
   }
+];
+var NORDHAUS_SEARCH_PLATFORM_IDS = [
+  "platform-zoon",
+  "platform-flamp",
+  "platform-divan-ru",
+  "platform-mebelion",
+  "platform-mebel-ot-fabrik",
+  "platform-designmate",
+  "platform-roomble",
+  "platform-mydecor",
+  "platform-archspeech",
+  "platform-profi-ru",
+  "platform-vc-ru",
+  "platform-dzen"
+];
+var NORDHAUS_CORE_PLATFORM_IDS = [
+  "platform-yandex-business",
+  "platform-2gis",
+  "platform-mebel-ru",
+  "platform-inmyroom",
+  "platform-salon-interior",
+  "platform-archi-ru",
+  "platform-houzz",
+  "platform-vk"
 ];
 var NORDHAUS_PROVIDERS = [
   {
@@ -18984,6 +23769,69 @@ var NORDHAUS_PROVIDERS = [
     capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
     capabilitiesVerified: false,
     notes: "Browser automation candidate; capabilities not yet verified"
+  },
+  {
+    id: "provider-zoon-mock",
+    platformId: "platform-zoon",
+    name: "ZoonRu Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-flamp-mock",
+    platformId: "platform-flamp",
+    name: "Flamp Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-divan-ru-mock",
+    platformId: "platform-divan-ru",
+    name: "DivanRu Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-designmate-mock",
+    platformId: "platform-designmate",
+    name: "DesignMate Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-roomble-mock",
+    platformId: "platform-roomble",
+    name: "Roomble Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-archspeech-mock",
+    platformId: "platform-archspeech",
+    name: "Archspeech Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
+  },
+  {
+    id: "provider-profi-ru-mock",
+    platformId: "platform-profi-ru",
+    name: "ProfiRu Mock",
+    providerType: "MOCK",
+    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
+    capabilitiesVerified: true,
+    notes: "Mock provider for demo purposes"
   }
 ];
 var NORDHAUS_COMPANY_ANALYSIS_FIXTURE = {
@@ -19044,11 +23892,11 @@ var CLASSIFICATION_FIXTURES = {
   },
   "https://www.houzz.ru": {
     category: "interior-design",
-    placementType: "EDITORIAL_PUBLICATION",
+    placementType: "LINK_INSERT",
     topicalRelevance: 90,
     audienceMatch: 85,
     geographicRelevance: 70,
-    recommendationReason: "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u0430\u044F \u0434\u0438\u0437\u0430\u0439\u043D-\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430 \u0441 \u0440\u043E\u0441\u0441\u0438\u0439\u0441\u043A\u043E\u0439 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439"
+    recommendationReason: "\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u0430\u044F \u0434\u0438\u0437\u0430\u0439\u043D-\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430 \u0441 \u0440\u043E\u0441\u0441\u0438\u0439\u0441\u043A\u043E\u0439 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439 \u2014 \u043F\u043E\u0434\u0445\u043E\u0434\u044F\u0449\u0430\u044F \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u0434\u043B\u044F \u0432\u0441\u0442\u0430\u0432\u043A\u0438 \u0441\u0441\u044B\u043B\u043A\u0438 \u043D\u0430 \u043C\u0435\u0431\u0435\u043B\u044C \u043D\u0430 \u0437\u0430\u043A\u0430\u0437"
   },
   "https://archi.ru": {
     category: "architecture",
@@ -19057,26 +23905,664 @@ var CLASSIFICATION_FIXTURES = {
     audienceMatch: 75,
     geographicRelevance: 60,
     recommendationReason: "\u0410\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0439 \u043F\u043E\u0440\u0442\u0430\u043B \u0434\u043B\u044F \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0438 \u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u043E\u0440\u043E\u0432"
+  },
+  "https://zoon.ru": {
+    category: "maps-local",
+    placementType: "BUSINESS_PROFILE",
+    topicalRelevance: 87,
+    audienceMatch: 84,
+    geographicRelevance: 96,
+    recommendationReason: "\u041E\u0442\u0437\u043E\u0432\u0438\u043A\u043E\u0432\u044B\u0439 \u0441\u0435\u0440\u0432\u0438\u0441 \u0441 \u0433\u0435\u043E\u043B\u043E\u043A\u0430\u0446\u0438\u0435\u0439, \u043F\u043E\u0434\u0445\u043E\u0434\u0438\u0442 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E\u043C\u0443 \u0431\u0438\u0437\u043D\u0435\u0441\u0443"
+  },
+  "https://flamp.ru": {
+    category: "maps-local",
+    placementType: "BUSINESS_PROFILE",
+    topicalRelevance: 85,
+    audienceMatch: 83,
+    geographicRelevance: 95,
+    recommendationReason: "\u0413\u043E\u0440\u043E\u0434\u0441\u043A\u0430\u044F \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430 \u043E\u0442\u0437\u044B\u0432\u043E\u0432 \u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0439"
+  },
+  "https://divan.ru": {
+    category: "furniture-directories",
+    placementType: "DIRECTORY_LISTING",
+    topicalRelevance: 91,
+    audienceMatch: 84,
+    geographicRelevance: 88,
+    recommendationReason: "\u041C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0439 \u043C\u0430\u0440\u043A\u0435\u0442\u043F\u043B\u0435\u0439\u0441 \u0441 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439 \u043F\u043E\u043A\u0443\u043F\u0430\u0442\u0435\u043B\u0435\u0439 \u043C\u0435\u0431\u0435\u043B\u0438"
+  },
+  "https://designmate.ru": {
+    category: "interior-design",
+    placementType: "EDITORIAL_PUBLICATION",
+    topicalRelevance: 89,
+    audienceMatch: 91,
+    geographicRelevance: 82,
+    recommendationReason: "\u041F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u0430 \u043E \u0434\u0438\u0437\u0430\u0439\u043D\u0435 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043E\u0432 \u0441 \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0439 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439"
+  },
+  "https://roomble.com": {
+    category: "interior-design",
+    placementType: "EDITORIAL_PUBLICATION",
+    topicalRelevance: 86,
+    audienceMatch: 88,
+    geographicRelevance: 76,
+    recommendationReason: "\u0416\u0443\u0440\u043D\u0430\u043B \u043E\u0431 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0435, \u0440\u0435\u043C\u043E\u043D\u0442\u0435 \u0438 \u0434\u0438\u0437\u0430\u0439\u043D\u0435"
+  },
+  "https://archspeech.com": {
+    category: "architecture",
+    placementType: "EDITORIAL_PUBLICATION",
+    topicalRelevance: 81,
+    audienceMatch: 76,
+    geographicRelevance: 65,
+    recommendationReason: "\u0418\u0437\u0434\u0430\u043D\u0438\u0435 \u043E\u0431 \u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u0435 \u0438 \u0433\u043E\u0440\u043E\u0434\u0441\u043A\u043E\u0439 \u0441\u0440\u0435\u0434\u0435"
+  },
+  "https://profi.ru": {
+    category: "professional-platforms",
+    placementType: "BUSINESS_PROFILE",
+    topicalRelevance: 77,
+    audienceMatch: 80,
+    geographicRelevance: 80,
+    recommendationReason: "\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u0441\u043F\u0435\u0446\u0438\u0430\u043B\u0438\u0441\u0442\u043E\u0432, \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 \u0441\u0440\u0435\u0434\u0438 \u043F\u043E\u0441\u0442\u0430\u0432\u0449\u0438\u043A\u043E\u0432 \u0443\u0441\u043B\u0443\u0433"
+  }
+};
+var CATEGORY_NAME_BY_CODE = Object.fromEntries(
+  NORDHAUS_CATEGORIES.map((category) => [category.code, category.name])
+);
+var CATEGORY_BASE_SEMANTIC_SCORES = {
+  "maps-local": { topicalRelevance: 86, audienceMatch: 82, geographicRelevance: 95 },
+  "furniture-directories": { topicalRelevance: 88, audienceMatch: 82, geographicRelevance: 86 },
+  "interior-design": { topicalRelevance: 84, audienceMatch: 87, geographicRelevance: 74 },
+  architecture: { topicalRelevance: 78, audienceMatch: 74, geographicRelevance: 66 },
+  "professional-platforms": { topicalRelevance: 76, audienceMatch: 78, geographicRelevance: 78 },
+  "media-pr": { topicalRelevance: 78, audienceMatch: 80, geographicRelevance: 72 },
+  "social-platforms": { topicalRelevance: 74, audienceMatch: 84, geographicRelevance: 78 },
+  "b2b-regional": { topicalRelevance: 74, audienceMatch: 72, geographicRelevance: 80 }
+};
+var INDUSTRY_CATEGORIES = {
+  furniture: ["maps-local", "furniture-directories", "interior-design", "architecture"],
+  "real-estate": ["maps-local", "professional-platforms", "media-pr", "b2b-regional"],
+  it: ["professional-platforms", "media-pr", "social-platforms"],
+  software: ["professional-platforms", "media-pr", "social-platforms"],
+  design: ["professional-platforms", "interior-design", "media-pr", "social-platforms"],
+  services: ["maps-local", "professional-platforms", "media-pr"],
+  retail: ["maps-local", "media-pr", "social-platforms", "b2b-regional"],
+  ecommerce: ["maps-local", "media-pr", "social-platforms", "b2b-regional"],
+  health: ["maps-local", "professional-platforms", "media-pr"],
+  education: ["professional-platforms", "media-pr", "social-platforms"]
+};
+var DEFAULT_RELEVANT_CATEGORIES = [
+  "maps-local",
+  "professional-platforms",
+  "media-pr",
+  "social-platforms"
+];
+var SEARCH_QUERY_TEMPLATES = {
+  "maps-local": {
+    intent: "\u041A\u0430\u0440\u0442\u044B \u0438 \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439",
+    build: (products, geography) => [
+      `\u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439 ${products} ${geography}`,
+      `\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A \u043E\u0440\u0433\u0430\u043D\u0438\u0437\u0430\u0446\u0438\u0439 ${geography} ${products}`,
+      `\u043A\u0430\u0440\u0442\u044B ${geography} \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 ${products}`
+    ]
+  },
+  "furniture-directories": {
+    intent: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438",
+    build: (products, geography) => [
+      `\u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u0435\u0439 ${products}`,
+      `\u0440\u0435\u0435\u0441\u0442\u0440 \u0444\u0430\u0431\u0440\u0438\u043A \u0438 \u043C\u0430\u0441\u0442\u0435\u0440\u0441\u043A\u0438\u0445 ${products} ${geography}`,
+      `\u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A \u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0445 \u0431\u0440\u0435\u043D\u0434\u043E\u0432`
+    ]
+  },
+  "interior-design": {
+    intent: "\u0418\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u0438 \u0434\u0438\u0437\u0430\u0439\u043D-\u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products) => [
+      `\u0436\u0443\u0440\u043D\u0430\u043B \u043E \u0434\u0438\u0437\u0430\u0439\u043D\u0435 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430 ${products} \u043D\u0430 \u0437\u0430\u043A\u0430\u0437`,
+      `\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432`,
+      `\u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0434\u0438\u0437\u0430\u0439\u043D\u0435\u0440\u043E\u0432 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438`
+    ]
+  },
+  architecture: {
+    intent: "\u0410\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0435 \u043C\u0435\u0434\u0438\u0430",
+    build: (products) => [
+      `\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0439 \u043F\u043E\u0440\u0442\u0430\u043B \u043C\u0435\u0431\u0435\u043B\u044C \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u044B`,
+      `\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0435 \u0438\u0437\u0434\u0430\u043D\u0438\u044F \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438 \u043E ${products}`,
+      `\u043C\u0435\u0434\u0438\u0430 \u043E\u0431 \u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u0435 \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0435`
+    ]
+  },
+  "professional-platforms": {
+    intent: "\u041F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products) => [
+      `\u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0441\u043F\u0435\u0446\u0438\u0430\u043B\u0438\u0441\u0442\u043E\u0432 \u043F\u043E ${products}`,
+      `\u043F\u0440\u043E\u0444\u0438\u043B\u0438 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0439 ${products} \u043D\u0430 \u0430\u0433\u0440\u0435\u0433\u0430\u0442\u043E\u0440\u0430\u0445 \u0443\u0441\u043B\u0443\u0433`,
+      `b2b \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B \u043F\u043E\u0441\u0442\u0430\u0432\u0449\u0438\u043A\u0438 ${products}`
+    ]
+  },
+  "media-pr": {
+    intent: "\u041C\u0435\u0434\u0438\u0430 \u0438 PR",
+    build: (products) => [
+      `\u043D\u043E\u0432\u043E\u0441\u0442\u043D\u044B\u0435 \u0438 \u043E\u0442\u0440\u0430\u0441\u043B\u0435\u0432\u044B\u0435 \u0421\u041C\u0418 \u043E ${products}`,
+      `PR \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438 \u043E \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 ${products}`,
+      `\u0440\u0435\u0441\u0443\u0440\u0441\u043D\u044B\u0435 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u044B \u0438 \u043F\u043E\u0434\u0431\u043E\u0440\u043A\u0438 ${products}`
+    ]
+  },
+  "social-platforms": {
+    intent: "\u0421\u043E\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B",
+    build: (products) => [
+      `\u0441\u043E\u043E\u0431\u0449\u0435\u0441\u0442\u0432\u0430 \u0438 \u043F\u0430\u0431\u043B\u0438\u043A\u0438 \u043E ${products}`,
+      `\u043F\u043B\u0430\u0442\u0444\u043E\u0440\u043C\u044B \u043E\u0442\u0437\u044B\u0432\u043E\u0432 \u0438 \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u0430\u0446\u0438\u0439 ${products}`,
+      `\u0432\u0438\u0437\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430 \u0438 ${products}`
+    ]
+  },
+  "b2b-regional": {
+    intent: "B2B \u0438 \u0440\u0435\u0433\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438",
+    build: (products, geography) => [
+      `\u043E\u043F\u0442\u043E\u0432\u044B\u0435 \u0438 b2b \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 ${products} ${geography}`,
+      `\u0440\u0435\u0433\u0438\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 ${geography} ${products}`,
+      `\u0442\u0435\u043D\u0434\u0435\u0440\u043D\u044B\u0435 \u0438 \u043F\u043E\u0441\u0442\u0430\u0432\u0449\u0438\u0446\u043A\u0438\u0435 \u043F\u043E\u0440\u0442\u0430\u043B\u044B ${products}`
+    ]
   }
 };
 var ScenarioAIProvider = class {
-  name = "scenario-stub";
-  analyzeCompany(_input) {
-    return Promise.resolve(NORDHAUS_COMPANY_ANALYSIS_FIXTURE);
+  name = "demo-ai";
+  analyzeCompany(input) {
+    if (input.companyName.toLowerCase().includes("nordhaus")) {
+      return Promise.resolve(NORDHAUS_COMPANY_ANALYSIS_FIXTURE);
+    }
+    return Promise.resolve(deterministicCompanyAnalysis(input));
   }
   classifyOpportunity(input) {
     const fixture = CLASSIFICATION_FIXTURES[input.platform.url ?? ""];
-    if (fixture === void 0) {
-      return Promise.reject(
-        new Error(`ScenarioAIProvider: no classification fixture for ${input.platform.url}`)
-      );
+    if (fixture !== void 0) {
+      return Promise.resolve(fixture);
     }
-    return Promise.resolve(fixture);
+    return Promise.resolve(deterministicClassification(input));
   }
-  prepareContent(_input) {
-    return Promise.resolve({ content: "Draft content" });
+  prepareContent(input) {
+    return Promise.resolve({
+      content: `\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F ${input.company.name}: ${input.company.description ?? ""}`.trim()
+    });
+  }
+  analyzePage(input) {
+    const fixture = input.platform.url === null ? void 0 : PAGE_FIXTURES[input.platform.url];
+    if (fixture !== void 0) {
+      return Promise.resolve({
+        targetPage: fixture.targetPage ?? "",
+        pageTitle: fixture.pageTitle ?? "",
+        pageType: fixture.pageType,
+        topicalRelevance: fixture.topicalRelevance.value ?? 80,
+        linkInsertSuitability: fixture.linkInsertSuitability.value ?? 75,
+        indexation: fixture.indexation.value ?? "INDEXED",
+        suggestedPlacementLocation: fixture.suggestedPlacementLocation ?? "",
+        summary: fixture.summary ?? ""
+      });
+    }
+    return Promise.resolve(deterministicPageAnalysis(input));
+  }
+  generateLinkInsert(input) {
+    const company = input.company.name;
+    const product = input.company.products[0] ?? "\u043C\u0435\u0431\u0435\u043B\u044C \u043D\u0430 \u0437\u0430\u043A\u0430\u0437";
+    const anchor = input.desiredAnchor ?? `${product.toLowerCase()} \u043E\u0442 ${company}`;
+    const pageHint = input.targetPage !== null ? ` \u043D\u0430 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0435 ${input.targetPage}` : "";
+    return Promise.resolve({
+      anchor,
+      anchorAlternatives: [
+        `${company} \u2014 ${product}`,
+        `${company}`,
+        `${product} \u043F\u043E \u0438\u043D\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043B\u044C\u043D\u044B\u043C \u043F\u0440\u043E\u0435\u043A\u0442\u0430\u043C`
+      ],
+      suggestedInsertionPoint: "\u0412\u0442\u043E\u0440\u043E\u0439 \u0430\u0431\u0437\u0430\u0446, \u043F\u043E\u0441\u043B\u0435 \u0432\u0432\u043E\u0434\u043D\u043E\u0433\u043E \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F \u0442\u0435\u043C\u044B \u0441\u0442\u0430\u0442\u044C\u0438",
+      text: `\u0414\u043B\u044F \u0442\u0435\u0445, \u043A\u0442\u043E \u0438\u0449\u0435\u0442 \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u0443\u044E ${product.toLowerCase()}, ${company} \u0438\u0437\u0433\u043E\u0442\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u0442 \u043A\u0443\u0445\u043D\u0438 \u0438 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u0443\u044E \u043C\u0435\u0431\u0435\u043B\u044C \u043F\u043E \u0438\u043D\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043B\u044C\u043D\u044B\u043C \u043F\u0440\u043E\u0435\u043A\u0442\u0430\u043C${pageHint ? ` (${input.targetPage})` : ""} \u2014 \u043F\u043E\u0434\u0440\u043E\u0431\u043D\u0435\u0435 \u043D\u0430 \u0441\u0430\u0439\u0442\u0435 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438.`,
+      explanation: "\u0412\u0441\u0442\u0430\u0432\u043A\u0430 \u0435\u0441\u0442\u0435\u0441\u0442\u0432\u0435\u043D\u043D\u043E \u043F\u0440\u043E\u0434\u043E\u043B\u0436\u0430\u0435\u0442 \u043C\u044B\u0441\u043B\u044C \u0441\u0442\u0430\u0442\u044C\u0438 \u043E \u0432\u044B\u0431\u043E\u0440\u0435 \u043C\u0435\u0431\u0435\u043B\u0438: \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u044F-\u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u0435\u0442\u0441\u044F \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u043A\u043E\u043D\u043A\u0440\u0435\u0442\u043D\u043E\u0433\u043E \u0437\u0430\u043F\u0440\u043E\u0441\u0430 \u0447\u0438\u0442\u0430\u0442\u0435\u043B\u044F, \u0430 \u043D\u0435 \u043A\u0430\u043A \u043E\u0442\u0434\u0435\u043B\u044C\u043D\u044B\u0439 \u0440\u0435\u043A\u043B\u0430\u043C\u043D\u044B\u0439 \u0431\u043B\u043E\u043A.",
+      confidence: 82
+    });
+  }
+  recommendAnchor(input) {
+    const decision = recommendAnchorType({
+      placementObjective: input.placementObjective,
+      companyName: input.companyName,
+      targetKeyword: input.targetKeyword,
+      surroundingContext: input.surroundingContext,
+      targetPageRelevance: input.targetPageRelevance ?? null,
+      anchorProfileAvailable: input.anchorProfileAvailable
+    });
+    const keyword = input.targetKeyword ?? "\u043C\u0435\u0431\u0435\u043B\u044C \u043D\u0430 \u0437\u0430\u043A\u0430\u0437";
+    const anchor = decision.anchorType === "BRANDED" ? input.companyName : decision.anchorType === "LONG_TAIL" ? `${keyword.toLowerCase()} \u043F\u043E \u0438\u043D\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043B\u044C\u043D\u044B\u043C \u043F\u0440\u043E\u0435\u043A\u0442\u0430\u043C` : `${keyword.toLowerCase()} \u043E\u0442 ${input.companyName}`;
+    return Promise.resolve({
+      anchorType: decision.anchorType,
+      anchor,
+      alternatives: decision.anchorType === "BRANDED" ? [input.companyName, `${keyword.toLowerCase()} \u043E\u0442 ${input.companyName}`] : [
+        input.companyName,
+        `${keyword.toLowerCase()} \u043E\u0442 ${input.companyName}`,
+        "\u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C \u043C\u0435\u0431\u0435\u043B\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437"
+      ],
+      explanation: decision.explanation,
+      confidence: 76
+    });
+  }
+  generateOutreach(input) {
+    const company = input.company.name;
+    const platformName = input.platform.name;
+    const product = input.company.products[0] ?? "\u043C\u0435\u0431\u0435\u043B\u044C \u043D\u0430 \u0437\u0430\u043A\u0430\u0437";
+    const anchor = input.anchor ?? `${product.toLowerCase()} \u043E\u0442 ${company}`;
+    const pageRef = input.pageTitle !== null ? ` \u0432 \u0441\u0442\u0430\u0442\u044C\u0435 \xAB${input.pageTitle}\xBB` : "";
+    return Promise.resolve({
+      subject: `${company}: \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F ${platformName}`,
+      opening: `\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0420\u0435\u0434\u0430\u043A\u0446\u0438\u0438 ${platformName} \u2014 \u043A\u043E\u043C\u0430\u043D\u0434\u0430 ${company}, \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044F \u043C\u0435\u0431\u0435\u043B\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437.`,
+      valueProposition: `\u041C\u044B \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u043C ${product.toLowerCase()} \u043F\u043E \u0438\u043D\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043B\u044C\u043D\u044B\u043C \u043F\u0440\u043E\u0435\u043A\u0442\u0430\u043C \u0438 \u043C\u043E\u0436\u0435\u043C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0447\u0438\u0442\u0430\u0442\u0435\u043B\u044F\u043C ${platformName} \u043F\u043E\u043B\u0435\u0437\u043D\u044B\u0439 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u043E \u0432\u044B\u0431\u043E\u0440\u0435 \u0438 \u0437\u0430\u043A\u0430\u0437\u0435 \u043C\u0435\u0431\u0435\u043B\u0438.`,
+      message: `\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0420\u0435\u0434\u0430\u043A\u0446\u0438\u0438 ${platformName} \u043F\u0438\u0448\u0435\u0442 \u043A\u043E\u043C\u0430\u043D\u0434\u0430 ${company}, \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044F \u043C\u0435\u0431\u0435\u043B\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437 (${input.company.website ?? ""}). \u041C\u044B \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u043C ${product.toLowerCase()} \u043F\u043E \u0438\u043D\u0434\u0438\u0432\u0438\u0434\u0443\u0430\u043B\u044C\u043D\u044B\u043C \u043F\u0440\u043E\u0435\u043A\u0442\u0430\u043C \u0438 \u0433\u043E\u0442\u043E\u0432\u044B \u043F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F \u0441 \u0432\u0430\u0448\u0435\u0439 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439 \u044D\u043A\u0441\u043F\u0435\u0440\u0442\u043D\u044B\u043C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u043C \u043E \u0432\u044B\u0431\u043E\u0440\u0435 \u0438 \u0437\u0430\u043A\u0430\u0437\u0435 \u043C\u0435\u0431\u0435\u043B\u0438. \u041F\u0440\u043E\u0441\u0438\u043C \u0440\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u043A\u0438${pageRef !== "" ? pageRef : " \u043D\u0430 \u043D\u0430\u0448 \u0441\u0430\u0439\u0442"} \u0441 \u0430\u043D\u043A\u043E\u0440\u043E\u043C \xAB${anchor}\xBB. \u0411\u0443\u0434\u0435\u043C \u0440\u0430\u0434\u044B \u043E\u0431\u0441\u0443\u0434\u0438\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438.`,
+      shortVersion: `\u0417\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! ${company} \u043F\u0440\u0435\u0434\u043B\u0430\u0433\u0430\u0435\u0442 \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443 \u0441 \u0430\u043D\u043A\u043E\u0440\u043E\u043C \xAB${anchor}\xBB \u0432 \u0441\u0442\u0430\u0442\u044C\u044E \u043E \u0432\u044B\u0431\u043E\u0440\u0435 \u043C\u0435\u0431\u0435\u043B\u0438. \u041E\u0431\u0441\u0443\u0434\u0438\u043C \u0434\u0435\u0442\u0430\u043B\u0438?`,
+      placementRequest: `\u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u043A\u0438${pageRef !== "" ? pageRef : " \u043D\u0430 \u043D\u0430\u0448 \u0441\u0430\u0439\u0442"} \u0441 \u0430\u043D\u043A\u043E\u0440\u043E\u043C \xAB${anchor}\xBB`,
+      cta: "\u0411\u0443\u0434\u0435\u043C \u0440\u0430\u0434\u044B \u043E\u0431\u0441\u0443\u0434\u0438\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u0438 \u043F\u0440\u0435\u0434\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0434\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u044B\u0435 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B."
+    });
+  }
+  analyzeNegotiationReply(input) {
+    return Promise.resolve(classifyNegotiationReply(input));
+  }
+  estimateDonorQuality(input) {
+    const fixture = input.platform.url === null ? void 0 : CLASSIFICATION_FIXTURES[input.platform.url];
+    const base = fixture === void 0 ? CATEGORY_BASE_SEMANTIC_SCORES[categoryCodeFor(input.platform.category)] ?? {
+      topicalRelevance: 80,
+      audienceMatch: 80,
+      geographicRelevance: 80
+    } : {
+      topicalRelevance: fixture.topicalRelevance,
+      audienceMatch: fixture.audienceMatch,
+      geographicRelevance: fixture.geographicRelevance
+    };
+    return Promise.resolve({
+      topicalRelevance: clamp3(
+        base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)
+      ),
+      audienceMatch: clamp3(
+        base.audienceMatch + deterministicDelta(input.platform.name, input.platform.url)
+      ),
+      geographicRelevance: clamp3(
+        base.geographicRelevance + deterministicDelta(input.platform.name, input.platform.url)
+      ),
+      placementQuality: clamp3(
+        base.topicalRelevance - 5 + deterministicDelta(input.platform.name, input.platform.url)
+      ),
+      automationPotential: DEFAULT_PLACEMENT_TYPE_BY_CATEGORY[categoryCodeFor(input.platform.category)] === "BUSINESS_PROFILE" ? 90 : 55,
+      overallAssessment: `\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 ${input.platform.name} \u043E\u0446\u0435\u043D\u0435\u043D\u0430 \u043F\u043E \u0441\u0438\u043D\u0442\u0435\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u043C \u0434\u0435\u043C\u043E-\u0434\u0430\u043D\u043D\u044B\u043C`
+    });
+  }
+  assessDonorRisk(input) {
+    const profile = input.donorQuality;
+    const reasons = [];
+    let level = "UNKNOWN";
+    if (profile !== null && typeof profile === "object") {
+      const donorUrl = input.platform.url;
+      const fixture = donorUrl === null ? void 0 : DONOR_FIXTURES[donorUrl];
+      if (fixture !== void 0) {
+        if (fixture.spamRisk >= 60) {
+          level = "HIGH";
+          reasons.push("\u0432\u044B\u0441\u043E\u043A\u0438\u0439 spam-\u0440\u0438\u0441\u043A \u2014 \u043F\u0440\u0438\u0437\u043D\u0430\u043A\u0438 \u043F\u0440\u043E\u0434\u0430\u0436\u0438 \u0441\u0441\u044B\u043B\u043E\u043A");
+        } else if (fixture.spamRisk >= 35 || fixture.indexing === "PARTIAL") {
+          level = "MEDIUM";
+          if (fixture.spamRisk >= 35) reasons.push("\u043F\u043E\u0432\u044B\u0448\u0435\u043D\u043D\u044B\u0439 spam-\u0440\u0438\u0441\u043A");
+          if (fixture.indexing === "PARTIAL") reasons.push("\u043D\u0435\u043F\u043E\u043B\u043D\u0430\u044F \u0438\u043D\u0434\u0435\u043A\u0441\u0430\u0446\u0438\u044F \u0441\u0442\u0440\u0430\u043D\u0438\u0446");
+        } else {
+          level = "LOW";
+          reasons.push("\u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043E\u043D\u043E\u0440\u0430 \u0447\u0438\u0441\u0442\u044B\u0439");
+        }
+      }
+    }
+    return Promise.resolve({ level, reasons });
+  }
+  /**
+   * Deterministic placement plan decision map. The demo AI interprets ONLY
+   * the signals passed in (deterministic score, risk, provider, strategy) —
+   * the logic is company-agnostic and works for any campaign. Every item
+   * references a real discovered opportunity; the application layer
+   * reconciles the suggestions with the domain before exposing the plan.
+   */
+  generatePlacementPlan(input) {
+    const items = input.opportunities.map((opportunity) => {
+      const decision = planItemFor(opportunity, input);
+      return {
+        opportunityId: opportunity.opportunityId,
+        recommendation: decision.recommendation,
+        recommendationReason: decision.recommendationReason,
+        nextAction: decision.nextAction,
+        automationLevel: decision.automationLevel,
+        riskExplanation: riskExplanationFor(opportunity.riskLevel),
+        suggestedPlacementApproach: approachFor(opportunity.placementMethod),
+        anchorRecommendation: opportunity.placementType === "LINK_INSERT" || opportunity.placementType === "GUEST_POST" || opportunity.placementType === "RESOURCE_PAGE" ? {
+          anchorType: recommendAnchorType({
+            placementObjective: input.campaign.goals[0] ?? "\u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0441\u0441\u044B\u043B\u043A\u0438",
+            companyName: input.company.name,
+            targetKeyword: null,
+            surroundingContext: null,
+            targetPageRelevance: null,
+            anchorProfileAvailable: false
+          }).anchorType,
+          anchor: input.company.name,
+          explanation: "\u0410\u043D\u043A\u043E\u0440 \u043D\u0430 \u043E\u0441\u043D\u043E\u0432\u0435 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438: \u0431\u0435\u0437\u043E\u043F\u0430\u0441\u043D\u044B\u0439 \u0432\u0430\u0440\u0438\u0430\u043D\u0442, \u043A\u043E\u0433\u0434\u0430 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0430\u043D\u043A\u043E\u0440\u043E\u0432 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D."
+        } : null
+      };
+    });
+    const recommendedIds = new Set(
+      items.filter((item) => item.recommendation === "RECOMMENDED").map((item) => item.opportunityId)
+    );
+    const top = [...input.opportunities].filter((opportunity) => recommendedIds.has(opportunity.opportunityId)).sort(
+      (a, b) => (effectiveScore2(b.score, b.overallScore) ?? -1) - (effectiveScore2(a.score, a.overallScore) ?? -1) || a.platform.name.localeCompare(b.platform.name)
+    )[0];
+    const overview = items.length === 0 ? "\u0412\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438 \u0435\u0449\u0451 \u043D\u0435 \u043E\u0431\u043D\u0430\u0440\u0443\u0436\u0435\u043D\u044B \u2014 \u0441\u043D\u0430\u0447\u0430\u043B\u0430 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u0435 \u043F\u043E\u0438\u0441\u043A \u043F\u043B\u043E\u0449\u0430\u0434\u043E\u043A." : `\u041F\u0440\u043E\u0430\u043D\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u043E ${items.length} \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439: ${recommendedIds.size} \u0440\u0435\u043A\u043E\u043C\u0435\u043D\u0434\u043E\u0432\u0430\u043D\u043E, ${items.filter((item) => item.recommendation === "REVIEW_REQUIRED").length} \u0442\u0440\u0435\u0431\u0443\u044E\u0442 \u0440\u0435\u0448\u0435\u043D\u0438\u044F, ${items.filter((item) => item.recommendation === "NOT_RECOMMENDED").length} \u043E\u0442\u043A\u043B\u043E\u043D\u0435\u043D\u043E.${top === void 0 ? "" : ` \u041D\u0430\u0447\u0430\u0442\u044C \u0441\u0442\u043E\u0438\u0442 \u0441 \xAB${top.platform.name}\xBB \u2014 \u0441\u0430\u043C\u0430\u044F \u043F\u0435\u0440\u0441\u043F\u0435\u043A\u0442\u0438\u0432\u043D\u0430\u044F \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u043F\u043E \u0438\u0442\u043E\u0433\u043E\u0432\u043E\u0439 \u043E\u0446\u0435\u043D\u043A\u0435.`}`;
+    return Promise.resolve({ items, overview });
+  }
+  /**
+   * Deterministic search-intent plan for the demo AI: derives directions from
+   * the company industry/products/geography, maps them onto the catalog
+   * category codes passed in and builds concrete search queries. Never called
+   * in demo discovery (the demo uses the synthetic search source); used as a
+   * stable fallback when DISCOVERY_MODE=real runs without an LLM.
+   */
+  generateSearchQueries(input) {
+    const relevant = [
+      ...input.relevantCategoryCodes,
+      ...INDUSTRY_CATEGORIES[normalizeIndustry2(input.company.industry, input.company.description)] ?? DEFAULT_RELEVANT_CATEGORIES
+    ];
+    const codes = unique2(relevant).filter((code) => input.availableCategoryCodes.includes(code));
+    const fallback = input.availableCategoryCodes[0] ?? null;
+    const geography = input.company.geography[0] ?? "\u0420\u043E\u0441\u0441\u0438\u044F";
+    const products = input.company.products.length > 0 ? input.company.products.slice(0, 3).join(" \u0438\u043B\u0438 ") : input.company.name;
+    const intents = [];
+    for (const code of codes.slice(0, 6)) {
+      const template = SEARCH_QUERY_TEMPLATES[code];
+      if (template === void 0) continue;
+      intents.push({
+        intent: template.intent,
+        categoryCode: code,
+        queries: template.build(products, geography)
+      });
+    }
+    if (intents.length === 0) {
+      intents.push({
+        intent: `\u041F\u0440\u043E\u0444\u0438\u043B\u044C\u043D\u044B\u0435 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0434\u043B\u044F \xAB${input.company.name}\xBB`,
+        categoryCode: fallback,
+        queries: [`${input.company.name} \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 \u0438 \u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A\u0438 ${geography}`]
+      });
+    }
+    return Promise.resolve({ intents: intents.slice(0, 6) });
   }
 };
+function planItemFor(opportunity, input) {
+  const platformName = opportunity.platform.name;
+  const bestScore = effectiveScore2(opportunity.score, opportunity.overallScore);
+  const hasData = bestScore !== null || opportunity.hasIntel || opportunity.riskLevel !== null;
+  if (!hasData) {
+    return {
+      recommendation: "INSUFFICIENT_DATA",
+      recommendationReason: `\u041F\u043E \xAB${platformName}\xBB \u043F\u043E\u043A\u0430 \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u0442\u043E\u0447\u043D\u043E \u0434\u0430\u043D\u043D\u044B\u0445 \u2014 \u043E\u0446\u0435\u043D\u043A\u0430 \u0438 \u0430\u043D\u0430\u043B\u0438\u0437 \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u044B.`,
+      nextAction: "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED"
+    };
+  }
+  if (bestScore !== null && bestScore < 55) {
+    return {
+      recommendation: "NOT_RECOMMENDED",
+      recommendationReason: `\xAB${platformName}\xBB \u043F\u043E\u043B\u0443\u0447\u0438\u043B\u0430 \u043E\u0446\u0435\u043D\u043A\u0443 ${bestScore}/100 \u2014 \u043D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0440\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u043D\u0438\u044F \u0434\u043B\u044F \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${input.campaign.name}\xBB.`,
+      nextAction: "REJECT",
+      automationLevel: "HUMAN_REQUIRED"
+    };
+  }
+  if (opportunity.riskLevel === "HIGH") {
+    return {
+      recommendation: "REVIEW_REQUIRED",
+      recommendationReason: `\xAB${platformName}\xBB \u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u043F\u043E\u0434\u0445\u043E\u0434\u0438\u0442, \u043D\u043E \u0440\u0438\u0441\u043A \u0434\u043E\u043D\u043E\u0440\u0430 \u043E\u0446\u0435\u043D\u0451\u043D \u043A\u0430\u043A \u0432\u044B\u0441\u043E\u043A\u0438\u0439 \u2014 \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u0447\u0435\u043B\u043E\u0432\u0435\u043A\u043E\u043C.`,
+      nextAction: "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED"
+    };
+  }
+  if (bestScore !== null && bestScore < 75) {
+    return {
+      recommendation: "REVIEW_REQUIRED",
+      recommendationReason: `\xAB${platformName}\xBB \u043D\u0430\u0431\u0440\u0430\u043B\u0430 ${bestScore}/100: \u043E\u0446\u0435\u043D\u043A\u0430 \u043F\u0435\u0440\u0441\u043F\u0435\u043A\u0442\u0438\u0432\u043D\u0430\u044F, \u043D\u043E \u043D\u0438\u0436\u0435 \u043F\u043E\u0440\u043E\u0433\u0430 \u0443\u0432\u0435\u0440\u0435\u043D\u043D\u043E\u0441\u0442\u0438 \u2014 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0432\u0440\u0443\u0447\u043D\u0443\u044E.`,
+      nextAction: opportunity.placementMethod === "OUTREACH" ? "PREPARE_OUTREACH" : "REVIEW_OPPORTUNITY",
+      automationLevel: "HUMAN_REQUIRED"
+    };
+  }
+  const scoreText = bestScore !== null ? `${bestScore}/100, ` : "";
+  const reason = `\xAB${platformName}\xBB \u2014 ${scoreText}\u0440\u0435\u043B\u0435\u0432\u0430\u043D\u0442\u043D\u043E\u0441\u0442\u044C, \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u044F \u0438 \u0444\u043E\u0440\u043C\u0430\u0442 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F \xAB${opportunity.placementType}\xBB \u0441\u043E\u043E\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0443\u044E\u0442 \u0441\u0442\u0440\u0430\u0442\u0435\u0433\u0438\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xAB${input.campaign.name}\xBB`;
+  const strong = opportunity.strategySupportsType;
+  const methodReason = opportunity.placementMethod === "OUTREACH" ? " \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u044F\u0435\u0442\u0441\u044F \u0447\u0435\u0440\u0435\u0437 outreach \u0441 \u0443\u0447\u0430\u0441\u0442\u0438\u0435\u043C \u0447\u0435\u043B\u043E\u0432\u0435\u043A\u0430." : opportunity.placementMethod === "MANUAL" ? " \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u0440\u0443\u0447\u043D\u043E\u0439 \u0440\u0430\u0431\u043E\u0442\u044B \u043D\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0435." : strong && opportunity.providerAvailable ? " \u0438\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u0447\u0435\u0440\u0435\u0437 \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440\u0430." : " \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440\u0430 \u043F\u0435\u0440\u0435\u0434 \u0437\u0430\u043F\u0443\u0441\u043A\u043E\u043C.";
+  return {
+    recommendation: "RECOMMENDED",
+    recommendationReason: `${reason};${methodReason}`,
+    nextAction: opportunity.placementMethod === "OUTREACH" ? "PREPARE_OUTREACH" : opportunity.placementMethod === "MANUAL" ? "REQUEST_MANUAL_PLACEMENT" : opportunity.placementMethod === "BROWSER" && !opportunity.providerCapabilitiesVerified ? "REVIEW_PROVIDER" : "EXECUTE_AUTOMATICALLY",
+    automationLevel: opportunity.placementMethod === "API" ? "AUTOMATIC" : opportunity.placementMethod === "BROWSER" ? "AI_ASSISTED" : "HUMAN_REQUIRED"
+  };
+}
+function effectiveScore2(score, overall) {
+  if (score !== null && overall !== null) {
+    return Math.round((score + overall) / 2);
+  }
+  return score ?? overall;
+}
+function riskExplanationFor(level) {
+  switch (level) {
+    case "LOW":
+      return "\u0420\u0438\u0441\u043A \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0438\u0437\u043A\u0438\u0439: \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438 \u0447\u0438\u0441\u0442\u044B\u0439.";
+    case "MEDIUM":
+      return "\u0420\u0438\u0441\u043A \u0434\u043E\u043D\u043E\u0440\u0430 \u0441\u0440\u0435\u0434\u043D\u0438\u0439: \u0441\u0442\u043E\u0438\u0442 \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u043E \u0442\u0440\u0430\u0444\u0438\u043A\u0430 \u0438 \u0441\u0441\u044B\u043B\u043E\u043A.";
+    case "HIGH":
+      return "\u0420\u0438\u0441\u043A \u0434\u043E\u043D\u043E\u0440\u0430 \u0432\u044B\u0441\u043E\u043A\u0438\u0439: \u043F\u0435\u0440\u0435\u0434 \u0437\u0430\u043F\u0443\u0441\u043A\u043E\u043C \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043F\u0440\u043E\u0444\u0438\u043B\u044F.";
+    default:
+      return null;
+  }
+}
+function approachFor(method) {
+  switch (method) {
+    case "API":
+      return "\u0410\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u043E\u0435 \u0438\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440\u0430 \u043F\u043E\u0441\u043B\u0435 \u043E\u0434\u043E\u0431\u0440\u0435\u043D\u0438\u044F \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438.";
+    case "BROWSER":
+      return "\u0411\u0440\u0430\u0443\u0437\u0435\u0440\u043D\u0430\u044F \u0430\u0432\u0442\u043E\u043C\u0430\u0442\u0438\u0437\u0430\u0446\u0438\u044F \u2014 \u043F\u043E\u0441\u043B\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439 \u043F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440\u0430.";
+    case "OUTREACH":
+      return "Outreach: \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435, \u043F\u0440\u043E\u0432\u0435\u0441\u0442\u0438 \u043F\u0435\u0440\u0435\u0433\u043E\u0432\u043E\u0440\u044B \u0438 \u0441\u043E\u0433\u043B\u0430\u0441\u043E\u0432\u0430\u0442\u044C \u0443\u0441\u043B\u043E\u0432\u0438\u044F.";
+    case "MANUAL":
+      return "\u0420\u0443\u0447\u043D\u043E\u0435 \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0441 \u043F\u043E\u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435\u043C \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438.";
+    default:
+      return null;
+  }
+}
+function deterministicCompanyAnalysis(input) {
+  const industryKey = normalizeIndustry2(input.industry, input.description);
+  const relevantCategories = [...INDUSTRY_CATEGORIES[industryKey] ?? DEFAULT_RELEVANT_CATEGORIES];
+  const topics = unique2([...input.products.map(trimmedLower), ...derivedTopics(industryKey)]).slice(
+    0,
+    5
+  );
+  const audiences = unique2(input.targetAudience.map(trimmedLower)).slice(0, 5);
+  const geographyLine = input.geography.length > 0 ? input.geography.slice(0, 3).join(", ") : "\u0420\u043E\u0441\u0441\u0438\u044F";
+  return {
+    businessType: businessTypeFor(industryKey, input.description, input.companyName),
+    topics: topics.length > 0 ? topics : ["\u043F\u0440\u043E\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u0431\u0440\u0435\u043D\u0434\u0430"],
+    audiences: audiences.length > 0 ? audiences : ["\u043A\u043B\u0438\u0435\u043D\u0442\u044B \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438", "\u043E\u0442\u0440\u0430\u0441\u043B\u0435\u0432\u044B\u0435 \u0441\u043F\u0435\u0446\u0438\u0430\u043B\u0438\u0441\u0442\u044B"],
+    relevantCategories,
+    strategicRecommendations: [
+      `\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u0438 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 \u043D\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430\u0445 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0439: ${relevantCategories.slice(0, 3).map((code) => CATEGORY_NAME_BY_CODE[code] ?? code).join(", ")}`,
+      `\u0420\u0430\u0437\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B \u043E \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 \u043D\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430\u0445 \u0441 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0435\u0439 \u0438\u0437 \u0440\u0435\u0433\u0438\u043E\u043D\u0430: ${geographyLine}`
+    ]
+  };
+}
+function normalizeIndustry2(industry, description) {
+  const haystack = `${industry ?? ""} ${description ?? ""}`.toLowerCase();
+  const known = Object.keys(INDUSTRY_CATEGORIES);
+  const match2 = known.find((key) => haystack.includes(key));
+  return match2 ?? "services";
+}
+function derivedTopics(industryKey) {
+  const map2 = {
+    furniture: ["\u043C\u0435\u0431\u0435\u043B\u044C", "\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440", "\u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u043C\u0435\u0431\u0435\u043B\u0438"],
+    "real-estate": ["\u043D\u0435\u0434\u0432\u0438\u0436\u0438\u043C\u043E\u0441\u0442\u044C", "\u043F\u0440\u043E\u0434\u0430\u0436\u0430 \u0438 \u0430\u0440\u0435\u043D\u0434\u0430", "\u043A\u043E\u043C\u043C\u0435\u0440\u0447\u0435\u0441\u043A\u0430\u044F \u043D\u0435\u0434\u0432\u0438\u0436\u0438\u043C\u043E\u0441\u0442\u044C"],
+    it: ["\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u044B\u0435 \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0438", "\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u041F\u041E", "\u0446\u0438\u0444\u0440\u043E\u0432\u044B\u0435 \u0443\u0441\u043B\u0443\u0433\u0438"],
+    software: ["\u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u044B\u0435 \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0438", "\u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0430 \u041F\u041E", "\u0446\u0438\u0444\u0440\u043E\u0432\u044B\u0435 \u0443\u0441\u043B\u0443\u0433\u0438"],
+    design: ["\u0434\u0438\u0437\u0430\u0439\u043D", "\u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440", "\u0431\u0440\u0435\u043D\u0434\u0438\u043D\u0433"],
+    services: ["\u0443\u0441\u043B\u0443\u0433\u0438", "\u043E\u0431\u0441\u043B\u0443\u0436\u0438\u0432\u0430\u043D\u0438\u0435 \u043A\u043B\u0438\u0435\u043D\u0442\u043E\u0432", "\u044D\u043A\u0441\u043F\u0435\u0440\u0442\u0438\u0437\u0430"],
+    retail: ["\u0440\u043E\u0437\u043D\u0438\u0447\u043D\u0430\u044F \u0442\u043E\u0440\u0433\u043E\u0432\u043B\u044F", "\u0442\u043E\u0432\u0430\u0440\u044B", "\u043C\u0430\u0433\u0430\u0437\u0438\u043D\u044B"],
+    ecommerce: ["\u0438\u043D\u0442\u0435\u0440\u043D\u0435\u0442-\u043C\u0430\u0433\u0430\u0437\u0438\u043D", "\u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0430", "\u0442\u043E\u0432\u0430\u0440\u044B"],
+    health: ["\u0437\u0434\u043E\u0440\u043E\u0432\u044C\u0435", "\u043C\u0435\u0434\u0438\u0446\u0438\u043D\u0441\u043A\u0438\u0435 \u0443\u0441\u043B\u0443\u0433\u0438", "\u043A\u043B\u0438\u043D\u0438\u043A\u0430"],
+    education: ["\u043E\u0431\u0440\u0430\u0437\u043E\u0432\u0430\u043D\u0438\u0435", "\u043E\u0431\u0443\u0447\u0435\u043D\u0438\u0435", "\u043A\u0443\u0440\u0441\u044B"]
+  };
+  return map2[industryKey] ?? ["\u043F\u0440\u043E\u0434\u0443\u043A\u0442\u044B \u0438 \u0443\u0441\u043B\u0443\u0433\u0438", "\u0440\u0430\u0437\u0432\u0438\u0442\u0438\u0435 \u0431\u0438\u0437\u043D\u0435\u0441\u0430"];
+}
+function businessTypeFor(industryKey, description, name) {
+  const typeByIndustry = {
+    furniture: "\u041F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C \u0438 \u043F\u0440\u043E\u0434\u0430\u0432\u0435\u0446 \u043C\u0435\u0431\u0435\u043B\u0438",
+    "real-estate": "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F \u0432 \u0441\u0444\u0435\u0440\u0435 \u043D\u0435\u0434\u0432\u0438\u0436\u0438\u043C\u043E\u0441\u0442\u0438",
+    it: "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F \u0432 \u0441\u0444\u0435\u0440\u0435 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u044B\u0445 \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0439",
+    software: "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F \u0432 \u0441\u0444\u0435\u0440\u0435 \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u043E\u043D\u043D\u044B\u0445 \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0439",
+    design: "\u0414\u0438\u0437\u0430\u0439\u043D-\u0441\u0442\u0443\u0434\u0438\u044F",
+    services: "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F \u0432 \u0441\u0444\u0435\u0440\u0435 \u0443\u0441\u043B\u0443\u0433",
+    retail: "\u0420\u043E\u0437\u043D\u0438\u0447\u043D\u0430\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u044F",
+    ecommerce: "\u0418\u043D\u0442\u0435\u0440\u043D\u0435\u0442-\u043C\u0430\u0433\u0430\u0437\u0438\u043D",
+    health: "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F \u0432 \u0441\u0444\u0435\u0440\u0435 \u0437\u0434\u043E\u0440\u043E\u0432\u044C\u044F",
+    education: "\u041E\u0431\u0440\u0430\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u043D\u0430\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u044F"
+  };
+  if (description !== null && description.trim().length > 0) {
+    const firstSentence = description.trim().split(/[.!?\n]/)[0] ?? description.trim();
+    if (firstSentence.length > 0) {
+      return firstSentence;
+    }
+  }
+  return `${typeByIndustry[industryKey] ?? "\u041A\u043E\u043C\u043F\u0430\u043D\u0438\u044F"} \xAB${name}\xBB`;
+}
+function deterministicClassification(input) {
+  const categoryCode = categoryCodeFor(input.platform.category);
+  const base = CATEGORY_BASE_SEMANTIC_SCORES[categoryCode] ?? {
+    topicalRelevance: 80,
+    audienceMatch: 80,
+    geographicRelevance: 80
+  };
+  const delta = deterministicDelta(input.platform.name, input.platform.url);
+  return {
+    category: CATEGORY_NAME_BY_CODE[categoryCode] ?? input.platform.category ?? categoryCode,
+    placementType: DEFAULT_PLACEMENT_TYPE_BY_CATEGORY[categoryCode] ?? "DIRECTORY_LISTING",
+    topicalRelevance: clamp3(base.topicalRelevance + delta),
+    audienceMatch: clamp3(base.audienceMatch + delta),
+    geographicRelevance: clamp3(base.geographicRelevance + delta),
+    recommendationReason: `\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u0438\u0437 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438 \xAB${CATEGORY_NAME_BY_CODE[categoryCode] ?? categoryCode}\xBB \u0442\u0435\u043C\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438 \u0431\u043B\u0438\u0437\u043A\u0430 \u0431\u0438\u0437\u043D\u0435\u0441\u0443 \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 \u0438 \u0435\u0451 \u0430\u0443\u0434\u0438\u0442\u043E\u0440\u0438\u0438`
+  };
+}
+function categoryCodeFor(categoryName) {
+  if (categoryName === null) return "services";
+  const byName = NORDHAUS_CATEGORIES.find((category) => category.name === categoryName);
+  return byName?.code ?? "services";
+}
+function deterministicDelta(name, url2) {
+  let hash3 = 0;
+  for (const char of `${name}:${url2 ?? ""}`) {
+    hash3 = hash3 * 31 + char.charCodeAt(0) | 0;
+  }
+  return Math.abs(hash3) % 9 - 4;
+}
+function clamp3(value) {
+  return Math.min(100, Math.max(0, value));
+}
+function trimmedLower(value) {
+  return value.trim().toLowerCase();
+}
+function unique2(values) {
+  return [...new Set(values)];
+}
+function deterministicPageAnalysis(input) {
+  const categoryCode = categoryCodeFor(input.platform.category);
+  const base = CATEGORY_BASE_SEMANTIC_SCORES[categoryCode] ?? {
+    topicalRelevance: 80,
+    audienceMatch: 80,
+    geographicRelevance: 80
+  };
+  return {
+    targetPage: input.platform.url ?? input.platform.name,
+    pageTitle: input.platform.name,
+    pageType: "PROFILE",
+    topicalRelevance: clamp3(
+      base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)
+    ),
+    linkInsertSuitability: clamp3(
+      base.topicalRelevance - 8 + deterministicDelta(input.platform.name, input.platform.url)
+    ),
+    indexation: "INDEXED",
+    suggestedPlacementLocation: "\u0421\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u043F\u0440\u043E\u0444\u0438\u043B\u044F \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438",
+    summary: `\u041F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \xAB${input.platform.name}\xBB \u2014 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438 \u0432 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438 \xAB${CATEGORY_NAME_BY_CODE[categoryCode] ?? categoryCode}\xBB.`
+  };
+}
+function classifyNegotiationReply(input) {
+  const text = input.donorReply.toLowerCase();
+  const company = input.company.name;
+  const platformName = input.platformName;
+  const priceMatch = text.match(/\d[\d\s]*(?:[.,]\d+)?\s*(?:usd|\$|руб|₽)?/);
+  const hasAmount = /\$\s*\d+|\d+\s*(?:usd|руб|₽)|\b(?:за|стоит|цена|оплата|платно)\b/.test(text);
+  const base = {
+    suggestedResponse: "",
+    strategy: "",
+    recommendedPrice: null,
+    fallbackOption: null,
+    risks: [],
+    confidence: 78
+  };
+  if (/(nofollow|rel="nofollow"|атрибут)/.test(text)) {
+    return {
+      ...base,
+      intent: "LINK_ATTRIBUTE_REQUEST",
+      suggestedResponse: `\u0413\u043E\u0442\u043E\u0432\u044B \u043E\u0431\u0441\u0443\u0434\u0438\u0442\u044C \u0430\u0442\u0440\u0438\u0431\u0443\u0442\u044B \u0441\u0441\u044B\u043B\u043A\u0438. \u0414\u043B\u044F ${company} \u0432\u0430\u0436\u043D\u043E, \u0447\u0442\u043E\u0431\u044B \u0441\u0441\u044B\u043B\u043A\u0430 \u043D\u0435 \u0431\u044B\u043B\u0430 nofollow. \u041C\u043E\u0436\u0435\u043C \u043B\u0438 \u0434\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C\u0441\u044F \u043E dofollow-\u0441\u0441\u044B\u043B\u043A\u0435?`,
+      strategy: "\u041E\u0431\u0441\u0443\u0434\u0438\u0442\u044C \u0430\u0442\u0440\u0438\u0431\u0443\u0442\u044B \u0441\u0441\u044B\u043B\u043A\u0438; \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0434\u043E\u043F\u043B\u0430\u0442\u0443 \u0437\u0430 dofollow, \u0435\u0441\u043B\u0438 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0430 \u043D\u0430\u0441\u0442\u0430\u0438\u0432\u0430\u0435\u0442.",
+      risks: ["\u0415\u0441\u043B\u0438 \u0441\u0441\u044B\u043B\u043A\u0430 \u0431\u0443\u0434\u0435\u0442 nofollow, \u0446\u0435\u043D\u043D\u043E\u0441\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u044F \u0441\u043D\u0438\u0436\u0430\u0435\u0442\u0441\u044F."],
+      fallbackOption: "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0431\u0440\u0435\u043D\u0434\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u043E\u0435 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435 \u0431\u0435\u0437 \u0441\u0441\u044B\u043B\u043A\u0438."
+    };
+  }
+  if (/(согласн|публикуем|можно|готовы|ок\b|да\b|подходит)/.test(text)) {
+    return {
+      ...base,
+      intent: "ACCEPTED",
+      suggestedResponse: `\u041E\u0442\u043B\u0438\u0447\u043D\u043E! \u0421\u043F\u0430\u0441\u0438\u0431\u043E, \u0447\u0442\u043E \u0433\u043E\u0442\u043E\u0432\u044B \u0440\u0430\u0437\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443. \u0423\u0442\u043E\u0447\u043D\u0438\u0442\u0435, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0441\u0440\u043E\u043A\u0438 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438 \u0438 \u0438\u0442\u043E\u0433\u043E\u0432\u044B\u0439 \u0430\u0434\u0440\u0435\u0441 \u0441\u0442\u0430\u0442\u044C\u0438.`,
+      strategy: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C \u0434\u043E\u0433\u043E\u0432\u043E\u0440\u0451\u043D\u043D\u043E\u0441\u0442\u044C \u0438 \u0437\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u044C \u0434\u0435\u0442\u0430\u043B\u0438 \u043F\u0443\u0431\u043B\u0438\u043A\u0430\u0446\u0438\u0438.",
+      risks: [],
+      confidence: 85
+    };
+  }
+  if (/(не можем|отказ|не подходит|не заинтересован|нет\b)/.test(text)) {
+    return {
+      ...base,
+      intent: "REJECTED",
+      suggestedResponse: `\u0421\u043F\u0430\u0441\u0438\u0431\u043E \u0437\u0430 \u043E\u0442\u0432\u0435\u0442. \u0415\u0441\u043B\u0438 \u0441\u0438\u0442\u0443\u0430\u0446\u0438\u044F \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u0441\u044F, \u0431\u0443\u0434\u0435\u043C \u0440\u0430\u0434\u044B \u0432\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F \u043A \u043E\u0431\u0441\u0443\u0436\u0434\u0435\u043D\u0438\u044E.`,
+      strategy: "\u0412\u0435\u0436\u043B\u0438\u0432\u043E \u0437\u0430\u043A\u0440\u044B\u0442\u044C \u0442\u0435\u043C\u0443 \u0438 \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F \u043D\u0430 \u0437\u0430\u043F\u0430\u0441\u043D\u043E\u0439 \u0432\u0430\u0440\u0438\u0430\u043D\u0442.",
+      risks: [],
+      fallbackOption: "\u0420\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0434\u0440\u0443\u0433\u0443\u044E \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0443 \u0438\u0437 \u0441\u043F\u0438\u0441\u043A\u0430 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439."
+    };
+  }
+  if (/(стать|контент|материал|текст|гостев)/.test(text)) {
+    return {
+      ...base,
+      intent: "CONTENT_REQUIREMENTS",
+      suggestedResponse: `\u041C\u044B \u0433\u043E\u0442\u043E\u0432\u044B \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u0442\u044C \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u0434\u043B\u044F ${platformName}. \u0423\u0442\u043E\u0447\u043D\u0438\u0442\u0435, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430, \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u044F \u043A \u043E\u0431\u044A\u0451\u043C\u0443, \u0442\u0435\u043C\u0435 \u0438 \u0441\u0440\u043E\u043A\u0430\u043C \u2014 \u043F\u043E\u0434\u0433\u043E\u0442\u043E\u0432\u0438\u043C \u0441\u0442\u0430\u0442\u044C\u044E \u0432 \u0431\u043B\u0438\u0436\u0430\u0439\u0448\u0435\u0435 \u0432\u0440\u0435\u043C\u044F.`,
+      strategy: "\u0423\u0442\u043E\u0447\u043D\u0438\u0442\u044C \u0442\u0440\u0435\u0431\u043E\u0432\u0430\u043D\u0438\u044F \u043A \u043A\u043E\u043D\u0442\u0435\u043D\u0442\u0443 \u0438 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0433\u043E\u0442\u043E\u0432\u044B\u0439 \u0447\u0435\u0440\u043D\u043E\u0432\u0438\u043A.",
+      risks: ["\u041C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u043C\u043E\u0436\u0435\u0442 \u043D\u0435 \u043F\u0440\u043E\u0439\u0442\u0438 \u0440\u0435\u0434\u0430\u043A\u0442\u0443\u0440\u0443 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438."],
+      fallbackOption: "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0444\u043E\u0440\u043C\u0430\u0442 \u2014 \u0432\u0441\u0442\u0430\u0432\u043A\u0443 \u0441\u0441\u044B\u043B\u043A\u0438 \u0432 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0442\u0430\u0442\u044C\u044E."
+    };
+  }
+  if (hasAmount) {
+    const rawAmount = priceMatch?.[0]?.match(/\d[\d\s]*/) ?? null;
+    const amount = rawAmount === null ? null : Number(rawAmount[0].replace(/\s/g, ""));
+    const currency = /\$|usd/.test(text) ? "USD" : /\bруб|₽/.test(text) ? "RUB" : "USD";
+    const negotiated = amount === null || !Number.isFinite(amount) || amount <= 0 ? null : { min: Math.max(0, Math.round(amount * 0.6)), max: Math.round(amount * 0.72), currency };
+    return {
+      ...base,
+      intent: "PRICE_NEGOTIATION",
+      suggestedResponse: negotiated === null ? `\u0421\u043F\u0430\u0441\u0438\u0431\u043E \u0437\u0430 \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435. \u041C\u044B \u0438\u0437\u0443\u0447\u0438\u043C \u0443\u0441\u043B\u043E\u0432\u0438\u044F \u0438 \u0432\u0435\u0440\u043D\u0451\u043C\u0441\u044F \u0441 \u043E\u0442\u0432\u0435\u0442\u043E\u043C.` : `\u0421\u043F\u0430\u0441\u0438\u0431\u043E \u0437\u0430 \u0443\u0441\u043B\u043E\u0432\u0438\u044F. \u0414\u043B\u044F \u043D\u0430\u0448\u0435\u0433\u043E \u0431\u044E\u0434\u0436\u0435\u0442\u0430 \u043E\u043F\u0442\u0438\u043C\u0430\u043B\u044C\u043D\u043E ${negotiated.min}\u2013${negotiated.max} ${currency}. \u0413\u043E\u0442\u043E\u0432\u044B \u0440\u0430\u0441\u0441\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0449\u0435\u043D\u0438\u0435 \u0432 \u044D\u0442\u043E\u043C \u0434\u0438\u0430\u043F\u0430\u0437\u043E\u043D\u0435.`,
+      strategy: negotiated === null ? "\u0417\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u044C \u0443\u0442\u043E\u0447\u043D\u0435\u043D\u0438\u0435 \u0446\u0435\u043D\u044B." : `\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0441\u043D\u0438\u0436\u0435\u043D\u0438\u0435 \u0446\u0435\u043D\u044B \u0434\u043E ${negotiated.min}\u2013${negotiated.max} ${currency}.`,
+      recommendedPrice: negotiated,
+      fallbackOption: "\u041F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442\u044C \u0433\u043E\u0441\u0442\u0435\u0432\u0443\u044E \u0441\u0442\u0430\u0442\u044C\u044E \u0432\u043C\u0435\u0441\u0442\u043E \u0432\u0441\u0442\u0430\u0432\u043A\u0438 \u0441\u0441\u044B\u043B\u043A\u0438.",
+      risks: ["\u0426\u0435\u043D\u0430 \u043C\u043E\u0436\u0435\u0442 \u043E\u043A\u0430\u0437\u0430\u0442\u044C\u0441\u044F \u0437\u0430\u0432\u044B\u0448\u0435\u043D\u043D\u043E\u0439 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0435\u043B\u044C\u043D\u043E \u043A\u0430\u0447\u0435\u0441\u0442\u0432\u0430 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438."]
+    };
+  }
+  return {
+    ...base,
+    intent: "NEEDS_CLARIFICATION",
+    suggestedResponse: `\u0421\u043F\u0430\u0441\u0438\u0431\u043E \u0437\u0430 \u043E\u0442\u0432\u0435\u0442! \u0423\u0442\u043E\u0447\u043D\u0438\u0442\u0435, \u043F\u043E\u0436\u0430\u043B\u0443\u0439\u0441\u0442\u0430: ${platformName} \u0433\u043E\u0442\u043E\u0432 \u0440\u0430\u0437\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443 \u043D\u0430 \u043D\u0430\u0448\u0443 \u0441\u0442\u0430\u0442\u044C\u044E?`,
+    strategy: "\u0417\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u044C \u0443\u0442\u043E\u0447\u043D\u0435\u043D\u0438\u0435 \u0443\u0441\u043B\u043E\u0432\u0438\u0439 \u043F\u043B\u043E\u0449\u0430\u0434\u043A\u0438.",
+    risks: [],
+    fallbackOption: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u0441 \u0431\u043E\u043B\u0435\u0435 \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u043C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043C."
+  };
+}
 function nordhausProviderCapabilities(providerId) {
   const provider = NORDHAUS_PROVIDERS.find((candidate) => candidate.id === providerId);
   if (provider === void 0) {
@@ -19085,57 +24571,30 @@ function nordhausProviderCapabilities(providerId) {
   return provider.capabilities;
 }
 function createNordhausRegistry() {
-  return new InMemoryPlacementProviderRegistry(
-    NORDHAUS_PROVIDERS,
-    /* @__PURE__ */ new Map([
-      [
-        "provider-yandex-business-mock",
-        new MockPlacementProvider(
-          "YandexBusiness Mock",
-          nordhausProviderCapabilities("provider-yandex-business-mock")
-        )
-      ],
-      [
-        "provider-2gis-mock",
-        new MockPlacementProvider(
-          "TwoGIS Mock",
-          nordhausProviderCapabilities("provider-2gis-mock"),
-          {
-            timeline: ["pending_publication", "published"]
-          }
-        )
-      ],
-      [
-        "provider-mebel-ru-mock",
-        new MockPlacementProvider(
-          "MebelRu Mock",
-          nordhausProviderCapabilities("provider-mebel-ru-mock")
-        )
-      ],
-      [
-        "provider-archi-ru-mock",
-        new MockPlacementProvider(
-          "ArchiRu Mock",
-          nordhausProviderCapabilities("provider-archi-ru-mock"),
-          {
-            failCreate: 1
-          }
-        )
-      ],
-      [
-        "provider-inmyroom-manual",
-        new MockPlacementProvider(
-          "INMYROOM Manual",
-          nordhausProviderCapabilities("provider-inmyroom-manual")
-        )
-      ]
-    ]),
-    { allowMocks: true }
+  const mockProviders = NORDHAUS_PROVIDERS.filter(
+    (provider) => provider.providerType === "MOCK" || provider.providerType === "MANUAL"
   );
+  const bindings = /* @__PURE__ */ new Map();
+  for (const provider of mockProviders) {
+    let options = void 0;
+    if (provider.id === "provider-2gis-mock") {
+      options = { timeline: ["pending_publication", "published"] };
+    }
+    if (provider.id === "provider-archi-ru-mock") {
+      options = { failCreate: 1 };
+    }
+    bindings.set(
+      provider.id,
+      new MockPlacementProvider(provider.name, nordhausProviderCapabilities(provider.id), options)
+    );
+  }
+  return new InMemoryPlacementProviderRegistry(NORDHAUS_PROVIDERS, bindings, {
+    allowMocks: true
+  });
 }
 
 // apps/api/src/scenario/nordhaus-environment.ts
-function createNordhausEnvironment() {
+function createNordhausEnvironment(options = {}) {
   const env = {
     companies: new InMemoryCompanyRepository(),
     campaigns: new InMemoryCampaignRepository(),
@@ -19147,11 +24606,26 @@ function createNordhausEnvironment() {
     analyses: new InMemoryAIAnalysisRepository(),
     auditLog: new InMemoryAuditLogRepository(),
     registry: createNordhausRegistry(),
-    ai: new ScenarioAIProvider()
+    ai: options.ai ?? new ScenarioAIProvider(),
+    seoMetrics: "seoMetrics" in options ? options.seoMetrics ?? null : new ScenarioSeoMetricsProvider(),
+    pageAnalysis: options.pageAnalysis ?? new ScenarioPageAnalysisProvider(),
+    outreach: new ScenarioOutreachProvider(),
+    discoverySources: []
   };
   env.lookups.categories = NORDHAUS_CATEGORIES;
   env.lookups.platforms = NORDHAUS_PLATFORMS;
   env.lookups.providers = NORDHAUS_PROVIDERS;
+  if (options.discoverySources !== void 0) {
+    env.discoverySources = options.discoverySources;
+  } else {
+    const searchPlatforms = NORDHAUS_PLATFORMS.filter(
+      (platform) => NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id)
+    );
+    env.discoverySources = [
+      new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
+      new SearchPlatformDiscoverySource(searchPlatforms, NORDHAUS_CATEGORIES)
+    ];
+  }
   return env;
 }
 var NORDHAUS_PLATFORM_IDS = {
@@ -19213,7 +24687,7 @@ async function seedNordhausScenario(env) {
     env.lookups,
     env.opportunities,
     env.auditLog,
-    [new CatalogPlatformDiscoverySource(env.lookups)]
+    env.discoverySources
   );
   const discovered = await discover.execute({
     campaignId: campaign.id,
@@ -19292,11 +24766,138 @@ async function findOpportunityByPlatform(env, platformId) {
   }
   return opportunity;
 }
+async function assessScenarioOpportunity(env, platformId) {
+  const opportunity = await findOpportunityByPlatform(env, platformId);
+  const assess = new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog
+  );
+  return assess.execute({ opportunityId: opportunity.id });
+}
+async function prepareScenarioLinkInsert(env, platformId) {
+  const opportunity = await findOpportunityByPlatform(env, platformId);
+  await new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog
+  ).execute({ opportunityId: opportunity.id });
+  await new GenerateLinkInsertUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  ).execute({ opportunityId: opportunity.id });
+  await new RecommendAnchorUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  ).execute({ opportunityId: opportunity.id });
+  await new GenerateOutreachUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog
+  ).execute({ opportunityId: opportunity.id });
+  return findOpportunityByPlatform(env, platformId);
+}
+
+// apps/api/src/runtime-config.ts
+var RuntimeConfigError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RuntimeConfigError";
+  }
+};
+function loadRuntimeConfig(env = process.env) {
+  const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
+  const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
+  const apiKey = (env.OPENCODE_API_KEY ?? "").trim();
+  const wantsReal = aiMode === "real" || discoveryMode === "real";
+  if (wantsReal && apiKey === "") {
+    throw new RuntimeConfigError(
+      'AI_MODE or DISCOVERY_MODE is "real" but OPENCODE_API_KEY is not set. Set OPENCODE_API_KEY (https://opencode.ai) or switch the mode back to "demo".'
+    );
+  }
+  const baseUrl = (env.OPENCODE_BASE_URL ?? "").trim();
+  return {
+    aiMode,
+    discoveryMode,
+    openCode: wantsReal ? {
+      apiKey,
+      baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
+      model: (env.OPENCODE_MODEL ?? "").trim() || DEFAULT_OPENCODE_MODEL
+    } : null
+  };
+}
+function openCodeProviderConfig(config2, env = process.env) {
+  if (config2.openCode === null) return null;
+  const { apiKey, baseUrl, model } = config2.openCode;
+  const rawTimeout = Number(env.OPENCODE_TIMEOUT_MS ?? 3e4);
+  return {
+    apiKey,
+    baseUrl,
+    model,
+    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 3e4
+  };
+}
+function parseMode(value, name, fallback) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "") return fallback;
+  if (normalized === "real" || normalized === "demo") return normalized;
+  throw new RuntimeConfigError(
+    `${name} must be "real" or "demo", got "${value}". Leave it unset for the deterministic demo mode.`
+  );
+}
 
 // apps/api/src/bootstrap.ts
-async function runNordhausBootstrap() {
-  const env = createNordhausEnvironment();
+async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
+  const providerConfig = openCodeProviderConfig(config2);
+  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
+  const envOptions = {};
+  if (openCodeProvider !== null) {
+    envOptions.ai = openCodeProvider;
+    envOptions.seoMetrics = null;
+    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
+  }
+  const env = createNordhausEnvironment(envOptions);
+  if (config2.discoveryMode === "real") {
+    env.discoverySources = [
+      new WebSearchPlatformDiscoverySource(
+        env.lookups,
+        new DuckDuckGoSearchProvider(),
+        openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator()
+      )
+    ];
+  }
   const seed = await seedNordhausScenario(env);
+  const seededOpportunities = await env.opportunities.findByCampaignId(seed.campaign.id);
+  for (const opportunity of seededOpportunities) {
+    await assessScenarioOpportunity(env, opportunity.platformId);
+  }
+  await prepareScenarioLinkInsert(env, NORDHAUS_PLATFORM_IDS.houzz);
   await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.yandex);
   await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.twoGis);
   await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.mebel);
@@ -19320,7 +24921,7 @@ async function runNordhausBootstrap() {
 var cachedApp;
 async function getApp() {
   if (cachedApp === void 0) {
-    const services = await runNordhausBootstrap();
+    const services = await runNordhausBootstrap(loadRuntimeConfig());
     cachedApp = createApiApp(services);
   }
   return cachedApp;

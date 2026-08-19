@@ -11,6 +11,7 @@ import { DashboardScreen } from './screens/DashboardScreen';
 import { LinksScreen } from './screens/LinksScreen';
 import { OpportunityScreen } from './screens/OpportunityScreen';
 import { OpportunitiesScreen } from './screens/OpportunitiesScreen';
+import { PlansScreen } from './screens/PlansScreen';
 import './styles/app.css';
 
 const rootElement = document.getElementById('root');
@@ -40,6 +41,7 @@ createRoot(rootElement).render(
           <Route path="/opportunities" element={<OpportunitiesScreen />} />
           <Route path="/opportunities/:id" element={<OpportunityScreen />} />
           <Route path="/compare" element={<CompareScreen />} />
+          <Route path="/plans" element={<PlansScreen />} />
           <Route path="/links" element={<LinksScreen />} />
           <Route path="/activity" element={<ActivityScreen />} />
           <Route path="/companies" element={<CompaniesScreen />} />

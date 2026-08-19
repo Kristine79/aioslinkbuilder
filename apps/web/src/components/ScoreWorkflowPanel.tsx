@@ -50,7 +50,9 @@ export function WorkflowPanel({ workflow }: { workflow: WorkflowDto }) {
             <span className="workflow-dot">
               {stage.current ? '●' : stage.automated ? '◍' : '○'}
             </span>
-            <span className="workflow-label">{WORKFLOW_STAGE_LABELS[stage.kind] ?? stage.label}</span>
+            <span className="workflow-label">
+              {WORKFLOW_STAGE_LABELS[stage.kind] ?? stage.label}
+            </span>
             {stage.current && <span className="chip">сейчас</span>}
           </div>
         ))}

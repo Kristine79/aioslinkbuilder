@@ -6,6 +6,7 @@
  * through the real use cases — nothing is hardcoded into the UI.
  */
 
+import type { AIProvider } from '@aios/ai';
 import {
   AnalyzeCompanyUseCase,
   AnalyzeNegotiationReplyUseCase,
@@ -17,6 +18,7 @@ import {
   ExecutePlacementUseCase,
   GenerateLinkInsertUseCase,
   GenerateOutreachUseCase,
+  GeneratePlacementPlanUseCase,
   GeneratePlacementStrategyUseCase,
   MonitorPlacementUseCase,
   RecommendAnchorUseCase,
@@ -25,11 +27,17 @@ import {
   VerifyPlacementUseCase,
 } from '@aios/application';
 import type {
+  PageAnalysisProvider,
+  PlatformDiscoverySource,
+  SeoMetricsProvider,
+} from '@aios/application';
+import type {
   AIAnalysis,
   Campaign,
   Company,
   Placement,
   PlacementOpportunity,
+  PlacementPlan,
   PlacementStrategy,
 } from '@aios/domain';
 import type { VerifyPlacementResult } from '@aios/application';
@@ -61,6 +69,17 @@ import {
   ScenarioSeoMetricsProvider,
 } from './nordhaus-intel.js';
 
+export interface NordhausEnvironmentOptions {
+  /** Overrides the deterministic ScenarioAIProvider (real LLM in production). */
+  ai?: AIProvider;
+  /** Real SEO metrics provider; null keeps every metric UNKNOWN (honest). */
+  seoMetrics?: SeoMetricsProvider | null;
+  /** Overrides the scenario page analysis provider (real HTTP analysis). */
+  pageAnalysis?: PageAnalysisProvider;
+  /** Overrides the default scenario discovery sources (real web discovery). */
+  discoverySources?: PlatformDiscoverySource[];
+}
+
 export interface NordhausEnvironment {
   companies: InMemoryCompanyRepository;
   campaigns: InMemoryCampaignRepository;
@@ -72,13 +91,17 @@ export interface NordhausEnvironment {
   analyses: InMemoryAIAnalysisRepository;
   auditLog: InMemoryAuditLogRepository;
   registry: ReturnType<typeof createNordhausRegistry>;
-  ai: ScenarioAIProvider;
-  seoMetrics: ScenarioSeoMetricsProvider;
-  pageAnalysis: ScenarioPageAnalysisProvider;
+  ai: AIProvider;
+  seoMetrics: SeoMetricsProvider | null;
+  pageAnalysis: PageAnalysisProvider;
   outreach: ScenarioOutreachProvider;
+  /** The discovery sources used by the seed and the /api/discover route. */
+  discoverySources: PlatformDiscoverySource[];
 }
 
-export function createNordhausEnvironment(): NordhausEnvironment {
+export function createNordhausEnvironment(
+  options: NordhausEnvironmentOptions = {},
+): NordhausEnvironment {
   const env: NordhausEnvironment = {
     companies: new InMemoryCompanyRepository(),
     campaigns: new InMemoryCampaignRepository(),
@@ -90,14 +113,27 @@ export function createNordhausEnvironment(): NordhausEnvironment {
     analyses: new InMemoryAIAnalysisRepository(),
     auditLog: new InMemoryAuditLogRepository(),
     registry: createNordhausRegistry(),
-    ai: new ScenarioAIProvider(),
-    seoMetrics: new ScenarioSeoMetricsProvider(),
-    pageAnalysis: new ScenarioPageAnalysisProvider(),
+    ai: options.ai ?? new ScenarioAIProvider(),
+    seoMetrics:
+      'seoMetrics' in options ? (options.seoMetrics ?? null) : new ScenarioSeoMetricsProvider(),
+    pageAnalysis: options.pageAnalysis ?? new ScenarioPageAnalysisProvider(),
     outreach: new ScenarioOutreachProvider(),
+    discoverySources: [],
   };
   env.lookups.categories = NORDHAUS_CATEGORIES;
   env.lookups.platforms = NORDHAUS_PLATFORMS;
   env.lookups.providers = NORDHAUS_PROVIDERS;
+  if (options.discoverySources !== undefined) {
+    env.discoverySources = options.discoverySources;
+  } else {
+    const searchPlatforms = NORDHAUS_PLATFORMS.filter((platform) =>
+      NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id),
+    );
+    env.discoverySources = [
+      new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
+      new SearchPlatformDiscoverySource(searchPlatforms, NORDHAUS_CATEGORIES),
+    ];
+  }
   return env;
 }
 
@@ -176,13 +212,7 @@ export async function seedNordhausScenario(
     env.lookups,
     env.opportunities,
     env.auditLog,
-    [
-      new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
-      new SearchPlatformDiscoverySource(
-        NORDHAUS_PLATFORMS.filter((platform) => NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id)),
-        NORDHAUS_CATEGORIES,
-      ),
-    ],
+    env.discoverySources,
   );
   const discovered = await discover.execute({
     campaignId: campaign.id,
@@ -313,6 +343,23 @@ export async function assessScenarioOpportunity(
     env.auditLog,
   );
   return assess.execute({ opportunityId: opportunity.id });
+}
+
+/** Runs the AI placement decision engine for the scenario campaign. */
+export async function generateScenarioPlacementPlan(
+  env: NordhausEnvironment,
+): Promise<PlacementPlan> {
+  const campaign = findScenarioCampaign(env);
+  const generate = new GeneratePlacementPlanUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.analyses,
+    env.lookups,
+    env.ai,
+    env.auditLog,
+  );
+  return generate.execute({ campaignId: campaign.id });
 }
 
 /**

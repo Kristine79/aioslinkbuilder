@@ -61,8 +61,7 @@ export function recommendAnchorType(input: AnchorRecommendationInput): {
   if (companyMentioned && input.targetKeyword !== null) {
     return {
       anchorType: 'PARTIAL_MATCH',
-      explanation:
-        `Бренд уже упомянут в контексте; рекомендуется partial-match, потому что exact-match в данном контексте выглядит неестественно.`,
+      explanation: `Бренд уже упомянут в контексте; рекомендуется partial-match, потому что exact-match в данном контексте выглядит неестественно.`,
     };
   }
   if (input.targetKeyword === null || input.targetKeyword.trim().length === 0) {
@@ -75,8 +74,7 @@ export function recommendAnchorType(input: AnchorRecommendationInput): {
   if ((input.targetPageRelevance ?? 0) >= 85) {
     return {
       anchorType: 'PARTIAL_MATCH',
-      explanation:
-        `Страница высоко релевантна запросу «${input.targetKeyword}»; рекомендуется partial-match, полный exact-match в редакционном контексте выглядел бы неестественно.`,
+      explanation: `Страница высоко релевантна запросу «${input.targetKeyword}»; рекомендуется partial-match, полный exact-match в редакционном контексте выглядел бы неестественно.`,
     };
   }
   return {

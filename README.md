@@ -98,6 +98,28 @@ pnpm build:web        # production web build into apps/web/dist
 
 The API bootstraps the Nordhaus scenario to a mid-flight state on every start: approved opportunities, published/verified placement (Яндекс Бизнес), an in-progress submission (2ГИС, monitor from the UI), a failed attempt awaiting retry (Archi.ru), a manual placement awaiting completion (INMYROOM) and two awaiting approval. All transitions are performed through the real application use cases.
 
+## Real AI and web discovery (production mode)
+
+The default demo mode is deterministic and makes no network calls. To run real
+AI (OpenCode Go) and real web discovery (DuckDuckGo), set the mode variables —
+see `.env.example` and `INTEGRATIONS.md`:
+
+```bash
+AI_MODE=real DISCOVERY_MODE=real OPENCODE_API_KEY=sk-... pnpm start
+```
+
+- `AI_MODE=real` — every AI capability runs on the configured model
+  (`OPENCODE_MODEL`, default `deepseek-v4-pro`); page analysis is real HTTP
+  (`http-page-analysis`); without a paid SEO metrics source all metrics are
+  honestly `UNKNOWN` (`нет данных` in the UI).
+- `DISCOVERY_MODE=real` — the «Найти площадки» action (and the seed) plan
+  search intents via AI and search the web for real sites; found sites are
+  persisted into the platform catalog and labeled `web-search`.
+- Real modes without `OPENCODE_API_KEY` fail fast at startup — the product
+  never silently falls back to demo data.
+- UI provenance is explicit: `OpenCode Go` provider label, `Веб-поиск` source
+  chip, `измерено`/`оценка AI`/`демо-данные`/`нет данных` metric badges.
+
 Quality gates:
 
 ```bash
@@ -113,15 +135,15 @@ pnpm test:e2e         # E2E: boots the production composition over HTTP and driv
 
 ## Phase status
 
-| Phase | Scope                                                                                                           | Status |
-| ----- | --------------------------------------------------------------------------------------------------------------- | ------ |
-| 0     | structure, domain model, DB schema, state machine, provider/AI abstractions, tests                              | done   |
-| 1     | company and campaign domain/application flows                                                                   | done   |
-| 2     | opportunity discovery (sources), AI classification, deterministic scoring, company analysis, placement strategy | done   |
-| 3     | provider abstraction + MockProvider + in-memory registry                                                        | done   |
-| 4     | placement execution, monitoring, verification, evidence, audit log                                              | done   |
-| 5     | Russian UI (apps/web + apps/api delivery layer)                                                                 | done   |
-| 6     | E2E flow + quality pass                                                                                         | done   |
+| Phase | Scope                                                                                                                            | Status |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 0     | structure, domain model, DB schema, state machine, provider/AI abstractions, tests                                               | done   |
+| 1     | company and campaign domain/application flows                                                                                    | done   |
+| 2     | opportunity discovery (sources), AI classification, deterministic scoring, company analysis, placement strategy                  | done   |
+| 3     | provider abstraction + MockProvider + in-memory registry                                                                         | done   |
+| 4     | placement execution, monitoring, verification, evidence, audit log                                                               | done   |
+| 5     | Russian UI (apps/web + apps/api delivery layer)                                                                                  | done   |
+| 6     | E2E flow + quality pass                                                                                                          | done   |
 | 7     | link-building intelligence: donor quality, page analysis, anchor/link insert, outreach, negotiation, HITL, Score 2.0, comparison | done   |
 
 ## Key decisions

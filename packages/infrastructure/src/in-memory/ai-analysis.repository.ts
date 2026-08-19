@@ -29,6 +29,18 @@ export class InMemoryAIAnalysisRepository implements AIAnalysisRepository {
     return Promise.resolve(candidates[0] ?? null);
   }
 
+  findLatestValidPlacementPlan(campaignId: string): Promise<AIAnalysis | null> {
+    const candidates = [...this.analyses.values()]
+      .filter(
+        (analysis) =>
+          analysis.campaignId === campaignId &&
+          analysis.analysisType === 'PLACEMENT_PLAN' &&
+          analysis.validationStatus === 'VALID',
+      )
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return Promise.resolve(candidates[0] ?? null);
+  }
+
   create(draft: AIAnalysisDraft): Promise<AIAnalysis> {
     const analysis: AIAnalysis = {
       id: randomUUID(),

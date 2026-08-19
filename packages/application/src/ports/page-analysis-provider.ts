@@ -10,8 +10,5 @@ import type { PageAnalysis } from '@aios/domain';
  */
 export interface PageAnalysisProvider {
   readonly name: string;
-  analyzePage(input: {
-    platformName: string;
-    url: string | null;
-  }): Promise<PageAnalysis>;
+  analyzePage(input: { platformName: string; url: string | null }): Promise<PageAnalysis>;
 }

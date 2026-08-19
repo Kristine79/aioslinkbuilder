@@ -426,6 +426,76 @@ export interface DiscoverResultDto {
   items: OpportunityDto[];
 }
 
+export type PlanRecommendation =
+  'RECOMMENDED' | 'REVIEW_REQUIRED' | 'NOT_RECOMMENDED' | 'INSUFFICIENT_DATA';
+
+export type PlanNextAction =
+  | 'PREPARE_OUTREACH'
+  | 'REQUEST_MANUAL_PLACEMENT'
+  | 'EXECUTE_AUTOMATICALLY'
+  | 'REVIEW_PROVIDER'
+  | 'REVIEW_OPPORTUNITY'
+  | 'REJECT';
+
+export type PlanAutomationLevel = 'AUTOMATIC' | 'AI_ASSISTED' | 'HUMAN_REQUIRED';
+
+export interface PlanRejectionReasonDto {
+  kind: string;
+  text: string;
+}
+
+export interface AnchorPlanRecommendationDto {
+  anchorType: string;
+  anchor: string;
+  explanation: string;
+}
+
+export interface PlanItemDto {
+  opportunityId: string;
+  platformId: string;
+  platformName: string;
+  placementType: string;
+  placementMethod: string;
+  score: number | null;
+  overallScore: number | null;
+  donorQuality: number | null;
+  riskLevel: string | null;
+  providerAvailable: boolean;
+  recommendation: PlanRecommendation;
+  recommendationReason: string;
+  nextAction: PlanNextAction;
+  automationLevel: PlanAutomationLevel;
+  riskExplanation: string | null;
+  suggestedPlacementApproach: string | null;
+  rejectionReason: PlanRejectionReasonDto | null;
+  anchorRecommendation: AnchorPlanRecommendationDto | null;
+}
+
+export interface PlanSummaryDto {
+  total: number;
+  recommended: number;
+  reviewRequired: number;
+  notRecommended: number;
+  insufficientData: number;
+  automationPercent: number;
+  byRejectionReason: string[];
+}
+
+export interface PlacementPlanDto {
+  campaignId: string;
+  generatedAt: string;
+  provider: string;
+  model: string | null;
+  schemaVersion: string;
+  summary: PlanSummaryDto;
+  recommendedToStart: Array<{
+    opportunityId: string;
+    platformName: string;
+    placementType: string;
+  }>;
+  items: PlanItemDto[];
+}
+
 export interface ApiErrorDto {
   error: { code: string; message: string };
 }

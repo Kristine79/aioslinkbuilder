@@ -65,7 +65,9 @@ export class RecommendAnchorUseCase {
         targetKeyword: targetKeyword ?? null,
         anchorProfileAvailable: profileAvailable,
         targetPageRelevance:
-          page !== null && isKnownDatum(page.topicalRelevance) && typeof page.topicalRelevance.value === 'number'
+          page !== null &&
+          isKnownDatum(page.topicalRelevance) &&
+          typeof page.topicalRelevance.value === 'number'
             ? page.topicalRelevance.value
             : null,
       }),

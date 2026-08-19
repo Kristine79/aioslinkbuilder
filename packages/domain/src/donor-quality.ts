@@ -76,13 +76,7 @@ export interface DonorQualityProfile {
   overallLevel: DonorQualityLevel;
 }
 
-export const DONOR_QUALITY_LEVELS = [
-  'EXCELLENT',
-  'GOOD',
-  'FAIR',
-  'POOR',
-  'UNKNOWN',
-] as const;
+export const DONOR_QUALITY_LEVELS = ['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'UNKNOWN'] as const;
 
 export type DonorQualityLevel = (typeof DONOR_QUALITY_LEVELS)[number];
 
@@ -105,9 +99,7 @@ export type DonorQualityDimension = (typeof DONOR_QUALITY_DIMENSIONS)[number];
  * Only dimensions whose status is not UNKNOWN participate in the average;
  * weights are re-normalized over the known set.
  */
-export const DONOR_QUALITY_DIMENSION_WEIGHTS: Readonly<
-  Record<DonorQualityDimension, number>
-> = {
+export const DONOR_QUALITY_DIMENSION_WEIGHTS: Readonly<Record<DonorQualityDimension, number>> = {
   topicalRelevance: 20,
   audienceMatch: 15,
   geographicRelevance: 10,
@@ -192,7 +184,10 @@ export function calculateDonorQuality(profile: DonorQualityProfile): {
   if (isKnownDatum(profile.backlinkProfile)) {
     const subScore = backlinkSubScore(profile.backlinkProfile.value);
     if (subScore !== null) {
-      contributions.push({ weight: DONOR_QUALITY_DIMENSION_WEIGHTS.backlinkProfile, value: subScore });
+      contributions.push({
+        weight: DONOR_QUALITY_DIMENSION_WEIGHTS.backlinkProfile,
+        value: subScore,
+      });
     }
   }
   push('placementQuality', profile.placementQuality);
@@ -235,7 +230,9 @@ export function validateDonorQualityProfile(profile: DonorQualityProfile): void 
       datum.status !== 'INTERNAL' &&
       datum.status !== 'SYNTHETIC'
     ) {
-      throw new ValidationError(`Donor quality metric status must be one of: ${METRIC_STATUSES.join(', ')}`);
+      throw new ValidationError(
+        `Donor quality metric status must be one of: ${METRIC_STATUSES.join(', ')}`,
+      );
     }
     if (datum.value !== null && typeof datum.value !== 'number') {
       throw new ValidationError('Donor quality numeric metric value must be a number');

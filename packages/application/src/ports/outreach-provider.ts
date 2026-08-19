@@ -12,9 +12,5 @@ export interface OutreachSendResult {
 
 export interface OutreachProvider {
   readonly name: string;
-  send(input: {
-    to: string;
-    subject: string;
-    body: string;
-  }): Promise<OutreachSendResult>;
+  send(input: { to: string; subject: string; body: string }): Promise<OutreachSendResult>;
 }

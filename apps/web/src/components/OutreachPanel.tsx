@@ -7,10 +7,7 @@
 import { useState } from 'react';
 
 import type { NegotiationDto, OutreachDto } from '../api/types';
-import {
-  NEGOTIATION_INTENT_LABELS,
-  OUTREACH_STATUS_LABELS,
-} from '../ru';
+import { NEGOTIATION_INTENT_LABELS, OUTREACH_STATUS_LABELS } from '../ru';
 import { DEMO_DONOR_REPLY_PLACEHOLDER } from '../constants';
 
 function PriceRange({ range }: { range: { min: number; max: number; currency: string } | null }) {
@@ -44,15 +41,13 @@ export function OutreachPanel({
   const status = outreach.status;
   const analysis = negotiation?.analysis ?? null;
 
-  const showControls =
-    status === 'DRAFT' || status === 'READY_FOR_REVIEW' || status === 'APPROVED';
+  const showControls = status === 'DRAFT' || status === 'READY_FOR_REVIEW' || status === 'APPROVED';
 
   return (
     <div>
       <div className="flex-between mb-8">
         <span className="chip">
-          Статус:{' '}
-          <strong>{OUTREACH_STATUS_LABELS[status] ?? status}</strong>
+          Статус: <strong>{OUTREACH_STATUS_LABELS[status] ?? status}</strong>
         </span>
         {outreach.provider !== null && (
           <span className="text-tertiary" style={{ fontSize: 12 }}>
@@ -94,22 +89,42 @@ export function OutreachPanel({
       {showControls && (
         <div className="row-actions mt-8">
           {status === 'DRAFT' && (
-            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => onStatus('READY_FOR_REVIEW')}>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus('READY_FOR_REVIEW')}
+            >
               Готово к проверке
             </button>
           )}
           {status === 'READY_FOR_REVIEW' && (
             <>
-              <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => onStatus('APPROVED')}>
+              <button
+                className="btn btn-primary btn-sm"
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('APPROVED')}
+              >
                 Одобрить
               </button>
-              <button className="btn btn-ghost btn-sm" type="button" disabled={busy} onClick={() => onStatus('DRAFT')}>
+              <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('DRAFT')}
+              >
                 Вернуть в черновик
               </button>
             </>
           )}
           {status === 'APPROVED' && (
-            <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => onStatus('SENT')}>
+            <button
+              className="btn btn-primary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus('SENT')}
+            >
               Отправить
             </button>
           )}
@@ -129,7 +144,12 @@ export function OutreachPanel({
             onChange={(e) => setReply(e.target.value)}
           />
           <div className="flex mt-8">
-            <button className="btn btn-secondary btn-sm" type="button" disabled={busy || reply.trim() === ''} onClick={() => onAnalyzeReply(reply)}>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={busy || reply.trim() === ''}
+              onClick={() => onAnalyzeReply(reply)}
+            >
               Проанализировать ответ AI
             </button>
             <button
@@ -147,7 +167,8 @@ export function OutreachPanel({
         <div className="negotiation mt-16">
           <div className="negotiation-intent">
             <span className="chip">
-              Статус: <strong>{NEGOTIATION_INTENT_LABELS[analysis.intent] ?? analysis.intent}</strong>
+              Статус:{' '}
+              <strong>{NEGOTIATION_INTENT_LABELS[analysis.intent] ?? analysis.intent}</strong>
             </span>
             <PriceRange range={analysis.recommendedPrice} />
           </div>
@@ -172,10 +193,20 @@ export function OutreachPanel({
           )}
 
           <div className="row-actions mt-16">
-            <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => onRespond({ agree: true })}>
+            <button
+              className="btn btn-primary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => onRespond({ agree: true })}
+            >
               Согласиться
             </button>
-            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => onRespond({ agree: false })}>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => onRespond({ agree: false })}
+            >
               Отклонить
             </button>
             {status !== 'AGREED' && status !== 'REJECTED' && (
@@ -187,7 +218,12 @@ export function OutreachPanel({
                   value={custom}
                   onChange={(e) => setCustom(e.target.value)}
                 />
-                <button className="btn btn-ghost btn-sm" type="button" disabled={busy || custom.trim() === ''} onClick={() => onRespond({ agree: false, customResponse: custom })}>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  type="button"
+                  disabled={busy || custom.trim() === ''}
+                  onClick={() => onRespond({ agree: false, customResponse: custom })}
+                >
                   Отправить свой ответ
                 </button>
               </>

@@ -146,6 +146,34 @@ has a `status`: `MEASURED` (real tool), `AI_ESTIMATED` (with confidence),
 `INTERNAL` (deterministic), `SYNTHETIC` (demo) or `UNKNOWN`. The UI renders the
 status so users can immediately tell real data from demo estimates.
 
+## Real AI + web discovery (production mode)
+
+The demo runs fully deterministically by default (`ScenarioAIProvider`, the
+synthetic search source and mock SEO/page providers). Production mode is
+enabled explicitly through environment variables — never silently:
+
+| Option | Values | Default | Effect |
+| --- | --- | --- | --- |
+| `AI_MODE` | `real` / `demo` | `demo` | `real` uses `OpenCodeAIProvider` for every AI capability and `HttpPageAnalysisProvider` for page analysis. No SEO metrics source exists yet — every metric honestly stays `UNKNOWN` instead of synthetic. |
+| `DISCOVERY_MODE` | `real` / `demo` | `demo` | `real` replaces the discovery sources with `WebSearchPlatformDiscoverySource` (LLM-planned search intents + DuckDuckGo web search). Found sites are persisted into the platform catalog (ADR-012). |
+| `OPENCODE_API_KEY` | — | — | Required by both real modes; `real` without it is a startup error (`RuntimeConfigError`). |
+| `OPENCODE_BASE_URL` | — | default | OpenCode Go endpoint (`https://opencode.ai/zen/go/v1`). |
+| `OPENCODE_MODEL` | — | `deepseek-v4-pro` | Chat-completions model. |
+| `OPENCODE_TIMEOUT_MS` | — | `30000` | Per-request AI timeout. |
+
+Real-mode data guarantees:
+
+- AI output passes zod validation before touching domain state; malformed
+  responses trigger exactly one corrective retry, then a hard error.
+- Search results are real external URLs (DuckDuckGo HTML). The discovery
+  source never fabricates platforms; a brand-new site is created in the
+  platform catalog with `discoveredVia: "web-search"` metadata, then returned
+  as a candidate with its `platformId`.
+- All-query failure surfaces as `DiscoverySearchFailedError` (HTTP 502) —
+  real data is never replaced with fake results.
+- Provence labels: `web-search` discovery source, `OpenCode Go` AI provider,
+  `http-page-analysis` page analysis, `нет данных` for unmeasured SEO.
+
 ## Security
 
 Provider credentials:
@@ -153,3 +181,6 @@ Provider credentials:
 - environment variables
 - never committed
 - never exposed in frontend bundles
+
+Errors never include the API key; the client sends it only in the
+`Authorization` header and maps failures to status/category-specific messages.

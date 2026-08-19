@@ -27,6 +27,18 @@ export class PrismaAIAnalysisRepository implements AIAnalysisRepository {
     return row === null ? null : toAnalysis(row);
   }
 
+  async findLatestValidPlacementPlan(campaignId: string): Promise<AIAnalysis | null> {
+    const row = await this.db.aIAnalysis.findFirst({
+      where: {
+        campaignId,
+        analysisType: 'PLACEMENT_PLAN',
+        validationStatus: 'VALID',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return row === null ? null : toAnalysis(row);
+  }
+
   async create(draft: AIAnalysisDraft): Promise<AIAnalysis> {
     const row = await this.db.aIAnalysis.create({
       data: {

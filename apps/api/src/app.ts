@@ -17,29 +17,38 @@ import {
   AnalyzeNegotiationReplyUseCase,
   ApproveOpportunityUseCase,
   AssessOpportunityUseCase,
-  CatalogPlatformDiscoverySource,
   ClassifyOpportunityUseCase,
   CompleteManualPlacementUseCase,
   CreateCampaignUseCase,
   CreateCompanyUseCase,
   DiscoverOpportunitiesUseCase,
+  DiscoverySearchFailedError,
   ExecutePlacementUseCase,
   GenerateLinkInsertUseCase,
   GenerateOutreachUseCase,
+  GeneratePlacementPlanUseCase,
   GeneratePlacementStrategyUseCase,
+  GetPlacementPlanUseCase,
   ListCampaignsByCompanyUseCase,
   MonitorPlacementUseCase,
   NoCompanyAnalysisError,
+  NoPlacementPlanError,
   NoProviderAssignedError,
   NoProviderAvailableError,
   NotFoundError,
+  PlanGenerationFailedError,
   RecommendAnchorUseCase,
   RequestManualPlacementUseCase,
   RespondNegotiationUseCase,
-  SearchPlatformDiscoverySource,
   UpdateOutreachStatusUseCase,
   VerifyPlacementUseCase,
 } from '@aios/application';
+import {
+  OpenCodeModelConfigError,
+  OpenCodeProviderAuthError,
+  OpenCodeProviderRateLimitError,
+  OpenCodeProviderUnavailableError,
+} from '@aios/ai';
 import type {
   Company,
   Campaign,
@@ -56,6 +65,7 @@ import {
   mapAuditEvent,
   mapCompany,
   mapOpportunity,
+  mapPlacementPlan,
   mapVerification,
   type ApiActivityDto,
   type ApiCampaignListItemDto,
@@ -65,11 +75,6 @@ import {
   type ApiStrategyItemDto,
 } from './dto.js';
 import type { NordhausEnvironment } from './scenario/nordhaus-environment.js';
-import {
-  NORDHAUS_CATEGORIES,
-  NORDHAUS_CORE_PLATFORM_IDS,
-  NORDHAUS_SEARCH_PLATFORM_IDS,
-} from './scenario/nordhaus-fixtures.js';
 
 export interface ApiServices {
   env: NordhausEnvironment;
@@ -79,7 +84,7 @@ export interface ApiServices {
 
 /** Maps domain/application/provider errors to HTTP statuses. */
 function httpError(error: unknown): {
-  status: 400 | 404 | 409 | 422 | 500 | 502;
+  status: 400 | 404 | 409 | 422 | 429 | 500 | 502;
   code: string;
   message: string;
 } {
@@ -95,11 +100,29 @@ function httpError(error: unknown): {
   if (error instanceof NoCompanyAnalysisError) {
     return { status: 409, code: 'NO_ANALYSIS', message: error.message };
   }
+  if (error instanceof NoPlacementPlanError) {
+    return { status: 404, code: 'NO_PLACEMENT_PLAN', message: error.message };
+  }
+  if (error instanceof PlanGenerationFailedError) {
+    return { status: 502, code: 'PLAN_GENERATION_FAILED', message: error.message };
+  }
   if (error instanceof NoProviderAvailableError || error instanceof NoProviderAssignedError) {
     return { status: 422, code: 'NO_PROVIDER', message: error.message };
   }
-  if (error instanceof ProviderError) {
+  if (error instanceof ProviderError || error instanceof DiscoverySearchFailedError) {
     return { status: 502, code: 'PROVIDER_ERROR', message: error.message };
+  }
+  if (error instanceof OpenCodeProviderRateLimitError) {
+    return { status: 429, code: 'AI_RATE_LIMIT', message: error.message };
+  }
+  if (error instanceof OpenCodeProviderAuthError) {
+    return { status: 502, code: 'AI_PROVIDER_AUTH', message: error.message };
+  }
+  if (error instanceof OpenCodeProviderUnavailableError) {
+    return { status: 502, code: 'AI_PROVIDER_UNAVAILABLE', message: error.message };
+  }
+  if (error instanceof OpenCodeModelConfigError) {
+    return { status: 500, code: 'AI_CONFIG', message: error.message };
   }
   if (error instanceof Error) {
     return { status: 500, code: 'INTERNAL', message: error.message };
@@ -232,9 +255,37 @@ export function createApiApp(services: ApiServices): Hono {
     env.lookups,
     env.auditLog,
   );
+  const generatePlacementPlan = new GeneratePlacementPlanUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.analyses,
+    env.lookups,
+    env.ai,
+    env.auditLog,
+  );
+  const getPlacementPlan = new GetPlacementPlanUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.analyses,
+    env.lookups,
+  );
 
-  /** Resolves the campaign from ?campaignId= with a default fallback. */
+  /**
+   * Resolves the campaign: the `:id` route param (campaign id) when present,
+   * otherwise ?campaignId= with a default fallback — so the product supports
+   * multiple campaigns while staying fully backward compatible.
+   */
   const resolveCampaign = async (c: Context): Promise<Campaign> => {
+    const paramId = c.req.param('id');
+    if (paramId !== undefined && paramId !== '') {
+      const campaign = await env.campaigns.findById(paramId);
+      if (campaign === null) {
+        throw new NotFoundError('Campaign', paramId);
+      }
+      return campaign;
+    }
     const id = c.req.query('campaignId');
     if (id === undefined || id === '' || id === services.campaign.id) {
       return services.campaign;
@@ -377,6 +428,29 @@ export function createApiApp(services: ApiServices): Hono {
     return c.json({ items });
   });
 
+  /**
+   * AI placement plan (decision engine). Runs the whole discovered
+   * opportunity set through the AI in one batch and reconciles the result
+   * with the deterministic score/risk/provider state before exposing it.
+   * Campaign comes from `:id` or the ?campaignId= query (default fallback).
+   */
+  const generatePlacementPlanRoute = async (c: Context) => {
+    const campaign = await resolveCampaign(c);
+    const plan = await generatePlacementPlan.execute({ campaignId: campaign.id });
+    return c.json(mapPlacementPlan(plan), 200);
+  };
+  app.post('/api/campaigns/:id/placement-plan', generatePlacementPlanRoute);
+  app.post('/api/placement-plan', generatePlacementPlanRoute);
+
+  /** Returns the latest placement plan for the campaign (re-reconciled). */
+  const getPlacementPlanRoute = async (c: Context) => {
+    const campaign = await resolveCampaign(c);
+    const plan = await getPlacementPlan.execute({ campaignId: campaign.id });
+    return c.json(mapPlacementPlan(plan), 200);
+  };
+  app.get('/api/campaigns/:id/placement-plan', getPlacementPlanRoute);
+  app.get('/api/placement-plan', getPlacementPlanRoute);
+
   app.get('/api/opportunities', async (c) => {
     const campaign = await resolveCampaign(c);
     const opportunities = await env.opportunities.findByCampaignId(campaign.id);
@@ -468,9 +542,7 @@ export function createApiApp(services: ApiServices): Hono {
         : undefined;
     await linkInsert.execute({
       opportunityId: c.req.param('id'),
-      ...(desiredAnchor !== undefined && desiredAnchor.trim() !== ''
-        ? { desiredAnchor }
-        : {}),
+      ...(desiredAnchor !== undefined && desiredAnchor.trim() !== '' ? { desiredAnchor } : {}),
     });
     const result = await recommendAnchor.execute({ opportunityId: c.req.param('id') });
     const context = await opportunityContext(env);
@@ -491,7 +563,9 @@ export function createApiApp(services: ApiServices): Hono {
   app.post('/api/opportunities/:id/outreach/status', async (c) => {
     const body = (await c.req.json().catch(() => null)) as unknown;
     const status =
-      body !== null && typeof body === 'object' && typeof (body as { status?: unknown }).status === 'string'
+      body !== null &&
+      typeof body === 'object' &&
+      typeof (body as { status?: unknown }).status === 'string'
         ? (body as { status: string }).status
         : '';
     const result = await updateOutreach.execute({
@@ -506,7 +580,9 @@ export function createApiApp(services: ApiServices): Hono {
   app.post('/api/opportunities/:id/negotiation/analyze', async (c) => {
     const body = (await c.req.json().catch(() => null)) as unknown;
     const reply =
-      body !== null && typeof body === 'object' && typeof (body as { reply?: unknown }).reply === 'string'
+      body !== null &&
+      typeof body === 'object' &&
+      typeof (body as { reply?: unknown }).reply === 'string'
         ? (body as { reply: string }).reply
         : '';
     const result = await analyzeNegotiation.execute({
@@ -520,9 +596,11 @@ export function createApiApp(services: ApiServices): Hono {
   /** Human approves/sends the AI-prepared negotiation response. */
   app.post('/api/opportunities/:id/negotiation/respond', async (c) => {
     const body = (await c.req.json().catch(() => null)) as unknown;
-    const record = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const record =
+      body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
     const agree = record.agree === true;
-    const customResponse = typeof record.customResponse === 'string' ? record.customResponse : undefined;
+    const customResponse =
+      typeof record.customResponse === 'string' ? record.customResponse : undefined;
     const result = await respondNegotiation.execute({
       opportunityId: c.req.param('id'),
       agree,
@@ -544,7 +622,8 @@ export function createApiApp(services: ApiServices): Hono {
         : [];
     if (ids.length === 0) {
       throw new ValidationError('compare requires at least one opportunity id');
-    }    const context = await opportunityContext(env);
+    }
+    const context = await opportunityContext(env);
     const rows: Array<ReturnType<typeof mapOpportunity>> = [];
     for (const id of ids) {
       const opportunity = await env.opportunities.findById(id);
@@ -823,13 +902,7 @@ export function createApiApp(services: ApiServices): Hono {
 
 /** The discovery sources shared by the scenario seed and the /api/discover route. */
 export function buildDiscoverySources(env: NordhausEnvironment) {
-  const searchPlatforms = env.lookups.platforms.filter((platform) =>
-    NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id),
-  );
-  return [
-    new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
-    new SearchPlatformDiscoverySource(searchPlatforms, NORDHAUS_CATEGORIES),
-  ];
+  return env.discoverySources;
 }
 
 async function requiredCompany(campaign: Campaign, env: NordhausEnvironment): Promise<Company> {
@@ -843,9 +916,11 @@ async function requiredCompany(campaign: Campaign, env: NordhausEnvironment): Pr
 type OpportunityRow = ReturnType<typeof mapOpportunity>;
 
 const SORTERS: Readonly<Record<string, (a: OpportunityRow, b: OpportunityRow) => number>> = {
-  score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName),
+  score: (a, b) =>
+    (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName),
   donorQuality: (a, b) =>
-    (b.donorQualityScore ?? -1) - (a.donorQualityScore ?? -1) || a.platformName.localeCompare(b.platformName),
+    (b.donorQualityScore ?? -1) - (a.donorQualityScore ?? -1) ||
+    a.platformName.localeCompare(b.platformName),
   traffic: (a, b) =>
     (b.traffic ?? -1) - (a.traffic ?? -1) || a.platformName.localeCompare(b.platformName),
   relevance: (a, b) =>
@@ -911,7 +986,9 @@ function buildComparison(rows: OpportunityRow[]): ComparisonResult {
   const items: ComparisonRow[] = rows.map((row) => {
     const authority = row.donorQuality?.authority.value ?? null;
     const geographicRelevance =
-      row.donorQuality?.geographicRelevance.value ?? row.scoreBreakdown?.geographicRelevance ?? null;
+      row.donorQuality?.geographicRelevance.value ??
+      row.scoreBreakdown?.geographicRelevance ??
+      null;
     return {
       id: row.id,
       platformName: row.platformName,

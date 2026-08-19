@@ -24,6 +24,11 @@ import type { PlacementProviderRegistry } from './ports/provider-registry.js';
 import type { SeoMetricsProvider, SeoMetricsSnapshot } from './ports/seo-metrics-provider.js';
 import type { PageAnalysisProvider } from './ports/page-analysis-provider.js';
 import type { OutreachProvider, OutreachSendResult } from './ports/outreach-provider.js';
+import type {
+  SearchQueryGenerator,
+  GenerateSearchQueriesInput,
+  SearchQueryPlan,
+} from './ports/search-query-generator.js';
 
 export type { CompanyRepository, CampaignRepository };
 export type { PlacementOpportunityRepository, PlacementRepository };
@@ -34,6 +39,8 @@ export type { PlacementProviderRegistry };
 export type { SeoMetricsProvider, SeoMetricsSnapshot };
 export type { PageAnalysisProvider };
 export type { OutreachProvider, OutreachSendResult };
+export type { SearchQueryGenerator };
+export type { GenerateSearchQueriesInput, SearchQueryPlan };
 export type {
   PlatformDiscoverySource,
   DiscoverySourceInput,
@@ -46,6 +53,8 @@ export {
   NoCompanyAnalysisError,
   NoProviderAvailableError,
   NoProviderAssignedError,
+  PlanGenerationFailedError,
+  NoPlacementPlanError,
 } from './errors.js';
 
 export type {
@@ -92,6 +101,19 @@ export { AnalyzeCompanyUseCase } from './use-cases/analysis/analyze-company.use-
 export { GeneratePlacementStrategyUseCase } from './use-cases/analysis/generate-placement-strategy.use-case.js';
 export { CatalogPlatformDiscoverySource } from './use-cases/opportunity/catalog-platform-discovery-source.js';
 export { SearchPlatformDiscoverySource } from './use-cases/opportunity/search-platform-discovery-source.js';
+export { WebSearchPlatformDiscoverySource } from './use-cases/opportunity/web-search-platform-discovery-source.js';
+export {
+  DiscoverySearchFailedError,
+  normalizeUrlKey,
+  platformIdFor,
+} from './use-cases/opportunity/web-search-platform-discovery-source.js';
+export { AIBackedSearchQueryGenerator } from './use-cases/opportunity/ai-backed-search-query-generator.js';
+export {
+  DeterministicSearchQueryGenerator,
+  DEFAULT_TEMPLATES,
+  DEFAULT_FALLBACK_CATEGORIES,
+} from './use-cases/opportunity/deterministic-search-query-generator.js';
+export type { CategoryQueryTemplate } from './use-cases/opportunity/deterministic-search-query-generator.js';
 export { ApproveOpportunityUseCase } from './use-cases/placement/approve-opportunity.use-case.js';
 export { ExecutePlacementUseCase } from './use-cases/placement/execute-placement.use-case.js';
 export { MonitorPlacementUseCase } from './use-cases/placement/monitor-placement.use-case.js';
@@ -119,3 +141,17 @@ export { AnalyzeNegotiationReplyUseCase } from './use-cases/intel/analyze-negoti
 export type { AnalyzeNegotiationReplyCommand } from './use-cases/intel/analyze-negotiation-reply.use-case.js';
 export { RespondNegotiationUseCase } from './use-cases/intel/respond-negotiation.use-case.js';
 export type { RespondNegotiationCommand } from './use-cases/intel/respond-negotiation.use-case.js';
+
+export { GeneratePlacementPlanUseCase } from './use-cases/plan/generate-placement-plan.use-case.js';
+export type { GeneratePlacementPlanCommand } from './use-cases/plan/generate-placement-plan.use-case.js';
+export { GetPlacementPlanUseCase } from './use-cases/plan/get-placement-plan.use-case.js';
+export type { GetPlacementPlanCommand } from './use-cases/plan/get-placement-plan.use-case.js';
+
+export {
+  loadPlanData,
+  planAiInput,
+  buildPlacementPlan,
+  assertDecisionMapCoverage,
+  PLAN_SCHEMA_VERSION,
+} from './plan/plan-builder.js';
+export type { PlanData, PlanRow, PlanBuildMeta } from './plan/plan-builder.js';

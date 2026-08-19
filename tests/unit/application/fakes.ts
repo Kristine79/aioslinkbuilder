@@ -21,12 +21,16 @@ import type {
   DonorQualityEstimateInput,
   DonorQualityEstimates,
   DonorRiskInput,
+  GenerateSearchQueriesInput,
   LinkInsertInput,
   NegotiationReplyInput,
   OpportunityClassification,
   OpportunityClassificationInput,
   OutreachInput,
   PageAnalysisInput,
+  PlacementPlanDecisionMap,
+  PlacementPlanInput,
+  SearchQueryPlan,
 } from '@aios/ai';
 import type { PlacementProvider as PlacementProviderContract } from '@aios/integrations';
 
@@ -69,6 +73,8 @@ export class InMemoryPlacementProviderRegistry implements PlacementProviderRegis
 export interface StubAIProviderState {
   companyAnalysis?: CompanyAnalysis;
   classification?: OpportunityClassification;
+  placementPlan?: PlacementPlanDecisionMap;
+  placementPlanError?: Error;
 }
 
 export class StubAIProvider implements AIProvider {
@@ -77,10 +83,24 @@ export class StubAIProvider implements AIProvider {
     analyzeCompany: 0,
     classifyOpportunity: 0,
     prepareContent: 0,
+    generatePlacementPlan: 0,
   };
   lastAnalyzeCompanyInput: CompanyAnalysisInput | null = null;
+  lastPlacementPlanInput: PlacementPlanInput | null = null;
 
   constructor(private readonly state: StubAIProviderState = {}) {}
+
+  /** Binds the decision map after construction (ids may be harness-specific). */
+  setPlacementPlan(placementPlan: PlacementPlanDecisionMap): void {
+    this.state.placementPlan = placementPlan;
+    delete this.state.placementPlanError;
+  }
+
+  /** Forces the AI provider to fail for the next plan generation. */
+  failPlacementPlan(error: Error): void {
+    delete this.state.placementPlan;
+    this.state.placementPlanError = error;
+  }
 
   analyzeCompany(input: CompanyAnalysisInput): Promise<CompanyAnalysis> {
     this.calls.analyzeCompany += 1;
@@ -97,6 +117,18 @@ export class StubAIProvider implements AIProvider {
       return Promise.reject(new Error('StubAIProvider: classification not configured'));
     }
     return Promise.resolve(this.state.classification);
+  }
+
+  generatePlacementPlan(input: PlacementPlanInput): Promise<PlacementPlanDecisionMap> {
+    this.calls.generatePlacementPlan += 1;
+    this.lastPlacementPlanInput = input;
+    if (this.state.placementPlanError !== undefined) {
+      return Promise.reject(this.state.placementPlanError);
+    }
+    if (this.state.placementPlan === undefined) {
+      return Promise.reject(new Error('StubAIProvider: placementPlan not configured'));
+    }
+    return Promise.resolve(this.state.placementPlan);
   }
 
   prepareContent(_input: ContentPreparationInput): Promise<ContentDraft> {
@@ -175,6 +207,16 @@ export class StubAIProvider implements AIProvider {
 
   assessDonorRisk(_input: DonorRiskInput): Promise<AIDonorRisk> {
     return Promise.resolve({ level: 'LOW', reasons: [] });
+  }
+
+  generateSearchQueries(input: GenerateSearchQueriesInput): Promise<SearchQueryPlan> {
+    return Promise.resolve({
+      intents: input.availableCategoryCodes.slice(0, 2).map((code) => ({
+        intent: `Площадки по категории ${code}`,
+        categoryCode: code,
+        queries: [`${input.company.name} ${code} справочник`],
+      })),
+    });
   }
 }
 

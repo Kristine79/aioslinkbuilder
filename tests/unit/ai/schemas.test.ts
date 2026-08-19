@@ -4,6 +4,7 @@ import {
   AIOutputValidationError,
   companyAnalysisSchema,
   opportunityClassificationSchema,
+  placementPlanSchema,
   validateAIOutput,
 } from '@aios/ai';
 
@@ -119,5 +120,92 @@ describe('AI output schema validation', () => {
         expect(error.message).toContain('analyzeCompany');
       }
     }
+  });
+
+  it('accepts a valid placement plan decision map', () => {
+    const output = {
+      items: [
+        {
+          opportunityId: 'opp-1',
+          recommendation: 'RECOMMENDED',
+          recommendationReason: 'Strong fit',
+          nextAction: 'EXECUTE_AUTOMATICALLY',
+          automationLevel: 'AUTOMATIC',
+          riskExplanation: null,
+          suggestedPlacementApproach: 'via API',
+          anchorRecommendation: {
+            anchorType: 'BRANDED',
+            anchor: 'Nordhaus',
+            explanation: 'Brand anchor is safest',
+          },
+        },
+        {
+          opportunityId: 'opp-2',
+          recommendation: 'NOT_RECOMMENDED',
+          recommendationReason: 'Weak score',
+          nextAction: 'REJECT',
+          automationLevel: 'HUMAN_REQUIRED',
+          riskExplanation: 'high spam',
+          suggestedPlacementApproach: null,
+          anchorRecommendation: null,
+        },
+      ],
+      overview: '2 opportunities analyzed',
+    };
+    const validated = validateAIOutput(placementPlanSchema, output, 'generatePlacementPlan');
+    expect(validated.items).toHaveLength(2);
+    expect(validated.items[0]?.anchorRecommendation?.anchorType).toBe('BRANDED');
+  });
+
+  it('rejects a plan item with an unknown recommendation value', () => {
+    const output = {
+      items: [
+        {
+          opportunityId: 'opp-1',
+          recommendation: 'MAYBE_DEPLOY',
+          recommendationReason: 'x',
+          nextAction: 'REJECT',
+          automationLevel: 'HUMAN_REQUIRED',
+          riskExplanation: null,
+          suggestedPlacementApproach: null,
+          anchorRecommendation: null,
+        },
+      ],
+      overview: 'x',
+    };
+    expect(() => validateAIOutput(placementPlanSchema, output, 'generatePlacementPlan')).toThrow(
+      AIOutputValidationError,
+    );
+  });
+
+  it('rejects a plan item without the required opportunity id', () => {
+    const output = {
+      items: [
+        {
+          recommendation: 'RECOMMENDED',
+          recommendationReason: 'x',
+          nextAction: 'REJECT',
+          automationLevel: 'HUMAN_REQUIRED',
+          riskExplanation: null,
+          suggestedPlacementApproach: null,
+          anchorRecommendation: null,
+        },
+      ],
+      overview: 'x',
+    };
+    expect(() => validateAIOutput(placementPlanSchema, output, 'generatePlacementPlan')).toThrow(
+      AIOutputValidationError,
+    );
+  });
+
+  it('rejects a plan with extra unknown top-level fields', () => {
+    const output = {
+      items: [],
+      overview: 'x',
+      injected: 'should not be stored',
+    };
+    expect(() => validateAIOutput(placementPlanSchema, output, 'generatePlacementPlan')).toThrow(
+      AIOutputValidationError,
+    );
   });
 });

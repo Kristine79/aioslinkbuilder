@@ -22,6 +22,7 @@ const NAV: readonly NavEntry[] = [
   { to: '/company', label: 'Компания и анализ', icon: '◈' },
   { to: '/opportunities', label: 'Возможности', icon: '☰' },
   { to: '/compare', label: 'Сравнение доноров', icon: '⇆' },
+  { to: '/plans', label: 'План размещений', icon: '◉' },
   { to: '/links', label: 'Ссылки и анкоры', icon: '⌁' },
   { to: '/activity', label: 'Активность и доказательства', icon: '≡' },
   { to: '/companies', label: 'Компании', icon: '◇' },
@@ -148,11 +149,11 @@ export function AppShell() {
             + Новая компания
           </button>
           <a
-            href="https://github.com/anomalyco/aioslinkbuilder"
+            href="https://github.com/Kristine79/aioslinkbuilder"
             className="text-tertiary"
             style={{ fontSize: 12, marginLeft: 12 }}
           >
-            прототип
+            github
           </a>
         </div>
         <main className="content">

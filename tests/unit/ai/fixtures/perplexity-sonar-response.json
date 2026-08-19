@@ -1,0 +1,57 @@
+{
+  "id": "gen-8f0b3c1a2d9e4f7ab5c6d7e8f9a0b1c2",
+  "model": "perplexity/sonar",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "Мебельные каталоги и площадки для размещения ссылок: студия премиальной мебели на заказ может разместиться на каталогах мебельных брендов, дизайн-порталах и архитектурных журналах. [1] Также стоит рассмотреть площадки о ремонте и интерьере. [2]",
+        "annotations": [
+          {
+            "type": "url_citation",
+            "url_citation": {
+              "url": "https://www.maison-objet-exhibitions.com/ru/",
+              "title": "Maison&Objet — выставка дизайна и мебели",
+              "start_index": 5,
+              "end_index": 12
+            }
+          },
+          {
+            "type": "url_citation",
+            "url_citation": {
+              "url": "https://www.interiors.ru/",
+              "title": "Interiors+The Future — журнал об интерьере",
+              "start_index": 0,
+              "end_index": 4
+            }
+          },
+          {
+            "type": "url_citation",
+            "url_citation": {
+              "url": "https://salon.ru/catalog/mebel",
+              "title": "Salon.ru — каталог мебели",
+              "start_index": 5,
+              "end_index": 8
+            }
+          },
+          {
+            "type": "url_citation",
+            "url_citation": {
+              "url": "https://design-mate.ru/",
+              "title": "Design Mate — площадка для мебельных брендов",
+              "start_index": 1,
+              "end_index": 2
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 142,
+    "completion_tokens": 96,
+    "total_tokens": 238
+  }
+}

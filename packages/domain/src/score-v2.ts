@@ -55,7 +55,13 @@ export function isScoreV2ComponentInRange(value: number): boolean {
 export function calculateScoreV2(
   components: Omit<ScoreV2Components, 'overall'>,
 ): ScoreV2Components {
-  for (const key of ['relevanceScore', 'donorQualityScore', 'placementQualityScore', 'executionScore', 'riskScore'] as const) {
+  for (const key of [
+    'relevanceScore',
+    'donorQualityScore',
+    'placementQualityScore',
+    'executionScore',
+    'riskScore',
+  ] as const) {
     if (!isScoreV2ComponentInRange(components[key])) {
       throw new ValidationError(`Score V2 component ${key} must be between 0 and 100`);
     }
@@ -84,7 +90,8 @@ const RELEVANCE_WEIGHTS = { topical: 30, audience: 20, geographic: 15 } as const
 
 function relevanceFromBreakdown(breakdown: ScoreBreakdown | null): number | null {
   if (breakdown === null) return null;
-  const total = RELEVANCE_WEIGHTS.topical + RELEVANCE_WEIGHTS.audience + RELEVANCE_WEIGHTS.geographic;
+  const total =
+    RELEVANCE_WEIGHTS.topical + RELEVANCE_WEIGHTS.audience + RELEVANCE_WEIGHTS.geographic;
   return clamp(
     (breakdown.topicalRelevance * RELEVANCE_WEIGHTS.topical +
       breakdown.audienceMatch * RELEVANCE_WEIGHTS.audience +

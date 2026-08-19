@@ -12,6 +12,7 @@ import type { Hono } from 'hono';
 
 import { createApiApp, type ApiServices } from './app.js';
 import { runNordhausBootstrap } from './bootstrap.js';
+import { loadRuntimeConfig } from './runtime-config.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const WEB_DIST = fileURLToPath(new URL('../../web/dist/', import.meta.url));
@@ -70,7 +71,7 @@ export function createServerApp(services: ApiServices): Hono {
 }
 
 async function main(): Promise<void> {
-  const services = await runNordhausBootstrap();
+  const services = await runNordhausBootstrap(loadRuntimeConfig());
   const app = createServerApp(services);
 
   const display = existsSync(WEB_DIST)

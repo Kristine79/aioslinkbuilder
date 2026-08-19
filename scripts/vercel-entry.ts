@@ -25,12 +25,15 @@ import type { Hono } from 'hono';
 
 import { createApiApp } from '../apps/api/src/app.js';
 import { runNordhausBootstrap } from '../apps/api/src/bootstrap.js';
+import { loadRuntimeConfig } from '../apps/api/src/runtime-config.js';
 
 let cachedApp: Hono | undefined;
 
 async function getApp(): Promise<Hono> {
   if (cachedApp === undefined) {
-    const services = await runNordhausBootstrap();
+    // Mode is env-driven: without OPENCODE_API_KEY / AI_MODE=real the
+    // serverless function stays the deterministic demo (no network calls).
+    const services = await runNordhausBootstrap(loadRuntimeConfig());
     cachedApp = createApiApp(services);
   }
   return cachedApp;

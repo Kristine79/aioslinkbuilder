@@ -1,8 +1,4 @@
-import type {
-  BacklinkProfile,
-  IndexingStatus,
-  MetricDatum,
-} from '@aios/domain';
+import type { BacklinkProfile, IndexingStatus, MetricDatum } from '@aios/domain';
 
 /**
  * SEO metrics provider port.

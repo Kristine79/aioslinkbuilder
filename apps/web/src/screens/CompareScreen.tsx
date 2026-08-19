@@ -72,7 +72,8 @@ export function CompareScreen() {
     <div>
       <h1 className="page-title">Сравнение доноров</h1>
       <p className="page-subtitle">
-        Выберите 2–4 площадки, чтобы сравнить их качество и понять, почему AI рекомендует одну из них.
+        Выберите 2–4 площадки, чтобы сравнить их качество и понять, почему AI рекомендует одну из
+        них.
       </p>
 
       {selectedItems.length < 2 && (
@@ -96,12 +97,16 @@ export function CompareScreen() {
               </div>
               <div className="row-sub">
                 <span>{TYPE_LABELS[item.placementType] ?? item.placementType}</span>
-                <span className="chip">{METHOD_LABELS[item.placementMethod] ?? item.placementMethod}</span>
+                <span className="chip">
+                  {METHOD_LABELS[item.placementMethod] ?? item.placementMethod}
+                </span>
                 {item.donorQualityScore !== null && (
                   <span className="chip">донор: {item.donorQualityScore}</span>
                 )}
                 {item.risk !== null && (
-                  <span className="chip">риск: {RISK_LEVEL_LABELS[item.risk.level] ?? item.risk.level}</span>
+                  <span className="chip">
+                    риск: {RISK_LEVEL_LABELS[item.risk.level] ?? item.risk.level}
+                  </span>
                 )}
               </div>
             </div>
@@ -149,15 +154,22 @@ export function CompareScreen() {
                 <Row
                   label="Риск"
                   values={comparison.items.map((r) => r.risk)}
-                  render={(v) => (v === null ? '—' : typeof v === 'string' ? (RISK_LEVEL_LABELS[v] ?? v) : '—')}
+                  render={(v) =>
+                    v === null ? '—' : typeof v === 'string' ? (RISK_LEVEL_LABELS[v] ?? v) : '—'
+                  }
                 />
                 <Row
                   label="Орг. трафик"
                   values={comparison.items.map((r) => r.traffic)}
-                  render={(v) => (typeof v === 'number' ? new Intl.NumberFormat('ru-RU').format(v) : '—')}
+                  render={(v) =>
+                    typeof v === 'number' ? new Intl.NumberFormat('ru-RU').format(v) : '—'
+                  }
                 />
                 <Row label="Авторитетность" values={comparison.items.map((r) => r.authority)} />
-                <Row label="География" values={comparison.items.map((r) => r.geographicRelevance)} />
+                <Row
+                  label="География"
+                  values={comparison.items.map((r) => r.geographicRelevance)}
+                />
                 <Row
                   label="Тип размещения"
                   values={comparison.items.map((r) => r.placementType)}

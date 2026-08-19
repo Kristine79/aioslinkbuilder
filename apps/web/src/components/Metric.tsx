@@ -9,7 +9,10 @@ import { METRIC_STATUS_LABELS, METRIC_STATUS_TONES } from '../ru';
 
 export function MetricStatusTag({ status }: { status: string }) {
   return (
-    <span className={`badge ${METRIC_STATUS_TONES[status] ?? 'tone-gray'}`} title="Происхождение данных">
+    <span
+      className={`badge ${METRIC_STATUS_TONES[status] ?? 'tone-gray'}`}
+      title="Происхождение данных"
+    >
       {METRIC_STATUS_LABELS[status] ?? status}
     </span>
   );
