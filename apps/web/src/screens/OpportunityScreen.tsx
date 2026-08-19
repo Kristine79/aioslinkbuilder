@@ -25,6 +25,11 @@ import {
   StatusBadge,
 } from '../components/ui';
 import { ScoreBadge, ScoreBreakdown } from '../components/Score';
+import { DonorQualityPanel } from '../components/DonorQualityPanel';
+import { PageAnalysisPanel, LinkInsertPanel } from '../components/PagePanel';
+import { OutreachPanel } from '../components/OutreachPanel';
+import { ScoreV2Panel, WorkflowPanel } from '../components/ScoreWorkflowPanel';
+import { HumanActionsPanel } from '../components/HumanActionsPanel';
 import {
   ACTION_LABELS,
   AUDIT_ACTION_LABELS,
@@ -80,6 +85,33 @@ export function OpportunityScreen() {
     },
     [load],
   );
+
+  const aiAssistActions = useCallback(() => {
+    if (id === undefined) return;
+    return {
+      runIntel: () => runAction(() => api.intel(id), 'Профиль донора и оценка обновлены.'),
+      runLinkInsert: (desiredAnchor?: string) =>
+        runAction(
+          () => api.linkInsert(id, desiredAnchor),
+          'Подготовка вставки и анкор-стратегия сформированы.',
+        ),
+      runOutreach: () => runAction(() => api.generateOutreach(id), 'Outreach подготовлен.'),
+      onOutreachStatus: (status: string) =>
+        runAction(
+          () => api.outreachStatus(id, status),
+          status === 'SENT' ? 'Outreach отправлен (вручную).' : 'Статус outreach обновлён.',
+        ),
+      onAnalyzeReply: (reply: string) =>
+        runAction(() => api.analyzeReply(id, reply), 'Ответ площадки проанализирован AI.'),
+      onRespond: (payload: { agree: boolean; customResponse?: string }) =>
+        runAction(
+          () => api.negotiateRespond(id, payload),
+          payload.agree ? 'Договорённость достигнута.' : 'Ответ отправлен.',
+        ),
+    };
+  }, [id, runAction]);
+
+  const aiAssist = aiAssistActions();
 
   if (opportunity === null && error === null) {
     return <LoadingState text="Загружаем возможность…" />;
@@ -138,6 +170,46 @@ export function OpportunityScreen() {
         </div>
       )}
 
+      <div className="mb-16">
+        <Card title="Требует действия">
+          <HumanActionsPanel actions={opportunity.humanActions} />
+        </Card>
+      </div>
+
+      <div className="mb-16">
+        <Card
+          title="AI-подготовка"
+          actions={
+            <span className="text-tertiary" style={{ fontSize: 12 }}>
+              AI готовит, человек решает и подписывает
+            </span>
+          }
+        >
+          <div className="row-actions">
+            <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void aiAssist?.runIntel()}>
+              Обновить профиль донора
+            </button>
+            {(opportunity.placementType === 'LINK_INSERT' ||
+              opportunity.placementType === 'RESOURCE_PAGE' ||
+              opportunity.placementType === 'GUEST_POST') && (
+              <>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void aiAssist?.runLinkInsert()}
+                >
+                  Подготовить вставку
+                </button>
+                <button className="btn btn-secondary btn-sm" type="button" disabled={busy} onClick={() => void aiAssist?.runOutreach()}>
+                  Сформировать outreach
+                </button>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
       <div className="detail-grid">
         <div className="grid" style={{ alignContent: 'start' }}>
           <Card title="Почему это важно">
@@ -149,6 +221,38 @@ export function OpportunityScreen() {
               <ScoreBreakdown breakdown={opportunity.scoreBreakdown} />
             )}
           </Card>
+
+          {opportunity.scoreV2 !== null && (
+            <Card title="Оценка 2.0">
+              <ScoreV2Panel scoreV2={opportunity.scoreV2} />
+            </Card>
+          )}
+
+          {opportunity.workflow !== null && (
+            <Card title="Рабочий процесс">
+              <WorkflowPanel workflow={opportunity.workflow} />
+            </Card>
+          )}
+
+          {opportunity.donorQuality !== null && (
+            <Card title="Качество донора">
+              <DonorQualityPanel
+                donor={opportunity.donorQuality}
+                riskLevel={opportunity.risk?.level ?? null}
+              />
+              {opportunity.risk !== null && opportunity.risk.reasons.length > 0 && (
+                <div className="risk-reasons mt-8" style={{ marginTop: 10 }}>
+                  <span className="outreach-hint">Факторы риска</span>
+                  <ul className="risk-list" style={{ marginTop: 4 }}>
+                    {opportunity.risk.reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card title="Данные площадки">
             <div className="kv">
               <span className="kv-key">Платформа</span>
@@ -194,6 +298,39 @@ export function OpportunityScreen() {
               <div className="empty-note">Рекомендация ещё не сформирована.</div>
             )}
           </Card>
+
+          {opportunity.pageAnalysis !== null && (
+            <Card title="Анализ страницы">
+              <PageAnalysisPanel page={opportunity.pageAnalysis} />
+            </Card>
+          )}
+
+          {opportunity.linkInsert !== null && (
+            <Card title="Вставка ссылки">
+              <LinkInsertPanel linkInsert={opportunity.linkInsert} anchor={opportunity.anchorStrategy} />
+            </Card>
+          )}
+
+          {opportunity.outreach !== null && (
+            <Card
+              title="Outreach"
+              actions={
+                opportunity.outreach.provider !== null && (
+                  <span className="chip">демо-отправка (HITL)</span>
+                )
+              }
+            >
+              <OutreachPanel
+                outreach={opportunity.outreach}
+                negotiation={opportunity.negotiation}
+                busy={busy}
+                onStatus={(status) => void aiAssist?.onOutreachStatus(status)}
+                onAnalyzeReply={(reply) => void aiAssist?.onAnalyzeReply(reply)}
+                onRespond={(payload) => void aiAssist?.onRespond(payload)}
+              />
+            </Card>
+          )}
+
 
           <Card
             title="Исполнение"

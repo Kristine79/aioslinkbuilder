@@ -3,6 +3,7 @@ import {
   EXECUTION_REQUIRED_CAPABILITIES,
   assertTransitionPlacement,
   calculateScoreBreakdown,
+  derivePlacementMethodForType,
   deriveProviderAlignment,
 } from '@aios/domain';
 import type { AIProvider } from '@aios/ai';
@@ -95,7 +96,7 @@ export class ClassifyOpportunityUseCase {
       scoreBreakdown: breakdown,
       recommendation: validated.recommendationReason,
       whyRecommended: describeBreakdown(breakdown),
-      placementMethod: alignment.method,
+      placementMethod: derivePlacementMethodForType(validated.placementType, alignment),
       providerCapabilities: alignment.provider?.capabilities ?? [],
       status: 'QUALIFIED',
       updatedAt: new Date(),

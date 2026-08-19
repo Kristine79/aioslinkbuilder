@@ -6,13 +6,27 @@ import type {
 } from '@aios/domain';
 import type { PlacementProviderRegistry } from '@aios/application';
 import type {
+  AIAnchorRecommendation,
+  AIDonorRisk,
+  AILinkInsert,
+  AINegotiationAnalysis,
+  AIPageAnalysis,
+  AIOutreachMessage,
   AIProvider,
+  AnchorRecommendationInput,
   CompanyAnalysis,
   CompanyAnalysisInput,
   ContentDraft,
   ContentPreparationInput,
+  DonorQualityEstimateInput,
+  DonorQualityEstimates,
+  DonorRiskInput,
+  LinkInsertInput,
+  NegotiationReplyInput,
   OpportunityClassification,
   OpportunityClassificationInput,
+  OutreachInput,
+  PageAnalysisInput,
 } from '@aios/ai';
 import type { PlacementProvider as PlacementProviderContract } from '@aios/integrations';
 
@@ -88,6 +102,79 @@ export class StubAIProvider implements AIProvider {
   prepareContent(_input: ContentPreparationInput): Promise<ContentDraft> {
     this.calls.prepareContent += 1;
     return Promise.resolve({ content: 'Draft content' });
+  }
+
+  analyzePage(_input: PageAnalysisInput): Promise<AIPageAnalysis> {
+    return Promise.resolve({
+      targetPage: 'https://media.example/article',
+      pageTitle: 'Article',
+      pageType: 'EDITORIAL',
+      topicalRelevance: 85,
+      linkInsertSuitability: 80,
+      indexation: 'INDEXED',
+      suggestedPlacementLocation: 'middle',
+      summary: 'Summary',
+    });
+  }
+
+  generateLinkInsert(_input: LinkInsertInput): Promise<AILinkInsert> {
+    return Promise.resolve({
+      anchor: 'Ссылка на сайт',
+      anchorAlternatives: ['Альтернатива 1', 'Альтернатива 2'],
+      suggestedInsertionPoint: 'paragraph 2',
+      text: 'Текст вставки',
+      explanation: 'Естественный контекст',
+      confidence: 75,
+    });
+  }
+
+  recommendAnchor(_input: AnchorRecommendationInput): Promise<AIAnchorRecommendation> {
+    return Promise.resolve({
+      anchorType: 'BRANDED',
+      anchor: 'Brand',
+      alternatives: ['Brand alternative'],
+      explanation: 'Брендированный анкор',
+      confidence: 70,
+    });
+  }
+
+  generateOutreach(_input: OutreachInput): Promise<AIOutreachMessage> {
+    return Promise.resolve({
+      subject: 'Предложение',
+      message: 'Полное сообщение',
+      shortVersion: 'Короткая версия',
+      opening: 'Приветствие',
+      valueProposition: 'Ценность',
+      placementRequest: 'Запрос',
+      cta: 'Призыв к действию',
+    });
+  }
+
+  analyzeNegotiationReply(_input: NegotiationReplyInput): Promise<AINegotiationAnalysis> {
+    return Promise.resolve({
+      intent: 'PRICE_NEGOTIATION',
+      suggestedResponse: 'Ответ',
+      strategy: 'Стратегия',
+      recommendedPrice: { min: 100, max: 150, currency: 'USD' },
+      fallbackOption: 'Запасной вариант',
+      risks: ['Риск'],
+      confidence: 70,
+    });
+  }
+
+  estimateDonorQuality(_input: DonorQualityEstimateInput): Promise<DonorQualityEstimates> {
+    return Promise.resolve({
+      topicalRelevance: 80,
+      audienceMatch: 75,
+      geographicRelevance: 70,
+      placementQuality: 74,
+      automationPotential: 60,
+      overallAssessment: 'Оценка',
+    });
+  }
+
+  assessDonorRisk(_input: DonorRiskInput): Promise<AIDonorRisk> {
+    return Promise.resolve({ level: 'LOW', reasons: [] });
   }
 }
 

@@ -103,11 +103,21 @@ GET  /api/meta                  categories for filters
 GET  /api/company               company profile + latest AI analysis
 POST /api/company/analyze       re-run AnalyzeCompanyUseCase
 GET  /api/strategy              placement strategy items
-GET  /api/opportunities         ranked list; server-side filters category/method/status/minScore
-GET  /api/opportunities/:id     detail with placements, verification, evidence, allowed actions
+GET  /api/opportunities         ranked list; server-side filters
+                                category/method/status/source/placementType/risk
+                                /minScore/donorQuality/minTraffic + sort
+                                (score|donorQuality|traffic|relevance|lowestRisk|ease)
+GET  /api/opportunities/:id     detail with intel, placements, workflow, HITL actions
+POST /api/opportunities/compare donor comparison + "why AI recommends №1"
+POST /api/opportunities/:id/intel            AssessOpportunityUseCase
+POST /api/opportunities/:id/link-insert      LinkInsert + anchor strategy
+POST /api/opportunities/:id/outreach         generate outreach draft (HITL)
+POST /api/opportunities/:id/outreach/status  HITL status transition (send is human-triggered)
+POST /api/opportunities/:id/negotiation/analyze  paste donor reply -> AI analysis
+POST /api/opportunities/:id/negotiation/respond  human approves/sends the AI response
 POST /api/opportunities/:id/approve|execute|request-manual
 POST /api/placements/:id/monitor|verify|complete-manual
-GET  /api/overview              campaign progress: counts, funnel, manual actions, recent activity
+GET  /api/overview              campaign progress, counts, human actions, negotiations
 GET  /api/activity              verifications + full audit journal
 ```
 
@@ -160,6 +170,16 @@ Primary use cases:
 - ExecutePlacement
 - VerifyPlacement
 - MonitorPlacement
+
+Link-building intelligence use cases (`packages/application/src/use-cases/intel/`):
+
+- AssessOpportunity — donor quality profile + page analysis + risk + Score 2.0
+- GenerateLinkInsert — AI link insert assistant
+- RecommendAnchor — anchor strategy
+- GenerateOutreach — outreach draft (DRAFT)
+- UpdateOutreachStatus — human-in-the-loop outreach transitions (SENT is human-triggered)
+- AnalyzeNegotiationReply — negotiation copilot
+- RespondNegotiation — human approves/sends the AI-prepared response
 
 Use cases must not contain presentation logic.
 
@@ -216,6 +236,21 @@ Provider types:
 - Mock provider
 
 Application logic must not contain site-specific conditionals.
+
+### Provider/intelligence ports
+
+Besides the placement `PlacementProvider` port, the application defines the
+following abstractions (`packages/application/src/ports/`):
+
+- `SeoMetricsProvider` — real SEO intelligence (Ahrefs, Semrush, Similarweb,
+  Google Search Console). Returns `MEASURED` data; demo mock returns
+  `SYNTHETIC` data that stays explicitly labeled.
+- `PageAnalysisProvider` — crawler that returns real page-level signals.
+- `OutreachProvider` (messaging/email) — invoked only from the
+  human-triggered SENT transition.
+
+All mock/demo providers live in `apps/api/src/scenario/nordhaus-intel.ts` and
+are clearly labeled. Real integrations plug into the same ports.
 
 ## 7. State machine
 

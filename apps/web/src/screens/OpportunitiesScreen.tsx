@@ -42,14 +42,26 @@ function useOpportunities() {
     const method = searchParams.get('method') ?? undefined;
     const status = searchParams.get('status') ?? undefined;
     const source = searchParams.get('source') ?? undefined;
+    const placementType = searchParams.get('placementType') ?? undefined;
+    const risk = searchParams.get('risk') ?? undefined;
+    const sort = searchParams.get('sort') ?? 'score';
     const minScoreRaw = searchParams.get('minScore');
     const minScore = minScoreRaw === null ? undefined : Number(minScoreRaw);
+    const donorQualityRaw = searchParams.get('donorQuality');
+    const donorQuality = donorQualityRaw === null ? undefined : Number(donorQualityRaw);
+    const minTrafficRaw = searchParams.get('minTraffic');
+    const minTraffic = minTrafficRaw === null ? undefined : Number(minTrafficRaw);
     return {
       ...(category !== undefined ? { category } : {}),
       ...(method !== undefined ? { method } : {}),
       ...(status !== undefined ? { status } : {}),
       ...(source !== undefined ? { source } : {}),
+      ...(placementType !== undefined ? { placementType } : {}),
+      ...(risk !== undefined ? { risk } : {}),
+      ...(sort !== 'score' ? { sort } : {}),
       ...(minScore !== undefined ? { minScore } : {}),
+      ...(donorQuality !== undefined ? { donorQuality } : {}),
+      ...(minTraffic !== undefined ? { minTraffic } : {}),
     };
   }, [searchParams]);
 
@@ -95,6 +107,10 @@ export function OpportunitiesScreen() {
   );
   const statusOptions = useMemo(
     () => [...new Set(items?.map((item) => item.status) ?? [])],
+    [items],
+  );
+  const typeOptions = useMemo(
+    () => [...new Set(items?.map((item) => item.placementType) ?? [])],
     [items],
   );
   const sourceOptions = useMemo(
@@ -193,8 +209,46 @@ export function OpportunitiesScreen() {
           <option value="70">≥ 70</option>
           <option value="60">≥ 60</option>
         </select>
+        <select
+          className="select filter-select"
+          value={query.placementType ?? 'all'}
+          onChange={(event) => updateFilter('placementType', event.target.value)}
+          aria-label="Тип размещения"
+        >
+          <option value="all">Все типы</option>
+          {typeOptions.map((option) => (
+            <option key={option} value={option}>
+              {TYPE_LABELS[option] ?? option}
+            </option>
+          ))}
+        </select>
+        <select
+          className="select filter-select"
+          value={query.risk ?? 'all'}
+          onChange={(event) => updateFilter('risk', event.target.value)}
+          aria-label="Риск донора"
+        >
+          <option value="all">Любой риск</option>
+          <option value="LOW">Низкий риск</option>
+          <option value="MEDIUM">Средний риск</option>
+          <option value="HIGH">Высокий риск</option>
+          <option value="UNKNOWN">Не оценён</option>
+        </select>
+        <select
+          className="select filter-select"
+          value={query.sort ?? 'score'}
+          onChange={(event) => updateFilter('sort', event.target.value)}
+          aria-label="Сортировка"
+        >
+          <option value="score">По баллу</option>
+          <option value="donorQuality">По качеству донора</option>
+          <option value="traffic">По трафику</option>
+          <option value="relevance">По релевантности</option>
+          <option value="lowestRisk">По наименьшему риску</option>
+          <option value="ease">По простоте исполнения</option>
+        </select>
         <span className="text-tertiary" style={{ fontSize: 12.5, marginLeft: 'auto' }}>
-          сортировка: по убыванию балла (сервер)
+          сортировка: на сервере
         </span>
       </div>
 

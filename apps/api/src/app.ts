@@ -14,7 +14,9 @@ import type { Context } from 'hono';
 
 import {
   AnalyzeCompanyUseCase,
+  AnalyzeNegotiationReplyUseCase,
   ApproveOpportunityUseCase,
+  AssessOpportunityUseCase,
   CatalogPlatformDiscoverySource,
   ClassifyOpportunityUseCase,
   CompleteManualPlacementUseCase,
@@ -22,6 +24,8 @@ import {
   CreateCompanyUseCase,
   DiscoverOpportunitiesUseCase,
   ExecutePlacementUseCase,
+  GenerateLinkInsertUseCase,
+  GenerateOutreachUseCase,
   GeneratePlacementStrategyUseCase,
   ListCampaignsByCompanyUseCase,
   MonitorPlacementUseCase,
@@ -29,8 +33,11 @@ import {
   NoProviderAssignedError,
   NoProviderAvailableError,
   NotFoundError,
+  RecommendAnchorUseCase,
   RequestManualPlacementUseCase,
+  RespondNegotiationUseCase,
   SearchPlatformDiscoverySource,
+  UpdateOutreachStatusUseCase,
   VerifyPlacementUseCase,
 } from '@aios/application';
 import type {
@@ -161,6 +168,68 @@ export function createApiApp(services: ApiServices): Hono {
     env.analyses,
     env.lookups,
     env.registry,
+    env.auditLog,
+  );
+  const assess = new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog,
+  );
+  const linkInsert = new GenerateLinkInsertUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  );
+  const recommendAnchor = new RecommendAnchorUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  );
+  const generateOutreach = new GenerateOutreachUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  );
+  const updateOutreach = new UpdateOutreachStatusUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.outreach,
+    env.auditLog,
+  );
+  const analyzeNegotiation = new AnalyzeNegotiationReplyUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  );
+  const respondNegotiation = new RespondNegotiationUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
     env.auditLog,
   );
 
@@ -321,6 +390,11 @@ export function createApiApp(services: ApiServices): Hono {
     const status = c.req.query('status');
     const source = c.req.query('source');
     const minScoreRaw = c.req.query('minScore');
+    const placementType = c.req.query('placementType');
+    const risk = c.req.query('risk');
+    const sort = c.req.query('sort') ?? 'score';
+    const donorQualityMinRaw = c.req.query('donorQuality');
+    const minTrafficRaw = c.req.query('minTraffic');
 
     let filtered = all;
     if (category !== undefined && category !== 'all') {
@@ -335,16 +409,32 @@ export function createApiApp(services: ApiServices): Hono {
     if (source !== undefined && source !== 'all') {
       filtered = filtered.filter((item) => item.discoverySource === source);
     }
+    if (placementType !== undefined && placementType !== 'all') {
+      filtered = filtered.filter((item) => item.placementType === placementType);
+    }
+    if (risk !== undefined && risk !== 'all') {
+      filtered = filtered.filter((item) => item.risk?.level === risk);
+    }
     if (minScoreRaw !== undefined && minScoreRaw !== '') {
       const minScore = Number(minScoreRaw);
       if (Number.isFinite(minScore)) {
         filtered = filtered.filter((item) => (item.score ?? 0) >= minScore);
       }
     }
+    if (donorQualityMinRaw !== undefined && donorQualityMinRaw !== '') {
+      const minDq = Number(donorQualityMinRaw);
+      if (Number.isFinite(minDq)) {
+        filtered = filtered.filter((item) => (item.donorQualityScore ?? 0) >= minDq);
+      }
+    }
+    if (minTrafficRaw !== undefined && minTrafficRaw !== '') {
+      const minTraffic = Number(minTrafficRaw);
+      if (Number.isFinite(minTraffic)) {
+        filtered = filtered.filter((item) => (item.traffic ?? 0) >= minTraffic);
+      }
+    }
 
-    const ranked = [...filtered].sort(
-      (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName),
-    );
+    const ranked = sortOpportunities(filtered, sort);
     return c.json({ items: ranked });
   });
 
@@ -355,6 +445,115 @@ export function createApiApp(services: ApiServices): Hono {
     }
     const context = await opportunityContext(env);
     return c.json(await mapOpportunityWithRelations(env, opportunity, context));
+  });
+
+  /** Assesses the opportunity: donor quality, page analysis, risk, Score 2.0. */
+  app.post('/api/opportunities/:id/intel', async (c) => {
+    const result = await assess.execute({ opportunityId: c.req.param('id') });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /**
+   * Link insert assistant + anchor strategy for LINK_INSERT opportunities.
+   * Runs the AI page-aware content generation and stores the result.
+   */
+  app.post('/api/opportunities/:id/link-insert', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as unknown;
+    const desiredAnchor =
+      body !== null &&
+      typeof body === 'object' &&
+      typeof (body as { desiredAnchor?: unknown }).desiredAnchor === 'string'
+        ? (body as { desiredAnchor: string }).desiredAnchor
+        : undefined;
+    await linkInsert.execute({
+      opportunityId: c.req.param('id'),
+      ...(desiredAnchor !== undefined && desiredAnchor.trim() !== ''
+        ? { desiredAnchor }
+        : {}),
+    });
+    const result = await recommendAnchor.execute({ opportunityId: c.req.param('id') });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /** Generates the outreach draft (DRAFT) for the opportunity. */
+  app.post('/api/opportunities/:id/outreach', async (c) => {
+    const result = await generateOutreach.execute({ opportunityId: c.req.param('id') });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /**
+   * Human-in-the-loop outreach status transition (approve / send / …).
+   * Sending is only ever triggered by an explicit human action.
+   */
+  app.post('/api/opportunities/:id/outreach/status', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as unknown;
+    const status =
+      body !== null && typeof body === 'object' && typeof (body as { status?: unknown }).status === 'string'
+        ? (body as { status: string }).status
+        : '';
+    const result = await updateOutreach.execute({
+      opportunityId: c.req.param('id'),
+      status: status as Parameters<typeof updateOutreach.execute>[0]['status'],
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /** Negotiation copilot: paste a donor reply -> AI analysis. */
+  app.post('/api/opportunities/:id/negotiation/analyze', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as unknown;
+    const reply =
+      body !== null && typeof body === 'object' && typeof (body as { reply?: unknown }).reply === 'string'
+        ? (body as { reply: string }).reply
+        : '';
+    const result = await analyzeNegotiation.execute({
+      opportunityId: c.req.param('id'),
+      reply,
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /** Human approves/sends the AI-prepared negotiation response. */
+  app.post('/api/opportunities/:id/negotiation/respond', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as unknown;
+    const record = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const agree = record.agree === true;
+    const customResponse = typeof record.customResponse === 'string' ? record.customResponse : undefined;
+    const result = await respondNegotiation.execute({
+      opportunityId: c.req.param('id'),
+      agree,
+      ...(customResponse !== undefined ? { customResponse } : {}),
+    });
+    const context = await opportunityContext(env);
+    return c.json(await mapOpportunityWithRelations(env, result, context), 200);
+  });
+
+  /**
+   * Donor comparison: returns the requested opportunities plus a deterministic
+   * recommendation that ranks them and explains why the top one is best.
+   */
+  app.post('/api/opportunities/compare', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as unknown;
+    const ids =
+      body !== null && typeof body === 'object' && Array.isArray((body as { ids?: unknown }).ids)
+        ? (body as { ids: unknown[] }).ids.filter((id): id is string => typeof id === 'string')
+        : [];
+    if (ids.length === 0) {
+      throw new ValidationError('compare requires at least one opportunity id');
+    }    const context = await opportunityContext(env);
+    const rows: Array<ReturnType<typeof mapOpportunity>> = [];
+    for (const id of ids) {
+      const opportunity = await env.opportunities.findById(id);
+      if (opportunity === null) {
+        throw new NotFoundError('PlacementOpportunity', id);
+      }
+      rows.push(await mapOpportunityWithRelations(env, opportunity, context));
+    }
+    return c.json(buildComparison(rows));
   });
 
   app.post('/api/opportunities/:id/approve', async (c) => {
@@ -536,6 +735,16 @@ export function createApiApp(services: ApiServices): Hono {
       )
       .filter((action) => action.reason !== '');
 
+    const humanActions = mapped.flatMap((item) => item.humanActions);
+    const negotiations = mapped
+      .filter((item) => item.negotiation !== null && item.negotiation.replies.length > 0)
+      .map((item) => ({
+        opportunityId: item.id,
+        platformName: item.platformName,
+        outreachStatus: item.outreach?.status ?? null,
+        negotiationIntent: item.negotiation?.analysis?.intent ?? null,
+      }));
+
     const recentActivity = [...env.auditLog.entries]
       .filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId))
       .slice(-10)
@@ -559,6 +768,8 @@ export function createApiApp(services: ApiServices): Hono {
       totalPlacements: placements.length,
       funnel,
       manualActions,
+      humanActions,
+      negotiations,
       recentActivity,
     };
     return c.json(overview);
@@ -627,6 +838,143 @@ async function requiredCompany(campaign: Campaign, env: NordhausEnvironment): Pr
     throw new NotFoundError('Company', campaign.companyId);
   }
   return company;
+}
+
+type OpportunityRow = ReturnType<typeof mapOpportunity>;
+
+const SORTERS: Readonly<Record<string, (a: OpportunityRow, b: OpportunityRow) => number>> = {
+  score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || a.platformName.localeCompare(b.platformName),
+  donorQuality: (a, b) =>
+    (b.donorQualityScore ?? -1) - (a.donorQualityScore ?? -1) || a.platformName.localeCompare(b.platformName),
+  traffic: (a, b) =>
+    (b.traffic ?? -1) - (a.traffic ?? -1) || a.platformName.localeCompare(b.platformName),
+  relevance: (a, b) =>
+    (b.scoreBreakdown?.topicalRelevance ?? -1) - (a.scoreBreakdown?.topicalRelevance ?? -1) ||
+    a.platformName.localeCompare(b.platformName),
+  lowestRisk: (a, b) => riskRank(a) - riskRank(b) || a.platformName.localeCompare(b.platformName),
+  ease: (a, b) => easeRank(a) - easeRank(b) || a.platformName.localeCompare(b.platformName),
+};
+
+function riskRank(row: OpportunityRow): number {
+  switch (row.risk?.level) {
+    case 'LOW':
+      return 0;
+    case 'MEDIUM':
+      return 1;
+    case 'UNKNOWN':
+      return 2;
+    case 'HIGH':
+      return 3;
+    default:
+      return 2;
+  }
+}
+
+function easeRank(row: OpportunityRow): number {
+  if (row.placementMethod === 'API') return 0;
+  if (row.placementMethod === 'BROWSER') return 1;
+  if (row.placementMethod === 'OUTREACH') return 2;
+  if (row.placementMethod === 'MANUAL') return 3;
+  return 4;
+}
+
+function sortOpportunities(items: OpportunityRow[], sort: string): OpportunityRow[] {
+  const sorter = SORTERS[sort] ?? SORTERS.score;
+  return [...items].sort(sorter);
+}
+
+interface ComparisonRow {
+  id: string;
+  platformName: string;
+  platformUrl: string | null;
+  categoryName: string | null;
+  placementType: string;
+  placementMethod: string;
+  status: string;
+  score: number | null;
+  overall: number | null;
+  donorQuality: number | null;
+  risk: string | null;
+  traffic: number | null;
+  authority: number | null;
+  geographicRelevance: number | null;
+  automationAvailable: boolean;
+  effort: number;
+}
+
+interface ComparisonResult {
+  items: ComparisonRow[];
+  recommendation: { winnerId: string; reason: string } | null;
+}
+
+function buildComparison(rows: OpportunityRow[]): ComparisonResult {
+  const items: ComparisonRow[] = rows.map((row) => {
+    const authority = row.donorQuality?.authority.value ?? null;
+    const geographicRelevance =
+      row.donorQuality?.geographicRelevance.value ?? row.scoreBreakdown?.geographicRelevance ?? null;
+    return {
+      id: row.id,
+      platformName: row.platformName,
+      platformUrl: row.platformUrl,
+      categoryName: row.categoryName,
+      placementType: row.placementType,
+      placementMethod: row.placementMethod,
+      status: row.status,
+      score: row.score,
+      overall: row.overallScore,
+      donorQuality: row.donorQualityScore,
+      risk: row.risk?.level ?? null,
+      traffic: row.traffic,
+      authority: typeof authority === 'number' ? authority : null,
+      geographicRelevance: typeof geographicRelevance === 'number' ? geographicRelevance : null,
+      automationAvailable: row.automationAvailable,
+      effort: easeRank(row),
+    };
+  });
+  const recommendation = recommendationFor(items);
+  return { items, recommendation };
+}
+
+function recommendationFor(items: ComparisonRow[]): ComparisonResult['recommendation'] {
+  if (items.length <= 1) return null;
+  const ranked = [...items].sort(
+    (a, b) =>
+      (b.overall ?? b.score ?? -1) - (a.overall ?? a.score ?? -1) ||
+      riskRankByLevel(a.risk) - riskRankByLevel(b.risk) ||
+      (b.donorQuality ?? -1) - (a.donorQuality ?? -1),
+  );
+  const winner = ranked[0];
+  if (winner === undefined) return null;
+  const breakdown: string[] = [];
+  breakdown.push(
+    `наивысшая итоговая оценка ${winner.overall ?? winner.score ?? '—'} из ${items.length} сравниваемых`,
+  );
+  if (winner.donorQuality !== null) {
+    breakdown.push(`лучшее качество донора (${winner.donorQuality})`);
+  }
+  breakdown.push(`риск: ${winner.risk ?? 'не оценивался'}`);
+  if (winner.authority !== null) {
+    breakdown.push(`авторитетность ${winner.authority}`);
+  }
+  return {
+    winnerId: winner.id,
+    reason: `Площадка «${winner.platformName}» рекомендуется первой, потому что ${breakdown.join('; ')}.`,
+  };
+}
+
+function riskRankByLevel(level: string | null): number {
+  switch (level) {
+    case 'LOW':
+      return 0;
+    case 'MEDIUM':
+      return 1;
+    case 'UNKNOWN':
+      return 2;
+    case 'HIGH':
+      return 3;
+    default:
+      return 2;
+  }
 }
 
 // --- small helpers (kept local to the delivery layer) -----------------------

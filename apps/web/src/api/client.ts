@@ -13,6 +13,7 @@ import type {
   CategoryDto,
   CompanyDto,
   CompanyListItemDto,
+  ComparisonResultDto,
   DiscoverResultDto,
   OpportunityDto,
   OverviewDto,
@@ -72,6 +73,11 @@ export interface OpportunitiesQuery {
   status?: string;
   source?: string;
   minScore?: number;
+  placementType?: string;
+  risk?: string;
+  sort?: string;
+  donorQuality?: number;
+  minTraffic?: number;
 }
 
 export interface CompanyDraft {
@@ -140,6 +146,35 @@ export const api = {
   activity: (): Promise<ActivityDto> => request(campaignPath('/api/activity')),
   discover: (): Promise<DiscoverResultDto> =>
     request(campaignPath('/api/discover'), { method: 'POST' }),
+  intel: (id: string): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/intel`, { method: 'POST', body: JSON.stringify({}) }),
+  linkInsert: (id: string, desiredAnchor?: string): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/link-insert`, {
+      method: 'POST',
+      body: JSON.stringify(desiredAnchor === undefined ? {} : { desiredAnchor }),
+    }),
+  generateOutreach: (id: string): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/outreach`, { method: 'POST', body: JSON.stringify({}) }),
+  outreachStatus: (id: string, status: string): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/outreach/status`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  analyzeReply: (id: string, reply: string): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/negotiation/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ reply }),
+    }),
+  negotiateRespond: (
+    id: string,
+    payload: { agree: boolean; customResponse?: string },
+  ): Promise<OpportunityDto> =>
+    request(`/api/opportunities/${id}/negotiation/respond`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  compare: (ids: string[]): Promise<ComparisonResultDto> =>
+    request('/api/opportunities/compare', { method: 'POST', body: JSON.stringify({ ids }) }),
   companies: (): Promise<{ items: CompanyListItemDto[] }> => request('/api/companies'),
   createCompany: (draft: CompanyDraft): Promise<CompanyDto> =>
     request('/api/companies', { method: 'POST', body: JSON.stringify(draft) }),

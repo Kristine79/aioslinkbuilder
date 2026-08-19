@@ -16,14 +16,18 @@ import { CompleteManualPlacementUseCase } from '@aios/application';
 
 import {
   approveScenarioOpportunity,
+  assessScenarioOpportunity,
+  analyzeScenarioDonorReply,
   createNordhausEnvironment,
   executeScenarioPlacement,
   monitorScenarioPlacement,
+  prepareScenarioLinkInsert,
   requestManualScenarioPlacement,
   seedNordhausScenario,
   verifyScenarioPlacement,
   NORDHAUS_PLATFORM_IDS,
 } from './nordhaus-environment.js';
+import { DEMO_DONOR_REPLY } from './nordhaus-intel.js';
 
 export interface NordhausDemoReport {
   campaignId: string;
@@ -64,6 +68,39 @@ export async function runNordhausDemo(): Promise<NordhausDemoReport> {
       `[4] ClassifyOpportunity ${opportunity.platformId}: score ${opportunity.score}, method ${opportunity.placementMethod}, type ${opportunity.placementType}`,
     );
   }
+
+  // Step 4.5: donor quality + page analysis + risk + Score 2.0 for every
+  // opportunity (AI-assisted, deterministic).
+  const assessed = await Promise.all(
+    seed.classified.map((opportunity) => assessScenarioOpportunity(env, opportunity.platformId)),
+  );
+  record(
+    `[4b] AssessOpportunity: donor quality + page analysis + risk + Score 2.0 computed for ${assessed.length} opportunities (synthetic demo data)`,
+  );
+
+  // Step 4.6: prepare the LINK_INSERT HITL showcase on Houzz — page analysis,
+  // link insert, anchor strategy and outreach draft.
+  const houzz = await prepareScenarioLinkInsert(env, NORDHAUS_PLATFORM_IDS.houzz);
+  const houzzIntel = (houzz.metadata ?? {}) as Record<string, unknown>;
+  record(
+    `[4c] LinkInsert (${NORDHAUS_PLATFORM_IDS.houzz}): donor quality ${
+      (houzzIntel.donorQuality as { overallDonorQuality?: number | null }).overallDonorQuality ?? '—'
+    }, risk ${
+      (houzzIntel.riskAssessment as { level?: string }).level ?? '—'
+    }, outreach status ${(houzzIntel.outreach as { status?: string }).status ?? '—'}`,
+  );
+  // Demonstrate the negotiation copilot with the donor reply.
+  const negotiated = await analyzeScenarioDonorReply(
+    env,
+    NORDHAUS_PLATFORM_IDS.houzz,
+    DEMO_DONOR_REPLY,
+  );
+  const negIntel = (negotiated.metadata ?? {}) as Record<string, unknown>;
+  record(
+    `[4d] Negotiation (${NORDHAUS_PLATFORM_IDS.houzz}): intent ${
+      (negIntel.negotiation as { analysis?: { intent?: string } }).analysis?.intent ?? '—'
+    }`,
+  );
 
   // Step 5: approve all executable + manual opportunities.
   const targets = [

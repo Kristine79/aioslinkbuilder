@@ -7,6 +7,10 @@ export const PLACEMENT_TYPES = [
   'EDITORIAL_PUBLICATION',
   'SOCIAL_PROFILE',
   'REFERRAL_TRAFFIC',
+  'LINK_INSERT',
+  'GUEST_POST',
+  'RESOURCE_PAGE',
+  'PARTNER_PAGE',
 ] as const;
 
 export type PlacementType = (typeof PLACEMENT_TYPES)[number];

@@ -21,6 +21,9 @@ import type {
   DiscoverySourceResult,
 } from './ports/discovery-sources.js';
 import type { PlacementProviderRegistry } from './ports/provider-registry.js';
+import type { SeoMetricsProvider, SeoMetricsSnapshot } from './ports/seo-metrics-provider.js';
+import type { PageAnalysisProvider } from './ports/page-analysis-provider.js';
+import type { OutreachProvider, OutreachSendResult } from './ports/outreach-provider.js';
 
 export type { CompanyRepository, CampaignRepository };
 export type { PlacementOpportunityRepository, PlacementRepository };
@@ -28,6 +31,9 @@ export type { VerificationRepository, AIAnalysisRepository, AuditLogRepository }
 export type { AuditLogDraft, AIAnalysisDraft, EvidenceDraft };
 export type { LookupRepository, EvidenceRepository };
 export type { PlacementProviderRegistry };
+export type { SeoMetricsProvider, SeoMetricsSnapshot };
+export type { PageAnalysisProvider };
+export type { OutreachProvider, OutreachSendResult };
 export type {
   PlatformDiscoverySource,
   DiscoverySourceInput,
@@ -93,3 +99,23 @@ export { VerifyPlacementUseCase } from './use-cases/placement/verify-placement.u
 export { RequestManualPlacementUseCase } from './use-cases/placement/request-manual-placement.use-case.js';
 export { CompleteManualPlacementUseCase } from './use-cases/placement/complete-manual-placement.use-case.js';
 export type { VerifyPlacementResult } from './use-cases/placement/verify-placement.use-case.js';
+
+export type { OpportunityIntel } from './intel/metadata.js';
+export { readIntel, writeIntel, emptyIntel } from './intel/metadata.js';
+export type { OpportunityContext } from './intel/context.js';
+export { loadOpportunityContext } from './intel/context.js';
+
+export { AssessOpportunityUseCase } from './use-cases/intel/assess-opportunity.use-case.js';
+export type { AssessOpportunityCommand } from './use-cases/intel/assess-opportunity.use-case.js';
+export { GenerateLinkInsertUseCase } from './use-cases/intel/generate-link-insert.use-case.js';
+export type { GenerateLinkInsertCommand } from './use-cases/intel/generate-link-insert.use-case.js';
+export { RecommendAnchorUseCase } from './use-cases/intel/recommend-anchor.use-case.js';
+export type { RecommendAnchorCommand } from './use-cases/intel/recommend-anchor.use-case.js';
+export { GenerateOutreachUseCase } from './use-cases/intel/generate-outreach.use-case.js';
+export type { GenerateOutreachCommand } from './use-cases/intel/generate-outreach.use-case.js';
+export { UpdateOutreachStatusUseCase } from './use-cases/intel/update-outreach-status.use-case.js';
+export type { UpdateOutreachStatusCommand } from './use-cases/intel/update-outreach-status.use-case.js';
+export { AnalyzeNegotiationReplyUseCase } from './use-cases/intel/analyze-negotiation-reply.use-case.js';
+export type { AnalyzeNegotiationReplyCommand } from './use-cases/intel/analyze-negotiation-reply.use-case.js';
+export { RespondNegotiationUseCase } from './use-cases/intel/respond-negotiation.use-case.js';
+export type { RespondNegotiationCommand } from './use-cases/intel/respond-negotiation.use-case.js';

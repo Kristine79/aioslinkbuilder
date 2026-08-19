@@ -1,8 +1,43 @@
 # AI OS — Link Building Module
 
-Phases 0–5: modular-monolith monorepo with a strict domain layer, PostgreSQL (Neon) persistence, placement state machine, deterministic scoring, provider (incl. MockProvider) and AI abstractions, placement execution/verification flows, a delivery layer (`apps/api`, Hono) and a functional Russian UI (`apps/web`, Vite + React) running the real application flows on a seeded Nordhaus scenario.
+Phases 0–6: modular-monolith monorepo with a strict domain layer, PostgreSQL (Neon) persistence, placement state machine, deterministic scoring, provider (incl. MockProvider) and AI abstractions, placement execution/verification flows, a delivery layer (`apps/api`, Hono) and a functional Russian UI (`apps/web`, Vite + React).
+
+The prototype is evolving into an **AI Link Building Operations Platform / Copilot**: AI automates research, qualification, preparation and routine work, while humans handle negotiation, approval and cases where automation is impossible. It is not a fully autonomous link-building bot.
 
 Product requirements and design live in: `PRD.md`, `ARCHITECTURE.md`, `DOMAIN_MODEL.md`, `STATE_MACHINE.md`, `SCORING.md`, `INTEGRATIONS.md`, `TESTING.md`, `AI_WORKFLOWS.md`, `docs/decisions/`.
+
+## Link-building intelligence features
+
+- **Donor quality / SEO intelligence** — traffic, geography, keyword profile,
+  backlink profile, authority, spam risk, indexation, topical relevance,
+  audience/geographic match, placement quality, automation potential. Every
+  external metric carries explicit provenance: `MEASURED` / `AI_ESTIMATED` /
+  `INTERNAL` / `SYNTHETIC` / `UNKNOWN`. Demo data is clearly labeled.
+- **Page-level analysis** — a donor domain and the specific placement page are
+  separate entities (title, page type, topical relevance, link-insert
+  suitability, indexation, outbound-link signals, suggested placement).
+- **Placement type expansion** — `LINK_INSERT`, `GUEST_POST`, `RESOURCE_PAGE`,
+  `PARTNER_PAGE` with per-type recommended workflows.
+- **Link insert assistant** — web-page-aware anchor + alternatives + insertion
+  point + contextual text + naturalness explanation + confidence.
+- **Anchor strategy** — explicit anchor classification (exact/partial match,
+  branded, generic, url, long-tail) with rationale; profile-aware when a
+  campaign anchor profile exists.
+- **Donor risk / spam analysis** — deterministic signals (LOW/MEDIUM/HIGH).
+- **Opportunity Score 2.0** — separates relevance / donor quality / placement
+  quality / execution / risk into a transparent overall (weights in SCORING.md).
+- **Outreach assistant** (HITL) — subject, message, short version, opening,
+  value proposition, placement request, CTA. Sending is only ever human-triggered.
+- **Negotiation copilot** (HITL) — paste a donor reply → AI classifies the
+  intent and prepares a suggested response, strategy, price range, fallback
+  and risks; the human approves and sends.
+- **Human-in-the-loop workspace** — "Требует действия" cards with WHY / WHAT
+  AI prepared / WHAT the human must do, plus a primary action.
+- **Donor comparison** + "Почему AI рекомендует №1".
+- **Better opportunity list** — server-side filters (category, method, status,
+  source, placement type, risk, min score, min donor quality, min traffic) and
+  sorting (score / donor quality / traffic / relevance / lowest risk / ease).
+- **Campaign links / anchor profile** view, and a dashboard health overview.
 
 ## Repository layout
 
@@ -41,6 +76,8 @@ The project uses Neon PostgreSQL. There is no local PostgreSQL requirement.
 2. Do not commit `.env` (it is gitignored).
 
 Local dev network note: on some networks the Neon direct endpoint is unreachable while the pooled endpoint works; if `prisma migrate dev` fails with `P1001`, point `DIRECT_URL` at the pooled endpoint for local work (see ADR-008). On Vercel/CI use the native direct endpoint.
+
+New values were added to the `PlacementType` and `AIAnalysisType` enums for the link-building-intelligence feature. The migration `.../prisma/migrations/20260818120000_link_building_intel/migration.sql` must be applied (`prisma migrate dev`) when the database is reachable; the in-memory demo/API already uses the new types directly.
 
 ## Setup and commands
 
@@ -85,6 +122,7 @@ pnpm test:e2e         # E2E: boots the production composition over HTTP and driv
 | 4     | placement execution, monitoring, verification, evidence, audit log                                              | done   |
 | 5     | Russian UI (apps/web + apps/api delivery layer)                                                                 | done   |
 | 6     | E2E flow + quality pass                                                                                         | done   |
+| 7     | link-building intelligence: donor quality, page analysis, anchor/link insert, outreach, negotiation, HITL, Score 2.0, comparison | done   |
 
 ## Key decisions
 
@@ -94,6 +132,7 @@ pnpm test:e2e         # E2E: boots the production composition over HTTP and driv
 - Tooling: pnpm workspaces, strict TS, Vitest, Prisma, zod (ADR-008).
 - Application layer: ports + use cases + command DTOs; delivery (`apps/api`) deferred; repositories own ids and timestamps; writes re-validate full state; audit events with actor `system` (ADR-009).
 - Opportunity discovery is a port: the seeded catalog is the first discovery source, future API/AI-research sources plug in without domain changes (ADR-010).
+- Link-building intelligence (donor quality, page analysis, anchor/link insert, outreach, negotiation, Score 2.0, risk) is stored as typed JSON on the opportunity metadata through a single helper, with new provider ports (SEO metrics / page analysis / outreach) and zod-validated AI methods (ADR-011).
 - Provider alignment is deterministic domain logic: verified providers that support CREATE+VERIFY are selected by type priority (API > MOCK > BROWSER > MANUAL); unverified capabilities stay explicit (never claimed). Classification and execution read provider availability from the same registry; MOCK providers are excluded at the composition/registry boundary in production.
 - Failed attempts are retried with a fresh Placement record; manual placements go through NEEDS_MANUAL and reach PUBLISHED only with proof (human-in-the-loop path).
 - `pnpm demo` runs the full deterministic Nordhaus scenario end-to-end on the MockProvider (in-memory, no database needed).

@@ -6,7 +6,9 @@ import { AppShell } from './components/AppShell';
 import { ActivityScreen } from './screens/ActivityScreen';
 import { CompaniesScreen } from './screens/CompaniesScreen';
 import { CompanyScreen } from './screens/CompanyScreen';
+import { CompareScreen } from './screens/CompareScreen';
 import { DashboardScreen } from './screens/DashboardScreen';
+import { LinksScreen } from './screens/LinksScreen';
 import { OpportunityScreen } from './screens/OpportunityScreen';
 import { OpportunitiesScreen } from './screens/OpportunitiesScreen';
 import './styles/app.css';
@@ -37,6 +39,8 @@ createRoot(rootElement).render(
           <Route path="/company" element={<CompanyScreen />} />
           <Route path="/opportunities" element={<OpportunitiesScreen />} />
           <Route path="/opportunities/:id" element={<OpportunityScreen />} />
+          <Route path="/compare" element={<CompareScreen />} />
+          <Route path="/links" element={<LinksScreen />} />
           <Route path="/activity" element={<ActivityScreen />} />
           <Route path="/companies" element={<CompaniesScreen />} />
           <Route path="*" element={<NotFoundScreen />} />

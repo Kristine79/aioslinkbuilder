@@ -39,6 +39,132 @@ export const TYPE_LABELS: Record<string, string> = {
   EDITORIAL_PUBLICATION: 'Публикация',
   SOCIAL_PROFILE: 'Профиль в соцсетях',
   REFERRAL_TRAFFIC: 'Реферальный трафик',
+  LINK_INSERT: 'Вставка ссылки',
+  GUEST_POST: 'Гостевой пост',
+  RESOURCE_PAGE: 'Ресурсная страница',
+  PARTNER_PAGE: 'Страница партнёра',
+};
+
+export const OUTREACH_STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Черновик',
+  READY_FOR_REVIEW: 'Готов к проверке',
+  APPROVED: 'Одобрен',
+  SENT: 'Отправлен',
+  REPLIED: 'Получен ответ',
+  NEGOTIATING: 'Переговоры',
+  AGREED: 'Согласовано',
+  REJECTED: 'Отклонено',
+  NO_RESPONSE: 'Нет ответа',
+};
+
+export const NEGOTIATION_INTENT_LABELS: Record<string, string> = {
+  ACCEPTED: 'Принято',
+  REJECTED: 'Отклонено',
+  PRICE_NEGOTIATION: 'Переговоры о цене',
+  CONTENT_REQUIREMENTS: 'Требования к контенту',
+  LINK_ATTRIBUTE_REQUEST: 'Запрос об атрибутах ссылки',
+  NEEDS_CLARIFICATION: 'Нужно уточнение',
+  MANUAL_REVIEW: 'Нужна ручная проверка',
+};
+
+export const ANCHOR_TYPE_LABELS: Record<string, string> = {
+  EXACT_MATCH: 'Exact-match',
+  PARTIAL_MATCH: 'Partial-match',
+  BRANDED: 'Branded',
+  GENERIC: 'Generic',
+  URL: 'URL',
+  LONG_TAIL: 'Long-tail',
+};
+
+export const METRIC_STATUS_LABELS: Record<string, string> = {
+  MEASURED: 'измерено',
+  AI_ESTIMATED: 'оценка AI',
+  INTERNAL: 'внутренний расчёт',
+  SYNTHETIC: 'демо-данные',
+  UNKNOWN: 'нет данных',
+};
+
+export const METRIC_STATUS_TONES: Record<string, string> = {
+  MEASURED: 'tone-green',
+  AI_ESTIMATED: 'tone-blue',
+  INTERNAL: 'tone-indigo',
+  SYNTHETIC: 'tone-amber',
+  UNKNOWN: 'tone-gray',
+};
+
+export const RISK_LEVEL_LABELS: Record<string, string> = {
+  LOW: 'Низкий',
+  MEDIUM: 'Средний',
+  HIGH: 'Высокий',
+  UNKNOWN: 'Не оценён',
+};
+
+export const RISK_LEVEL_TONES: Record<string, string> = {
+  LOW: 'tone-green',
+  MEDIUM: 'tone-amber',
+  HIGH: 'tone-red',
+  UNKNOWN: 'tone-gray',
+};
+
+export const DONOR_QUALITY_LEVEL_LABELS: Record<string, string> = {
+  EXCELLENT: 'Отлично',
+  GOOD: 'Хорошо',
+  FAIR: 'Средне',
+  POOR: 'Слабо',
+  UNKNOWN: 'Не оценено',
+};
+
+export const PAGE_TYPE_LABELS: Record<string, string> = {
+  EDITORIAL: 'Редакционная',
+  RESOURCE: 'Ресурсная',
+  BLOG: 'Блог',
+  PRODUCT: 'Товарная',
+  PROFILE: 'Профиль',
+  LISTING: 'Листинг',
+  NEWS: 'Новость',
+  CATEGORY: 'Категория',
+  OTHER: 'Другое',
+  UNKNOWN: 'Не определён',
+};
+
+export const HUMAN_ACTION_LABELS: Record<string, string> = {
+  REVIEW_DONOR: 'Проверка донора',
+  APPROVE_OPPORTUNITY: 'Одобрение возможности',
+  APPROVE_OUTREACH: 'Одобрение outreach',
+  DONOR_REPLIED: 'Ответ донора',
+  NEGOTIATE_PRICE: 'Согласование цены',
+  MANUAL_PLACEMENT: 'Ручное размещение',
+  CONFIRM_PUBLICATION: 'Подтверждение публикации',
+};
+
+export const SCORE_V2_DIMENSION_LABELS: Record<string, string> = {
+  relevanceScore: 'Релевантность',
+  donorQualityScore: 'Качество донора',
+  placementQualityScore: 'Качество размещения',
+  executionScore: 'Исполнение',
+  riskScore: 'Риск',
+};
+
+export const SORT_LABELS: Record<string, string> = {
+  score: 'По баллу',
+  donorQuality: 'По качеству донора',
+  traffic: 'По трафику',
+  relevance: 'По релевантности',
+  lowestRisk: 'По наименьшему риску',
+  ease: 'По простоте исполнения',
+};
+
+export const WORKFLOW_STAGE_LABELS: Record<string, string> = {
+  research: 'Исследование',
+  page_analysis: 'Анализ страницы',
+  approval: 'Одобрение',
+  outreach: 'Outreach',
+  negotiation: 'Переговоры',
+  content: 'Контент',
+  submission: 'Отправка',
+  execution: 'Исполнение',
+  placement: 'Размещение',
+  verification: 'Проверка',
 };
 
 export const PROVIDER_TYPE_LABELS: Record<string, string> = {
@@ -107,6 +233,16 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PLACEMENT_MANUALLY_PUBLISHED: 'Опубликовано вручную',
   PLACEMENT_VERIFIED: 'Размещение проверено',
   PLACEMENT_VERIFICATION_FAILED: 'Проверка размещения не пройдена',
+  OPPORTUNITY_INTEL_ASSESSED: 'Профиль донора и оценка обновлены',
+  LINK_INSERT_GENERATED: 'Подготовлена вставка ссылки',
+  ANCHOR_RECOMMENDED: 'Рекомендован анкор',
+  OUTREACH_GENERATED: 'Outreach подготовлен',
+  OUTREACH_SENT: 'Outreach отправлен',
+  OUTREACH_STATUS_CHANGED: 'Статус outreach изменён',
+  DONOR_REPLY_RECEIVED: 'Получен ответ донора',
+  NEGOTIATION_ANALYZED: 'Ответ проанализирован AI',
+  NEGOTIATION_RESPONDED: 'Ответ согласован человеком',
+  NEGOTIATION_AGREED: 'Договорённость достигнута',
 };
 
 export const FUNNEL_LABELS: Record<string, string> = {

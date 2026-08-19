@@ -9,7 +9,14 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import type { OverviewDto } from '../api/types';
 import { Alert, ErrorState, LoadingState, StatCard } from '../components/ui';
-import { AUDIT_ACTION_LABELS, FUNNEL_LABELS, formatDateTime } from '../ru';
+import { HumanActionsPanel } from '../components/HumanActionsPanel';
+import {
+  AUDIT_ACTION_LABELS,
+  FUNNEL_LABELS,
+  NEGOTIATION_INTENT_LABELS,
+  OUTREACH_STATUS_LABELS,
+  formatDateTime,
+} from '../ru';
 
 export function DashboardScreen() {
   const [overview, setOverview] = useState<OverviewDto | null>(null);
@@ -49,6 +56,61 @@ export function DashboardScreen() {
       <p className="page-subtitle">
         {company.name} · {campaign.name}
       </p>
+
+      {overview.humanActions.length > 0 && (
+        <div className="card mb-16">
+          <div className="card-header">
+            <div className="card-title" style={{ flex: 1 }}>
+              Требует действия
+            </div>
+            <span className="badge tone-amber">{overview.humanActions.length}</span>
+          </div>
+          <div className="card-body">
+            <HumanActionsPanel actions={overview.humanActions} />
+          </div>
+        </div>
+      )}
+
+      {overview.negotiations.length > 0 && (
+        <div className="card mb-16">
+          <div className="card-header">
+            <div className="card-title" style={{ flex: 1 }}>
+              Переговоры
+            </div>
+          </div>
+          <div className="card-body">
+            <div className="list">
+              {overview.negotiations.map((n) => (
+                <div className="row" key={n.opportunityId}>
+                  <div className="row-main">
+                    <div className="row-title">{n.platformName}</div>
+                    <div className="row-sub">
+                      <span>
+                        outreach:{' '}
+                        {n.outreachStatus !== null
+                          ? (OUTREACH_STATUS_LABELS[n.outreachStatus] ?? n.outreachStatus)
+                          : '—'}
+                      </span>
+                      {n.negotiationIntent !== null && (
+                        <span>
+                          намерение:{' '}
+                          {NEGOTIATION_INTENT_LABELS[n.negotiationIntent] ?? n.negotiationIntent}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Link
+                    className="btn btn-secondary btn-sm"
+                    to={`/opportunities/${n.opportunityId}`}
+                  >
+                    Открыть
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-16 card card-pad">
         <div className="flex-between mb-16">

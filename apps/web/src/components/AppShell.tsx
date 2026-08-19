@@ -21,6 +21,8 @@ const NAV: readonly NavEntry[] = [
   { to: '/', label: 'Обзор', icon: '▦' },
   { to: '/company', label: 'Компания и анализ', icon: '◈' },
   { to: '/opportunities', label: 'Возможности', icon: '☰' },
+  { to: '/compare', label: 'Сравнение доноров', icon: '⇆' },
+  { to: '/links', label: 'Ссылки и анкоры', icon: '⌁' },
   { to: '/activity', label: 'Активность и доказательства', icon: '≡' },
   { to: '/companies', label: 'Компании', icon: '◇' },
 ];

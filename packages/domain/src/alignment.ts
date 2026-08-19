@@ -2,7 +2,9 @@ import type { CapabilitySet } from './capabilities.js';
 import { supportsCapability } from './capabilities.js';
 import type { PlacementProvider } from './entities/placement-provider.js';
 import type { PlacementMethod } from './enums/placement-method.js';
+import type { PlacementType } from './enums/placement-type.js';
 import type { ProviderType } from './enums/provider-type.js';
+import { isOutreachPlacementType } from './workflow.js';
 
 /**
  * Capabilities required to execute a placement automatically through a
@@ -88,6 +90,22 @@ export function derivePlacementMethod(provider: PlacementProvider | null): Place
     default:
       return 'UNKNOWN';
   }
+}
+
+/**
+ * Placement method for a classification result. Outreach-driven placement
+ * types (link insert, guest post, resource/partner pages) are executed via
+ * human outreach regardless of provider availability — no API or browser
+ * provider is required for the outreach part of the workflow.
+ */
+export function derivePlacementMethodForType(
+  placementType: PlacementType,
+  alignment: ProviderAlignment,
+): PlacementMethod {
+  if (isOutreachPlacementType(placementType)) {
+    return 'OUTREACH';
+  }
+  return alignment.method;
 }
 
 /**

@@ -35,7 +35,7 @@ describe('Nordhaus end-to-end demo', () => {
       status: 'QUALIFIED',
     });
     expect(byPlatform.get('platform-houzz')).toMatchObject({
-      method: 'UNKNOWN',
+      method: 'OUTREACH',
       status: 'QUALIFIED',
     });
 

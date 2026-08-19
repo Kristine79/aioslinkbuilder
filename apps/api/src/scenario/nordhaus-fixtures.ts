@@ -10,18 +10,38 @@
  * so the product works for arbitrary input, not only the demo scenario.
  */
 
-import { DEFAULT_PLACEMENT_TYPE_BY_CATEGORY } from '@aios/domain';
-import type { PlacementCategory, PlacementProvider, Platform } from '@aios/domain';
+import { DEFAULT_PLACEMENT_TYPE_BY_CATEGORY, recommendAnchorType } from '@aios/domain';
 import type {
+  DonorQualityProfile,
+  PlacementCategory,
+  PlacementProvider,
+  Platform,
+} from '@aios/domain';
+import type {
+  AIAnchorRecommendation,
+  AIDonorRisk,
+  AILinkInsert,
+  AINegotiationAnalysis,
+  AIPageAnalysis,
+  AIOutreachMessage,
   AIProvider,
+  AnchorRecommendationInput,
   CompanyAnalysis,
   CompanyAnalysisInput,
   ContentDraft,
   ContentPreparationInput,
+  DonorQualityEstimateInput,
+  DonorQualityEstimates,
+  DonorRiskInput,
+  LinkInsertInput,
+  NegotiationReplyInput,
   OpportunityClassification,
   OpportunityClassificationInput,
+  OutreachInput,
+  PageAnalysisInput,
 } from '@aios/ai';
 import { MockPlacementProvider, InMemoryPlacementProviderRegistry } from '@aios/integrations';
+import { DONOR_FIXTURES, PAGE_FIXTURES } from './nordhaus-intel.js';
 
 export const NORDHAUS_CATEGORIES: PlacementCategory[] = [
   {
@@ -472,11 +492,12 @@ const CLASSIFICATION_FIXTURES: Readonly<Record<string, OpportunityClassification
   },
   'https://www.houzz.ru': {
     category: 'interior-design',
-    placementType: 'EDITORIAL_PUBLICATION',
+    placementType: 'LINK_INSERT',
     topicalRelevance: 90,
     audienceMatch: 85,
     geographicRelevance: 70,
-    recommendationReason: 'Глобальная дизайн-платформа с российской аудиторией',
+    recommendationReason:
+      'Глобальная дизайн-платформа с российской аудиторией — подходящая страница для вставки ссылки на мебель на заказ',
   },
   'https://archi.ru': {
     category: 'architecture',
@@ -607,6 +628,136 @@ export class ScenarioAIProvider implements AIProvider {
       content: `Компания ${input.company.name}: ${input.company.description ?? ''}`.trim(),
     });
   }
+
+  analyzePage(input: PageAnalysisInput): Promise<AIPageAnalysis> {
+    const fixture = input.platform.url === null ? undefined : PAGE_FIXTURES[input.platform.url];
+    if (fixture !== undefined) {
+      return Promise.resolve({
+        targetPage: fixture.targetPage ?? '',
+        pageTitle: fixture.pageTitle ?? '',
+        pageType: fixture.pageType,
+        topicalRelevance: fixture.topicalRelevance.value ?? 80,
+        linkInsertSuitability: fixture.linkInsertSuitability.value ?? 75,
+        indexation: fixture.indexation.value ?? 'INDEXED',
+        suggestedPlacementLocation: fixture.suggestedPlacementLocation ?? '',
+        summary: fixture.summary ?? '',
+      });
+    }
+    return Promise.resolve(deterministicPageAnalysis(input));
+  }
+
+  generateLinkInsert(input: LinkInsertInput): Promise<AILinkInsert> {
+    const company = input.company.name;
+    const product = input.company.products[0] ?? 'мебель на заказ';
+    const anchor = input.desiredAnchor ?? `${product.toLowerCase()} от ${company}`;
+    const pageHint = input.targetPage !== null ? ` на странице ${input.targetPage}` : '';
+    return Promise.resolve({
+      anchor,
+      anchorAlternatives: [`${company} — ${product}`, `${company}`, `${product} по индивидуальным проектам`],
+      suggestedInsertionPoint: 'Второй абзац, после вводного описания темы статьи',
+      text: `Для тех, кто ищет качественную ${product.toLowerCase()}, ${company} изготавливает кухни и встроенную мебель по индивидуальным проектам${pageHint ? ` (${input.targetPage})` : ''} — подробнее на сайте компании.`,
+      explanation:
+        'Вставка естественно продолжает мысль статьи о выборе мебели: компания-производитель упоминается в контексте конкретного запроса читателя, а не как отдельный рекламный блок.',
+      confidence: 82,
+    });
+  }
+
+  recommendAnchor(input: AnchorRecommendationInput): Promise<AIAnchorRecommendation> {
+    const decision = recommendAnchorType({
+      placementObjective: input.placementObjective,
+      companyName: input.companyName,
+      targetKeyword: input.targetKeyword,
+      surroundingContext: input.surroundingContext,
+      targetPageRelevance: input.targetPageRelevance ?? null,
+      anchorProfileAvailable: input.anchorProfileAvailable,
+    });
+    const keyword = input.targetKeyword ?? 'мебель на заказ';
+    const anchor =
+      decision.anchorType === 'BRANDED'
+        ? input.companyName
+        : decision.anchorType === 'LONG_TAIL'
+          ? `${keyword.toLowerCase()} по индивидуальным проектам`
+          : `${keyword.toLowerCase()} от ${input.companyName}`;
+    return Promise.resolve({
+      anchorType: decision.anchorType,
+      anchor,
+      alternatives:
+        decision.anchorType === 'BRANDED'
+          ? [input.companyName, `${keyword.toLowerCase()} от ${input.companyName}`]
+          : [input.companyName, `${keyword.toLowerCase()} от ${input.companyName}`, 'производитель мебели на заказ'],
+      explanation: decision.explanation,
+      confidence: 76,
+    });
+  }
+
+  generateOutreach(input: OutreachInput): Promise<AIOutreachMessage> {
+    const company = input.company.name;
+    const platformName = input.platform.name;
+    const product = input.company.products[0] ?? 'мебель на заказ';
+    const anchor = input.anchor ?? `${product.toLowerCase()} от ${company}`;
+    const pageRef = input.pageTitle !== null ? ` в статье «${input.pageTitle}»` : '';
+    return Promise.resolve({
+      subject: `${company}: предложение для ${platformName}`,
+      opening: `Здравствуйте! Редакции ${platformName} — команда ${company}, производителя мебели на заказ.`,
+      valueProposition: `Мы производим ${product.toLowerCase()} по индивидуальным проектам и можем предложить читателям ${platformName} полезный материал о выборе и заказе мебели.`,
+      message: `Здравствуйте! Редакции ${platformName} пишет команда ${company}, производителя мебели на заказ (${input.company.website ?? ''}). Мы производим ${product.toLowerCase()} по индивидуальным проектам и готовы поделиться с вашей аудиторией экспертным материалом о выборе и заказе мебели. Просим рассмотреть добавление ссылки${pageRef !== '' ? pageRef : ' на наш сайт'} с анкором «${anchor}». Будем рады обсудить детали.`,
+      shortVersion: `Здравствуйте! ${company} предлагает добавить ссылку с анкором «${anchor}» в статью о выборе мебели. Обсудим детали?`,
+      placementRequest: `добавление ссылки${pageRef !== '' ? pageRef : ' на наш сайт'} с анкором «${anchor}»`,
+      cta: 'Будем рады обсудить детали и предоставить дополнительные материалы.',
+    });
+  }
+
+  analyzeNegotiationReply(input: NegotiationReplyInput): Promise<AINegotiationAnalysis> {
+    return Promise.resolve(classifyNegotiationReply(input));
+  }
+
+  estimateDonorQuality(input: DonorQualityEstimateInput): Promise<DonorQualityEstimates> {
+    const fixture = input.platform.url === null ? undefined : CLASSIFICATION_FIXTURES[input.platform.url];
+    const base =
+      fixture === undefined
+        ? CATEGORY_BASE_SEMANTIC_SCORES[categoryCodeFor(input.platform.category)] ?? {
+            topicalRelevance: 80,
+            audienceMatch: 80,
+            geographicRelevance: 80,
+          }
+        : {
+            topicalRelevance: fixture.topicalRelevance,
+            audienceMatch: fixture.audienceMatch,
+            geographicRelevance: fixture.geographicRelevance,
+          };
+    return Promise.resolve({
+      topicalRelevance: clamp(base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)),
+      audienceMatch: clamp(base.audienceMatch + deterministicDelta(input.platform.name, input.platform.url)),
+      geographicRelevance: clamp(base.geographicRelevance + deterministicDelta(input.platform.name, input.platform.url)),
+      placementQuality: clamp(base.topicalRelevance - 5 + deterministicDelta(input.platform.name, input.platform.url)),
+      automationPotential: DEFAULT_PLACEMENT_TYPE_BY_CATEGORY[categoryCodeFor(input.platform.category)] === 'BUSINESS_PROFILE' ? 90 : 55,
+      overallAssessment: `Площадка ${input.platform.name} оценена по синтетическим демо-данным`,
+    });
+  }
+
+  assessDonorRisk(input: DonorRiskInput): Promise<AIDonorRisk> {
+    const profile = input.donorQuality as DonorQualityProfile | null;
+    const reasons: string[] = [];
+    let level: AIDonorRisk['level'] = 'UNKNOWN';
+    if (profile !== null && typeof profile === 'object') {
+      const donorUrl = input.platform.url;
+      const fixture = donorUrl === null ? undefined : DONOR_FIXTURES[donorUrl];
+      if (fixture !== undefined) {
+        if (fixture.spamRisk >= 60) {
+          level = 'HIGH';
+          reasons.push('высокий spam-риск — признаки продажи ссылок');
+        } else if (fixture.spamRisk >= 35 || fixture.indexing === 'PARTIAL') {
+          level = 'MEDIUM';
+          if (fixture.spamRisk >= 35) reasons.push('повышенный spam-риск');
+          if (fixture.indexing === 'PARTIAL') reasons.push('неполная индексация страниц');
+        } else {
+          level = 'LOW';
+          reasons.push('профиль донора чистый');
+        }
+      }
+    }
+    return Promise.resolve({ level, reasons });
+  }
 }
 
 /** Deterministic company analysis for arbitrary companies (no real LLM in demo mode). */
@@ -730,6 +881,126 @@ function trimmedLower(value: string): string {
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+/** Deterministic page analysis for platforms without a curated fixture. */
+function deterministicPageAnalysis(input: PageAnalysisInput): AIPageAnalysis {
+  const categoryCode = categoryCodeFor(input.platform.category);
+  const base = CATEGORY_BASE_SEMANTIC_SCORES[categoryCode] ?? {
+    topicalRelevance: 80,
+    audienceMatch: 80,
+    geographicRelevance: 80,
+  };
+  return {
+    targetPage: input.platform.url ?? input.platform.name,
+    pageTitle: input.platform.name,
+    pageType: 'PROFILE',
+    topicalRelevance: clamp(base.topicalRelevance + deterministicDelta(input.platform.name, input.platform.url)),
+    linkInsertSuitability: clamp(base.topicalRelevance - 8 + deterministicDelta(input.platform.name, input.platform.url)),
+    indexation: 'INDEXED',
+    suggestedPlacementLocation: 'Страница профиля компании',
+    summary: `Площадка «${input.platform.name}» — профиль компании в категории «${
+      CATEGORY_NAME_BY_CODE[categoryCode] ?? categoryCode
+    }».`,
+  };
+}
+
+/** Deterministic donor-reply classification used by the demo AI provider. */
+function classifyNegotiationReply(input: NegotiationReplyInput): AINegotiationAnalysis {
+  const text = input.donorReply.toLowerCase();
+  const company = input.company.name;
+  const platformName = input.platformName;
+  const priceMatch = text.match(/\d[\d\s]*(?:[.,]\d+)?\s*(?:usd|\$|руб|₽)?/);
+  const hasAmount = /\$\s*\d+|\d+\s*(?:usd|руб|₽)|\b(?:за|стоит|цена|оплата|платно)\b/.test(text);
+
+  const base = {
+    suggestedResponse: '',
+    strategy: '',
+    recommendedPrice: null as { min: number; max: number; currency: string } | null,
+    fallbackOption: null as string | null,
+    risks: [] as string[],
+    confidence: 78,
+  };
+
+  if (/(nofollow|rel="nofollow"|атрибут)/.test(text)) {
+    return {
+      ...base,
+      intent: 'LINK_ATTRIBUTE_REQUEST',
+      suggestedResponse: `Готовы обсудить атрибуты ссылки. Для ${company} важно, чтобы ссылка не была nofollow. Можем ли договориться о dofollow-ссылке?`,
+      strategy: 'Обсудить атрибуты ссылки; предложить доплату за dofollow, если площадка настаивает.',
+      risks: ['Если ссылка будет nofollow, ценность размещения снижается.'],
+      fallbackOption: 'Предложить брендированное упоминание без ссылки.',
+    };
+  }
+
+  if (/(согласн|публикуем|можно|готовы|ок\b|да\b|подходит)/.test(text)) {
+    return {
+      ...base,
+      intent: 'ACCEPTED',
+      suggestedResponse: `Отлично! Спасибо, что готовы разместить ссылку. Уточните, пожалуйста, сроки публикации и итоговый адрес статьи.`,
+      strategy: 'Подтвердить договорённость и запросить детали публикации.',
+      risks: [],
+      confidence: 85,
+    };
+  }
+
+  if (/(не можем|отказ|не подходит|не заинтересован|нет\b)/.test(text)) {
+    return {
+      ...base,
+      intent: 'REJECTED',
+      suggestedResponse: `Спасибо за ответ. Если ситуация изменится, будем рады вернуться к обсуждению.`,
+      strategy: 'Вежливо закрыть тему и переключиться на запасной вариант.',
+      risks: [],
+      fallbackOption: 'Рассмотреть другую площадку из списка возможностей.',
+    };
+  }
+
+  if (/(стать|контент|материал|текст|гостев)/.test(text)) {
+    return {
+      ...base,
+      intent: 'CONTENT_REQUIREMENTS',
+      suggestedResponse: `Мы готовы подготовить материал для ${platformName}. Уточните, пожалуйста, требования к объёму, теме и срокам — подготовим статью в ближайшее время.`,
+      strategy: 'Уточнить требования к контенту и предложить готовый черновик.',
+      risks: ['Материал может не пройти редактуру площадки.'],
+      fallbackOption: 'Предложить более короткий формат — вставку ссылки в существующую статью.',
+    };
+  }
+
+  if (hasAmount) {
+    const rawAmount = priceMatch?.[0]?.match(/\d[\d\s]*/) ?? null;
+    const amount = rawAmount === null ? null : Number(rawAmount[0].replace(/\s/g, ''));
+    const currency = /\$|usd/.test(text) ? 'USD' : /\bруб|₽/.test(text) ? 'RUB' : 'USD';
+    const negotiated =
+      amount === null || !Number.isFinite(amount) || amount <= 0
+        ? null
+        : { min: Math.max(0, Math.round(amount * 0.6)), max: Math.round(amount * 0.72), currency };
+    return {
+      ...base,
+      intent: 'PRICE_NEGOTIATION',
+      suggestedResponse:
+        negotiated === null
+          ? `Спасибо за предложение. Мы изучим условия и вернёмся с ответом.`
+          : `Спасибо за условия. Для нашего бюджета оптимально ${
+              negotiated.min
+            }–${negotiated.max} ${currency}. Готовы рассмотреть размещение в этом диапазоне.`,
+      strategy:
+        negotiated === null
+          ? 'Запросить уточнение цены.'
+          : `Предложить снижение цены до ${negotiated.min}–${negotiated.max} ${currency}.`,
+      recommendedPrice: negotiated,
+      fallbackOption: 'Предложить гостевую статью вместо вставки ссылки.',
+      risks: ['Цена может оказаться завышенной относительно качества площадки.'],
+    };
+  }
+
+  return {
+    ...base,
+    intent: 'NEEDS_CLARIFICATION',
+    suggestedResponse: `Спасибо за ответ! Уточните, пожалуйста: ${platformName} готов разместить ссылку на нашу статью?`,
+    strategy: 'Запросить уточнение условий площадки.',
+    risks: [],
+    fallbackOption: 'Отправить повторный запрос с более коротким предложением.',
+  };
 }
 
 export function nordhausProviderCapabilities(

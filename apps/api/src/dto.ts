@@ -7,9 +7,16 @@
 
 import type {
   AIAnalysis,
+  AnchorRecommendation,
   AuditLogEntry,
   Company,
+  DonorQualityProfile,
+  DonorRiskAssessment,
   Evidence,
+  LinkInsertDraft,
+  NegotiationSession,
+  OutreachDraft,
+  PageAnalysis,
   Placement,
   PlacementOpportunity,
   PlacementProvider,
@@ -17,9 +24,19 @@ import type {
   Platform,
   PlacementCategory,
   ScoreBreakdown,
+  ScoreV2Components,
   Verification,
+  WorkflowStage,
 } from '@aios/domain';
-import { EXECUTION_REQUIRED_CAPABILITIES, selectBestProvider } from '@aios/domain';
+import {
+  EXECUTION_REQUIRED_CAPABILITIES,
+  deriveHumanActions,
+  selectBestProvider,
+  workflowCurrentStageKind,
+  workflowForType,
+} from '@aios/domain';
+import type { OpportunityIntel } from '@aios/application';
+import { readIntel } from '@aios/application';
 
 export type OpportunityAction = 'approve' | 'execute' | 'requestManual';
 export type PlacementAction = 'monitor' | 'verify' | 'completeManual';
@@ -134,6 +151,53 @@ export interface ApiOpportunityDto {
   updatedAt: string;
   allowedActions: OpportunityAction[];
   placements: ApiPlacementDto[];
+  /** Donor quality profile (list-ready summary fields too). */
+  donorQuality: DonorQualityProfile | null;
+  donorQualityScore: number | null;
+  pageAnalysis: PageAnalysis | null;
+  risk: DonorRiskAssessment | null;
+  scoreV2: ScoreV2Components | null;
+  overallScore: number | null;
+  linkInsert: LinkInsertDraft | null;
+  anchorStrategy: AnchorRecommendation | null;
+  outreach: OutreachDraft | null;
+  negotiation: NegotiationSession | null;
+  workflow: ApiWorkflowDto | null;
+  humanActions: ApiHumanActionDto[];
+  /** List summary: organic traffic value when known. */
+  traffic: number | null;
+  /** List summary: donor traffic geography when known. */
+  geography: string[] | null;
+  /** List summary: whether automatic/outreach execution is available. */
+  automationAvailable: boolean;
+}
+
+export interface ApiWorkflowStageDto {
+  kind: string;
+  label: string;
+  automated: boolean;
+  hitl: boolean;
+  required: boolean;
+  current: boolean;
+}
+
+export interface ApiWorkflowDto {
+  placementType: string;
+  label: string;
+  stages: ApiWorkflowStageDto[];
+  currentStageKind: string | null;
+}
+
+export interface ApiHumanActionDto {
+  id: string;
+  kind: string;
+  title: string;
+  why: string;
+  aiPrepared: string;
+  humanTask: string;
+  actionLabel: string;
+  opportunityId: string;
+  placementId: string | null;
 }
 
 export interface ApiAuditEventDto {
@@ -190,6 +254,13 @@ export interface ApiOverviewDto {
   totalPlacements: number;
   funnel: Array<{ stage: string; count: number }>;
   manualActions: ApiManualActionDto[];
+  humanActions: ApiHumanActionDto[];
+  negotiations: Array<{
+    opportunityId: string;
+    platformName: string;
+    outreachStatus: string | null;
+    negotiationIntent: string | null;
+  }>;
   recentActivity: ApiAuditEventDto[];
 }
 
@@ -234,17 +305,28 @@ export function buildLookupMaps(
 }
 
 /** Presentation gate: which opportunity-level actions the UI may offer. */
-export function opportunityActions(opportunity: PlacementOpportunity): OpportunityAction[] {
+export function opportunityActions(
+  opportunity: PlacementOpportunity,
+  intel?: OpportunityIntel,
+): OpportunityAction[] {
   if (opportunity.status === 'QUALIFIED') {
     return ['approve'];
   }
   if (opportunity.status === 'SELECTED') {
+    if (opportunity.placementMethod === 'OUTREACH') {
+      // Outreach-driven placement: manual placement is offered only after the
+      // negotiation reached AGREED; automatic execution never applies.
+      return intel?.outreach?.status === 'AGREED' ? ['requestManual'] : [];
+    }
     return opportunity.placementMethod === 'MANUAL' ? ['requestManual', 'execute'] : ['execute'];
   }
   // READY: a retry after a failed attempt is possible (a fresh placement is
   // created; failed attempts stay in the audit trail).
   if (opportunity.status === 'READY') {
     return ['execute'];
+  }
+  if (opportunity.status === 'NEEDS_MANUAL' && intel?.outreach?.status === 'AGREED') {
+    return [];
   }
   return [];
 }
@@ -348,6 +430,15 @@ export function mapOpportunity(
   const metadata = opportunity.metadata ?? {};
   const discoverySource =
     typeof metadata.discoverySource === 'string' ? metadata.discoverySource : null;
+  const intel = readIntel(opportunity.metadata);
+  const donorQualityScore = intel.donorQuality?.overallDonorQuality ?? null;
+  const traffic =
+    intel.donorQuality?.organicTraffic.value !== null &&
+    typeof intel.donorQuality?.organicTraffic.value === 'number'
+      ? intel.donorQuality.organicTraffic.value
+      : null;
+  const geography =
+    intel.donorQuality?.trafficGeography.value ?? null;
   return {
     id: opportunity.id,
     campaignId: opportunity.campaignId,
@@ -371,10 +462,25 @@ export function mapOpportunity(
     status: opportunity.status,
     createdAt: toIso(opportunity.createdAt),
     updatedAt: toIso(opportunity.updatedAt),
-    allowedActions: opportunityActions(opportunity),
+    allowedActions: opportunityActions(opportunity, intel),
     placements: placements.map((placement) =>
       mapPlacement(placement, verificationsByPlacement, evidenceByVerification, context.maps),
     ),
+    donorQuality: intel.donorQuality,
+    donorQualityScore,
+    pageAnalysis: intel.pageAnalysis,
+    risk: intel.risk,
+    scoreV2: intel.scoreV2,
+    overallScore: intel.scoreV2?.overall ?? null,
+    linkInsert: intel.linkInsert,
+    anchorStrategy: intel.anchorStrategy,
+    outreach: intel.outreach,
+    negotiation: intel.negotiation,
+    workflow: mapWorkflow(opportunity, intel),
+    humanActions: mapHumanActions(opportunity, intel, placements),
+    traffic,
+    geography,
+    automationAvailable: automationAvailability(opportunity),
   };
 }
 
@@ -452,6 +558,74 @@ export function mapAuditEvent(entry: AuditLogEntry): ApiAuditEventDto {
 
 function lastOf<T>(items: readonly T[]): T | undefined {
   return items.length === 0 ? undefined : items[items.length - 1];
+}
+
+/** Serializes the placement-type workflow and highlights the current stage. */
+function mapWorkflow(opportunity: PlacementOpportunity, intel: OpportunityIntel): ApiWorkflowDto {
+  const workflow = workflowForType(opportunity.placementType);
+  const currentKind = workflowCurrentStageKind(
+    opportunity.placementType,
+    opportunity.status,
+    intel.outreach?.status ?? null,
+  );
+  return {
+    placementType: workflow.placementType,
+    label: workflow.label,
+    stages: workflow.stages.map((stage: WorkflowStage) => ({
+      kind: stage.kind,
+      label: stage.label,
+      automated: stage.automated,
+      hitl: stage.hitl,
+      required: stage.required,
+      current: stage.kind === currentKind,
+    })),
+    currentStageKind: currentKind,
+  };
+}
+
+/** Serializes the deterministic human-in-the-loop actions. */
+function mapHumanActions(
+  opportunity: PlacementOpportunity,
+  intel: OpportunityIntel,
+  placements: readonly Placement[],
+): ApiHumanActionDto[] {
+  const manualPlacements = placements
+    .filter((placement) => placement.status === 'NEEDS_MANUAL')
+    .map((placement) => ({
+      id: placement.id,
+      reason:
+        typeof placement.metadata?.reason === 'string' ? placement.metadata.reason : null,
+    }));
+  const items = deriveHumanActions({
+    opportunityId: opportunity.id,
+    opportunityStatus: opportunity.status,
+    placementMethod: opportunity.placementMethod,
+    placementType: opportunity.placementType,
+    risk: intel.risk,
+    hasIntel: intel.donorQuality !== null || intel.pageAnalysis !== null,
+    outreach: intel.outreach,
+    negotiation: intel.negotiation,
+    manualPlacements,
+  });
+  return items.map((item) => ({
+    id: item.id,
+    kind: item.kind,
+    title: item.title,
+    why: item.why,
+    aiPrepared: item.aiPrepared,
+    humanTask: item.humanTask,
+    actionLabel: item.actionLabel,
+    opportunityId: item.opportunityId,
+    placementId: item.placementId,
+  }));
+}
+
+/** Whether automatic or outreach execution is available for the opportunity. */
+function automationAvailability(opportunity: PlacementOpportunity): boolean {
+  if (opportunity.placementMethod === 'OUTREACH') {
+    return true;
+  }
+  return opportunity.placementMethod === 'API' || opportunity.placementMethod === 'BROWSER';
 }
 
 /**

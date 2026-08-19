@@ -1315,3 +1315,339 @@ h3 {
   color: var(--accent);
   font-weight: 550;
 }
+
+/* ---------- Donor Quality ---------- */
+
+.donor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 760px) {
+  .donor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.donor-metrics,
+.donor-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.donor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.donor-label {
+  color: var(--text-secondary);
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.donor-value {
+  font-weight: 600;
+  flex: 1;
+  text-align: right;
+}
+
+.donor-value.muted {
+  color: var(--text-tertiary);
+}
+
+.donor-clamp {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.donor-status {
+  flex-shrink: 0;
+}
+
+.donor-status .badge {
+  font-size: 11px;
+  padding: 0 6px;
+}
+
+.risk-reasons .outreach-hint {
+  display: block;
+}
+
+.risk-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.risk-list li {
+  margin: 2px 0;
+}
+
+/* ---------- Link insert ---------- */
+
+.linkinsert-caption {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.linkinsert-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: var(--gray-bg);
+  border-left: 2px solid var(--accent);
+  padding: 10px 12px;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.anchor-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ---------- Outreach / Negotiation ---------- */
+
+.outreach-message {
+  background: var(--gray-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.outreach-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.outreach-hint {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.outreach-text {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.outreach-mini {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 160px;
+}
+
+.negotiation {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.negotiation-intent {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.thread {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thread-message {
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  background: var(--gray-bg);
+}
+
+.thread-message.donor {
+  background: var(--blue-bg, rgba(59, 130, 246, 0.08));
+}
+
+.thread-message.ai {
+  background: var(--gray-bg);
+  border-left: 2px solid var(--green);
+}
+
+.thread-message.human {
+  background: var(--gray-bg);
+  border-left: 2px solid var(--accent);
+}
+
+.thread-role {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* ---------- HITL actions ---------- */
+
+.hitl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .hitl-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hitl-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber, #f59e0b);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hitl-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--amber, #f59e0b);
+  font-weight: 600;
+}
+
+.hitl-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hitl-row {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 8px;
+}
+
+.hitl-hint {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  width: 120px;
+}
+
+/* ---------- Workflow timeline ---------- */
+
+.workflow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workflow-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.workflow-step.current {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.workflow-dot {
+  width: 14px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.workflow-step.current .workflow-dot {
+  color: var(--accent);
+}
+
+/* ---------- Compare ---------- */
+
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compare-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.compare-recommendation {
+  background: var(--green-bg, rgba(16, 185, 129, 0.08));
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.compare-recommendation strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--green);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.compare-table th,
+.compare-table td:first-child {
+  text-align: left;
+}
+
+.compare-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.compare-label {
+  color: var(--text-tertiary);
+}
+
+.anchor-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

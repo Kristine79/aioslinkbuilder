@@ -162,6 +162,200 @@ export interface OpportunityDto {
   updatedAt: string;
   allowedActions: OpportunityAction[];
   placements: PlacementDto[];
+  donorQuality: DonorQualityDto | null;
+  donorQualityScore: number | null;
+  pageAnalysis: PageAnalysisDto | null;
+  risk: RiskAssessmentDto | null;
+  scoreV2: ScoreV2Dto | null;
+  overallScore: number | null;
+  linkInsert: LinkInsertDto | null;
+  anchorStrategy: AnchorStrategyDto | null;
+  outreach: OutreachDto | null;
+  negotiation: NegotiationDto | null;
+  workflow: WorkflowDto | null;
+  humanActions: HumanActionDto[];
+  traffic: number | null;
+  geography: string[] | null;
+  automationAvailable: boolean;
+}
+
+export interface MetricDatumDto<T> {
+  value: T | null;
+  source: string | null;
+  status: string;
+  confidence: number | null;
+  measuredAt: string | null;
+}
+
+export interface BacklinkProfileDto {
+  referringDomains: number | null;
+  totalBacklinks: number | null;
+  dofollowRatio: number | null;
+}
+
+export interface DonorQualityDto {
+  organicTraffic: MetricDatumDto<number>;
+  trafficGeography: MetricDatumDto<string[]>;
+  keywordProfile: MetricDatumDto<string[]>;
+  backlinkProfile: MetricDatumDto<BacklinkProfileDto>;
+  authority: MetricDatumDto<number>;
+  spamRisk: MetricDatumDto<number>;
+  indexingStatus: MetricDatumDto<string>;
+  estimatedRealTraffic: MetricDatumDto<number>;
+  topicalRelevance: MetricDatumDto<number>;
+  audienceMatch: MetricDatumDto<number>;
+  geographicRelevance: MetricDatumDto<number>;
+  placementQuality: MetricDatumDto<number>;
+  automationPotential: MetricDatumDto<number>;
+  overallDonorQuality: number | null;
+  overallLevel: string;
+}
+
+export interface PageAnalysisDto {
+  targetDomain: string;
+  targetPage: string | null;
+  pageTitle: string | null;
+  pageType: string;
+  topicalRelevance: MetricDatumDto<number>;
+  linkInsertSuitability: MetricDatumDto<number>;
+  indexation: MetricDatumDto<string>;
+  traffic: MetricDatumDto<number>;
+  outboundLinkSignals: MetricDatumDto<{
+    total: number | null;
+    external: number | null;
+    dofollow: number | null;
+  }>;
+  suggestedPlacementLocation: string | null;
+  summary: string | null;
+  analyzedAt: string;
+}
+
+export interface RiskAssessmentDto {
+  level: string;
+  signals: Array<{ kind: string; severity: number; available: boolean }>;
+  reasons: string[];
+  aiReasons: string[];
+  assessedAt: string;
+}
+
+export interface ScoreV2Dto {
+  relevanceScore: number;
+  donorQualityScore: number;
+  placementQualityScore: number;
+  executionScore: number;
+  riskScore: number;
+  overall: number;
+}
+
+export interface LinkInsertDto {
+  anchor: string;
+  anchorAlternatives: string[];
+  suggestedInsertionPoint: string;
+  text: string;
+  explanation: string;
+  confidence: number | null;
+  placementObjective: string | null;
+}
+
+export interface AnchorStrategyDto {
+  anchorType: string;
+  anchor: string;
+  alternatives: string[];
+  explanation: string;
+  confidence: number;
+  profileAvailable: boolean;
+}
+
+export interface OutreachMessageDto {
+  subject: string;
+  message: string;
+  shortVersion: string;
+  opening: string;
+  valueProposition: string;
+  placementRequest: string;
+  cta: string;
+}
+
+export interface OutreachDto {
+  status: string;
+  message: OutreachMessageDto | null;
+  provider: string | null;
+  externalId: string | null;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NegotiationReplyDto {
+  role: 'donor' | 'ai' | 'human';
+  text: string;
+  at: string;
+}
+
+export interface NegotiationDto {
+  status: string;
+  replies: NegotiationReplyDto[];
+  analysis: {
+    intent: string;
+    suggestedResponse: string;
+    strategy: string;
+    recommendedPrice: { min: number; max: number; currency: string } | null;
+    fallbackOption: string | null;
+    risks: string[];
+    confidence: number | null;
+  } | null;
+}
+
+export interface WorkflowStageDto {
+  kind: string;
+  label: string;
+  automated: boolean;
+  hitl: boolean;
+  required: boolean;
+  current: boolean;
+}
+
+export interface WorkflowDto {
+  placementType: string;
+  label: string;
+  stages: WorkflowStageDto[];
+  currentStageKind: string | null;
+}
+
+export interface HumanActionDto {
+  id: string;
+  kind: string;
+  title: string;
+  why: string;
+  aiPrepared: string;
+  humanTask: string;
+  actionLabel: string;
+  opportunityId: string;
+  placementId: string | null;
+}
+
+export interface ComparisonRowDto {
+  id: string;
+  platformName: string;
+  platformUrl: string | null;
+  categoryName: string | null;
+  placementType: string;
+  placementMethod: string;
+  status: string;
+  score: number | null;
+  overall: number | null;
+  donorQuality: number | null;
+  risk: string | null;
+  traffic: number | null;
+  authority: number | null;
+  geographicRelevance: number | null;
+  automationAvailable: boolean;
+  effort: number;
+}
+
+export interface ComparisonResultDto {
+  items: ComparisonRowDto[];
+  recommendation: { winnerId: string; reason: string } | null;
 }
 
 export interface AuditEventDto {
@@ -196,6 +390,13 @@ export interface OverviewDto {
     platformId: string;
     platformName: string;
     reason: string;
+  }>;
+  humanActions: HumanActionDto[];
+  negotiations: Array<{
+    opportunityId: string;
+    platformName: string;
+    outreachStatus: string | null;
+    negotiationIntent: string | null;
   }>;
   recentActivity: AuditEventDto[];
 }

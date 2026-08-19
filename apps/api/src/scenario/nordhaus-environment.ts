@@ -8,13 +8,18 @@
 
 import {
   AnalyzeCompanyUseCase,
+  AnalyzeNegotiationReplyUseCase,
   ApproveOpportunityUseCase,
+  AssessOpportunityUseCase,
   CatalogPlatformDiscoverySource,
   ClassifyOpportunityUseCase,
   DiscoverOpportunitiesUseCase,
   ExecutePlacementUseCase,
+  GenerateLinkInsertUseCase,
+  GenerateOutreachUseCase,
   GeneratePlacementStrategyUseCase,
   MonitorPlacementUseCase,
+  RecommendAnchorUseCase,
   RequestManualPlacementUseCase,
   SearchPlatformDiscoverySource,
   VerifyPlacementUseCase,
@@ -50,6 +55,11 @@ import {
   ScenarioAIProvider,
   createNordhausRegistry,
 } from './nordhaus-fixtures.js';
+import {
+  ScenarioOutreachProvider,
+  ScenarioPageAnalysisProvider,
+  ScenarioSeoMetricsProvider,
+} from './nordhaus-intel.js';
 
 export interface NordhausEnvironment {
   companies: InMemoryCompanyRepository;
@@ -63,6 +73,9 @@ export interface NordhausEnvironment {
   auditLog: InMemoryAuditLogRepository;
   registry: ReturnType<typeof createNordhausRegistry>;
   ai: ScenarioAIProvider;
+  seoMetrics: ScenarioSeoMetricsProvider;
+  pageAnalysis: ScenarioPageAnalysisProvider;
+  outreach: ScenarioOutreachProvider;
 }
 
 export function createNordhausEnvironment(): NordhausEnvironment {
@@ -78,6 +91,9 @@ export function createNordhausEnvironment(): NordhausEnvironment {
     auditLog: new InMemoryAuditLogRepository(),
     registry: createNordhausRegistry(),
     ai: new ScenarioAIProvider(),
+    seoMetrics: new ScenarioSeoMetricsProvider(),
+    pageAnalysis: new ScenarioPageAnalysisProvider(),
+    outreach: new ScenarioOutreachProvider(),
   };
   env.lookups.categories = NORDHAUS_CATEGORIES;
   env.lookups.platforms = NORDHAUS_PLATFORMS;
@@ -277,4 +293,92 @@ async function findOpportunityByPlatform(
     throw new Error(`scenario: no opportunity for platform ${platformId}`);
   }
   return opportunity;
+}
+
+/** Assesses an opportunity end-to-end (donor quality, page, risk, score v2). */
+export async function assessScenarioOpportunity(
+  env: NordhausEnvironment,
+  platformId: string,
+): Promise<PlacementOpportunity> {
+  const opportunity = await findOpportunityByPlatform(env, platformId);
+  const assess = new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog,
+  );
+  return assess.execute({ opportunityId: opportunity.id });
+}
+
+/**
+ * Prepares the full AI-assisted HITL flow for a LINK_INSERT opportunity:
+ * intel, link insert, anchor strategy and an outreach draft (DRAFT).
+ */
+export async function prepareScenarioLinkInsert(
+  env: NordhausEnvironment,
+  platformId: string,
+): Promise<PlacementOpportunity> {
+  const opportunity = await findOpportunityByPlatform(env, platformId);
+  await new AssessOpportunityUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.seoMetrics,
+    env.pageAnalysis,
+    env.auditLog,
+  ).execute({ opportunityId: opportunity.id });
+  await new GenerateLinkInsertUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  ).execute({ opportunityId: opportunity.id });
+  await new RecommendAnchorUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  ).execute({ opportunityId: opportunity.id });
+  await new GenerateOutreachUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  ).execute({ opportunityId: opportunity.id });
+  return findOpportunityByPlatform(env, platformId);
+}
+
+/** Analyzes a donor reply and stores the negotiation analysis. */
+export async function analyzeScenarioDonorReply(
+  env: NordhausEnvironment,
+  platformId: string,
+  reply: string,
+): Promise<PlacementOpportunity> {
+  const opportunity = await findOpportunityByPlatform(env, platformId);
+  return new AnalyzeNegotiationReplyUseCase(
+    env.opportunities,
+    env.campaigns,
+    env.companies,
+    env.lookups,
+    env.analyses,
+    env.ai,
+    env.auditLog,
+  ).execute({ opportunityId: opportunity.id, reply });
 }

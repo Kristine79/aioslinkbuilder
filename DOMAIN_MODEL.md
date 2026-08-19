@@ -150,3 +150,78 @@ PlacementOpportunity
   ├── Platform
   └── PlacementProvider (via Placement)
 ```
+
+## Link-building intelligence extension
+
+These concepts extend the opportunity model (stored as typed JSON under the
+`PlacementOpportunity.metadata` columns). They are analytical profiles and
+AI-prepared artifacts; the placement lifecycle/state machine remains the
+source of truth for operational state.
+
+### Metric provenance
+
+Every external metric carries:
+
+- `value`
+- `source` (e.g. `ahrefs`, `semrush`, `similarweb`, `gsc`, `demo`)
+- `status` — `MEASURED` | `AI_ESTIMATED` | `INTERNAL` | `SYNTHETIC` | `UNKNOWN`
+- `confidence` (AI estimates)
+- `measuredAt`
+
+The UI must never present `SYNTHETIC` or `UNKNOWN` values as real measurements.
+
+### DonorQualityProfile
+
+Quality profile of the donor domain: organic traffic, traffic geography,
+keyword profile, backlink profile, authority (DR/DA-like), spam risk, indexation,
+estimated real traffic, topical relevance, audience match, geographic
+relevance, placement quality, automation potential — each with provenance —
+plus a deterministic `overallDonorQuality` (0-100) and `overallLevel`.
+
+### PageAnalysis
+
+Page-level analysis. A donor domain and a specific placement page are different
+entities: the domain carries the donor quality profile; the page carries the
+concrete place where a link would be inserted (target page, title, page type,
+topical relevance, link-insert suitability, indexation, traffic, outbound-link
+signals, suggested placement location).
+
+### Workflow (per placement type)
+
+Each placement type declares the recommended workflow stages
+(`PLACEMENT_TYPE_WORKFLOWS`). Outreach-driven types (`LINK_INSERT`,
+`GUEST_POST`, `RESOURCE_PAGE`, `PARTNER_PAGE`) are executed via human outreach.
+
+### Anchor strategy
+
+`AnchorRecommendation` — recommended anchor type (exact/partial match, branded,
+generic, url, long-tail), the anchor, alternatives, explanation and confidence.
+`profileAvailable` stays false until a real campaign anchor profile exists.
+
+### LinkInsert
+
+`LinkInsertDraft` — anchor, alternatives, insertion point, a 1-3 sentence
+contextual text, and an explanation of why the insertion is natural.
+
+### Outreach
+
+`OutreachDraft` with status `DRAFT → READY_FOR_REVIEW → APPROVED → SENT →
+(REPLIED → NEGOTIATING) → AGREED / REJECTED / NO_RESPONSE`. Sending is
+strictly human-in-the-loop: only an explicit human action invokes the
+messaging provider.
+
+### Negotiation
+
+`NegotiationSession` + `NegotiationAnalysis`. The human pastes a donor reply;
+the AI determines the intent (accepted, rejected, price negotiation, content
+requirements, link attribute request, needs clarification, manual review) and
+prepares a suggested response, strategy, recommended price range, fallback and
+risks. The human approves and sends — never autonomous.
+
+### Human-in-the-loop actions
+
+`deriveHumanActions` deterministically derives the "Требует действия" cards
+from the current state: review donor, approve opportunity, approve outreach,
+donor replied, negotiate price, manual placement, confirm publication. Each
+card states WHY the human is needed, WHAT the AI prepared and WHAT the human
+must do.

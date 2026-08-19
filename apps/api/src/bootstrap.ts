@@ -12,8 +12,10 @@ import type { ApiServices } from './app.js';
 import {
   NORDHAUS_PLATFORM_IDS,
   approveScenarioOpportunity,
+  assessScenarioOpportunity,
   createNordhausEnvironment,
   executeScenarioPlacement,
+  prepareScenarioLinkInsert,
   requestManualScenarioPlacement,
   seedNordhausScenario,
   verifyScenarioPlacement,
@@ -29,6 +31,17 @@ export interface NordhausBootstrap extends ApiServices {
 export async function runNordhausBootstrap(): Promise<NordhausBootstrap> {
   const env = createNordhausEnvironment();
   const seed = await seedNordhausScenario(env);
+
+  // Assess every seeded opportunity so each carries a donor quality profile,
+  // page analysis, risk and Score 2.0 in the UI.
+  const seededOpportunities = await env.opportunities.findByCampaignId(seed.campaign.id);
+  for (const opportunity of seededOpportunities) {
+    await assessScenarioOpportunity(env, opportunity.platformId);
+  }
+
+  // Prepare the human-in-the-loop LINK_INSERT showcase on Houzz: donor
+  // quality, page analysis, link insert, anchor strategy and outreach draft.
+  await prepareScenarioLinkInsert(env, NORDHAUS_PLATFORM_IDS.houzz);
 
   // Approve the executable + manual opportunities.
   await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.yandex);

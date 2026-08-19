@@ -112,3 +112,112 @@ export type { VerificationDraft } from './validation/verification.js';
 
 export { validateEvidence } from './validation/evidence.js';
 export type { EvidenceDraft } from './validation/evidence.js';
+
+export {
+  PLACEMENT_TYPE_WORKFLOWS,
+  WORKFLOW_STAGE_KINDS,
+  workflowForType,
+  workflowCurrentStageKind,
+  OUTREACH_METHOD_PLACEMENT_TYPES,
+  isOutreachPlacementType,
+} from './workflow.js';
+export type {
+  PlacementTypeWorkflow,
+  WorkflowStage,
+  WorkflowStageKind,
+} from './workflow.js';
+
+export {
+  METRIC_STATUSES,
+  isKnownDatum,
+  unknownDatum,
+  syntheticDatum,
+  DONOR_QUALITY_LEVELS,
+  DONOR_QUALITY_DIMENSION_WEIGHTS,
+  DONOR_QUALITY_DIMENSIONS,
+  emptyDonorQualityProfile,
+  calculateDonorQuality,
+  levelFor,
+  validateDonorQualityProfile,
+} from './donor-quality.js';
+export type {
+  MetricStatus,
+  MetricDatum,
+  IndexingStatus,
+  BacklinkProfile,
+  DonorQualityProfile,
+  DonorQualityLevel,
+} from './donor-quality.js';
+
+export { PAGE_TYPES, emptyPageAnalysis } from './page-analysis.js';
+export type { PageType, OutboundLinkSignals, PageAnalysis } from './page-analysis.js';
+
+export {
+  ANCHOR_TYPES,
+  recommendAnchorType,
+  anchorTypeLabel,
+} from './anchors.js';
+export type {
+  AnchorType,
+  AnchorRecommendation,
+  AnchorRecommendationInput,
+} from './anchors.js';
+
+export type { LinkInsertDraft } from './link-insert.js';
+
+export {
+  RISK_LEVELS,
+  RISK_SIGNAL_KINDS,
+  RISK_SIGNAL_LABELS,
+  assessDonorRisk,
+  riskToScore,
+} from './donor-risk.js';
+export type {
+  RiskLevel,
+  RiskSignalKind,
+  RiskSignal,
+  DonorRiskAssessment,
+} from './donor-risk.js';
+
+export {
+  SCORE_V2_WEIGHTS,
+  isScoreV2ComponentInRange,
+  calculateScoreV2,
+  scoreV2From,
+} from './score-v2.js';
+export type { ScoreV2Components, ScoreV2Input } from './score-v2.js';
+
+export {
+  OUTREACH_STATUSES,
+  OUTREACH_TRANSITIONS,
+  canTransitionOutreach,
+  assertTransitionOutreach,
+  initialOutreachDraft,
+} from './outreach.js';
+export type { OutreachStatus, OutreachMessage, OutreachDraft } from './outreach.js';
+
+export {
+  NEGOTIATION_INTENTS,
+  emptyNegotiationSession,
+} from './negotiation.js';
+export type {
+  NegotiationIntent,
+  PriceRange,
+  NegotiationAnalysis,
+  NegotiationReply,
+  NegotiationSession,
+} from './negotiation.js';
+
+export {
+  HUMAN_ACTION_KINDS,
+  deriveHumanActions,
+} from './hitl.js';
+export type {
+  HumanActionKind,
+  HumanActionItem,
+  HumanActionContext,
+} from './hitl.js';
+
+export {
+  derivePlacementMethodForType,
+} from './alignment.js';

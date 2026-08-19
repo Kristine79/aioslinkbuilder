@@ -111,6 +111,41 @@ Paid APIs are acceptable if required for production integration.
 
 The prototype should not require paid credentials to demonstrate the core workflow. Use MockProvider where credentials are unavailable.
 
+## Link-building intelligence port interfaces
+
+### SeoMetricsProvider
+
+Real SEO intelligence for donor quality (Ahrefs / Semrush / Similarweb /
+Google Search Console). Returns a `SeoMetricsSnapshot` with organic traffic,
+traffic geography, keyword profile, backlink profile, authority, spam risk,
+indexation and estimated real traffic — each as a `MetricDatum` carrying
+`status`, `source`, `confidence` and `measuredAt`.
+
+Real implementations return `MEASURED`; the demo mock (`ScenarioSeoMetricsProvider`)
+returns `SYNTHETIC` data with `source: "demo"`. The status field keeps the
+distinction visible — the UI never presents synthetic values as real
+measurements.
+
+### PageAnalysisProvider
+
+A crawler that returns real page-level signals (title, page type, indexation,
+outbound links, topical relevance, link-insert suitability, suggested
+placement location). Demo mock returns curated synthetic pages for the demo
+editorial platforms and a deterministic profile fallback.
+
+### OutreachProvider (messaging/email)
+
+`send({ to, subject, body })` returns `{ externalId, sentAt }`. It is invoked
+**only** from the explicit human-triggered `APPROVED → SENT` transition — never
+automatically. The demo mock returns a deterministic id.
+
+## Real-data vs demo-data policy
+
+Never present demo/mock SEO metrics as real measurements. Every external metric
+has a `status`: `MEASURED` (real tool), `AI_ESTIMATED` (with confidence),
+`INTERNAL` (deterministic), `SYNTHETIC` (demo) or `UNKNOWN`. The UI renders the
+status so users can immediately tell real data from demo estimates.
+
 ## Security
 
 Provider credentials:
