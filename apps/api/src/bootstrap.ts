@@ -80,7 +80,7 @@ export async function createRealEnvironment(
       new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator),
     ];
   }
-  return env;
+  return { env, campaign: undefined };
 }
 
 export async function runNordhausBootstrap(

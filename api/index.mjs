@@ -22578,7 +22578,13 @@ function createApiApp(services) {
       return campaign2;
     }
     const id = c.req.query("campaignId");
-    if (id === void 0 || id === "" || id === services.campaign.id) {
+    if (id === void 0 || id === "") {
+      if (services.campaign === void 0) {
+        throw new ValidationError("campaignId is required (no default campaign)");
+      }
+      return services.campaign;
+    }
+    if (id === services.campaign?.id) {
       return services.campaign;
     }
     const campaign = await env.campaigns.findById(id);
@@ -25323,7 +25329,7 @@ async function createRealEnvironment(config2 = loadRuntimeConfig()) {
       new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator)
     ];
   }
-  return env;
+  return { env, campaign: void 0 };
 }
 async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
   const providerConfig = openCodeProviderConfig(config2);

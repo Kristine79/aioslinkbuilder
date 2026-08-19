@@ -78,8 +78,8 @@ import type { NordhausEnvironment } from './scenario/nordhaus-environment.js';
 
 export interface ApiServices {
   env: NordhausEnvironment;
-  /** Default campaign used when the caller does not pass ?campaignId=. */
-  campaign: Campaign;
+  /** Default campaign used when the caller does not pass ?campaignId=. Undefined when the environment is seeded only by user actions (serverless real mode). */
+  campaign: Campaign | undefined;
 }
 
 /** Maps domain/application/provider errors to HTTP statuses. */
@@ -287,7 +287,13 @@ export function createApiApp(services: ApiServices): Hono {
       return campaign;
     }
     const id = c.req.query('campaignId');
-    if (id === undefined || id === '' || id === services.campaign.id) {
+    if (id === undefined || id === '') {
+      if (services.campaign === undefined) {
+        throw new ValidationError('campaignId is required (no default campaign)');
+      }
+      return services.campaign;
+    }
+    if (id === services.campaign?.id) {
       return services.campaign;
     }
     const campaign = await env.campaigns.findById(id);
