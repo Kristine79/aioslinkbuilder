@@ -14,10 +14,10 @@
   ],
   "functions": {
     "api/health.mjs": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/index.mjs": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   }
 }
