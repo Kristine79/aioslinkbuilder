@@ -24,16 +24,23 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Hono } from 'hono';
 
 import { createApiApp } from '../apps/api/src/app.js';
-import { runNordhausBootstrap } from '../apps/api/src/bootstrap.js';
+import { createRealEnvironment, runNordhausBootstrap } from '../apps/api/src/bootstrap.js';
 import { loadRuntimeConfig } from '../apps/api/src/runtime-config.js';
 
 let cachedApp: Hono | undefined;
 
 async function getApp(): Promise<Hono> {
   if (cachedApp === undefined) {
-    // Mode is env-driven: without OPENCODE_API_KEY / AI_MODE=real the
-    // serverless function stays the deterministic demo (no network calls).
-    const services = await runNordhausBootstrap(loadRuntimeConfig());
+    // Mode is env-driven. In real mode a serverless cold start must not spend
+    // minutes seeding the demo Nordhaus scenario, so we build the real
+    // provider environment without a seed (users create companies via the
+    // API/UI). Without AI_MODE/DISCOVERY_MODE=real we keep the deterministic
+    // demo bootstrap (no network calls, no API key).
+    const config = loadRuntimeConfig();
+    const services =
+      config.aiMode === 'real' || config.discoveryMode === 'real'
+        ? await createRealEnvironment(config)
+        : await runNordhausBootstrap(config);
     cachedApp = createApiApp(services);
   }
   return cachedApp;

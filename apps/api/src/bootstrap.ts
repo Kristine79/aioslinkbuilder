@@ -39,6 +39,50 @@ export interface NordhausBootstrap extends ApiServices {
   campaign: Campaign;
 }
 
+/**
+ * Builds the real provider environment WITHOUT the demo seed. Used on
+ * Vercel (serverless) where a cold start cannot spend minutes seeding the
+ * Nordhaus scenario: real companies/campaigns are created by the user through
+ * the API/UI instead. Falls back to the demo bootstrap when no real mode is
+ * active.
+ */
+export async function createRealEnvironment(
+  config: RuntimeConfig = loadRuntimeConfig(),
+): Promise<ApiServices> {
+  const providerConfig = openCodeProviderConfig(config);
+  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
+
+  const envOptions: NordhausEnvironmentOptions = {};
+  if (config.aiMode === 'real' && openCodeProvider !== null) {
+    envOptions.ai = openCodeProvider;
+    envOptions.seoMetrics = null;
+    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8000 });
+  }
+  const env = createNordhausEnvironment(envOptions);
+  if (config.discoveryMode === 'real') {
+    const queryGenerator =
+      openCodeProvider !== null
+        ? new AIBackedSearchQueryGenerator(openCodeProvider)
+        : new DeterministicSearchQueryGenerator();
+    const searchProvider =
+      config.discoveryProvider === 'ai-search' && config.aiSearch !== null
+        ? new AISearchCitationsProvider(
+            new AISearchClient({
+              apiKey: config.aiSearch.apiKey,
+              baseUrl: config.aiSearch.baseUrl,
+              model: config.aiSearch.model,
+              capabilities: config.aiSearch.capabilities,
+              timeoutMs: config.aiSearch.timeoutMs,
+            }),
+          )
+        : new DuckDuckGoSearchProvider();
+    env.discoverySources = [
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator),
+    ];
+  }
+  return env;
+}
+
 export async function runNordhausBootstrap(
   config: RuntimeConfig = loadRuntimeConfig(),
 ): Promise<NordhausBootstrap> {

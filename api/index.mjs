@@ -2717,7 +2717,10 @@ function calculateDonorQuality(profile) {
   if (isKnownDatum(profile.backlinkProfile)) {
     const subScore = backlinkSubScore(profile.backlinkProfile.value);
     if (subScore !== null) {
-      contributions.push({ weight: DONOR_QUALITY_DIMENSION_WEIGHTS.backlinkProfile, value: subScore });
+      contributions.push({
+        weight: DONOR_QUALITY_DIMENSION_WEIGHTS.backlinkProfile,
+        value: subScore
+      });
     }
   }
   push("placementQuality", profile.placementQuality);
@@ -2839,13 +2842,11 @@ function assessDonorRisk(profile, context = {}) {
   if (isKnownDatum(profile.trafficGeography) && context.companyGeography !== void 0) {
     const geos = (profile.trafficGeography.value ?? []).map((value) => value.toLowerCase());
     const companyGeos = context.companyGeography.map((value) => value.toLowerCase());
-    const hasOverlap = companyGeos.some((geo) => geos.some((trafficGeo) => trafficGeo.includes(geo)));
+    const hasOverlap = companyGeos.some(
+      (geo) => geos.some((trafficGeo) => trafficGeo.includes(geo))
+    );
     if (companyGeos.length > 0 && !hasOverlap) {
-      push(
-        "irrelevant_topics",
-        1,
-        "\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0442\u0440\u0430\u0444\u0438\u043A\u0430 \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0435\u043A\u0430\u0435\u0442\u0441\u044F \u0441 \u0440\u0435\u0433\u0438\u043E\u043D\u043E\u043C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438"
-      );
+      push("irrelevant_topics", 1, "\u0433\u0435\u043E\u0433\u0440\u0430\u0444\u0438\u044F \u0442\u0440\u0430\u0444\u0438\u043A\u0430 \u0434\u043E\u043D\u043E\u0440\u0430 \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u0435\u043A\u0430\u0435\u0442\u0441\u044F \u0441 \u0440\u0435\u0433\u0438\u043E\u043D\u043E\u043C \u043A\u043E\u043C\u043F\u0430\u043D\u0438\u0438");
     }
   }
   const severitySum = signals.reduce((sum, signal) => sum + signal.severity, 0);
@@ -2887,7 +2888,13 @@ function isScoreV2ComponentInRange(value) {
   return Number.isFinite(value) && value >= 0 && value <= 100;
 }
 function calculateScoreV2(components) {
-  for (const key of ["relevanceScore", "donorQualityScore", "placementQualityScore", "executionScore", "riskScore"]) {
+  for (const key of [
+    "relevanceScore",
+    "donorQualityScore",
+    "placementQualityScore",
+    "executionScore",
+    "riskScore"
+  ]) {
     if (!isScoreV2ComponentInRange(components[key])) {
       throw new ValidationError(`Score V2 component ${key} must be between 0 and 100`);
     }
@@ -18755,6 +18762,297 @@ function sanitizeUnknown(value) {
   return value;
 }
 
+// packages/ai/src/search/citations.ts
+function extractCitations(payload) {
+  const message = assistantMessage(payload);
+  if (message === null) {
+    return { content: "", citations: [] };
+  }
+  const content = typeof message.content === "string" ? message.content.trim() : "";
+  const citations = extractCitationAnnotations(message.annotations);
+  return { content, citations };
+}
+function assistantMessage(payload) {
+  if (payload === null || typeof payload !== "object") return null;
+  const record2 = payload;
+  const choices = record2.choices;
+  if (!Array.isArray(choices) || choices.length === 0) return null;
+  const first = choices[0];
+  if (first === null || typeof first !== "object") return null;
+  const message = first.message;
+  if (message === null || typeof message !== "object") return null;
+  const messageRecord = message;
+  return {
+    content: messageRecord.content,
+    annotations: messageRecord.annotations
+  };
+}
+function extractCitationAnnotations(annotations) {
+  if (!Array.isArray(annotations)) return [];
+  const citations = [];
+  for (const annotation of annotations) {
+    if (annotation === null || typeof annotation !== "object") continue;
+    const record2 = annotation;
+    if (record2.type !== "url_citation") continue;
+    const raw2 = record2.url_citation !== null && typeof record2.url_citation === "object" && !Array.isArray(record2.url_citation) ? record2.url_citation : record2;
+    const url2 = typeof raw2.url === "string" ? raw2.url.trim() : "";
+    if (!isHttpUrl2(url2)) continue;
+    const title = typeof raw2.title === "string" ? raw2.title.trim() : "";
+    const startIndex = typeof raw2.start_index === "number" ? raw2.start_index : null;
+    const endIndex = typeof raw2.end_index === "number" ? raw2.end_index : null;
+    citations.push({
+      url: url2,
+      title: title === "" ? null : title,
+      startIndex,
+      endIndex
+    });
+  }
+  return citations;
+}
+function isHttpUrl2(value) {
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "http:" || url2.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// packages/ai/src/search/capabilities.ts
+function parseSearchCapabilities(config2) {
+  const raw2 = (config2.declared ?? "").split(",").map((token) => token.trim().toLowerCase()).filter(Boolean);
+  if (raw2.length === 0) return null;
+  const normalized = new Set(raw2);
+  const has = (token) => normalized.has(token);
+  return {
+    supportsWebSearch: has("web_search"),
+    supportsCitations: has("citations"),
+    supportsStructuredOutput: has("structured_output"),
+    supportsUsage: has("usage")
+  };
+}
+
+// packages/ai/src/search/ai-search-errors.ts
+var AISearchConfigError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AISearchConfigError";
+  }
+};
+var AISearchClientError = class extends Error {
+  constructor(category, message, status) {
+    super(message);
+    this.category = category;
+    this.status = status;
+    this.name = "AISearchClientError";
+  }
+  category;
+  status;
+};
+var AISearchNoCitationsError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AISearchNoCitationsError";
+  }
+};
+
+// packages/ai/src/search/types.ts
+var NO_AI_CAPABILITIES = {
+  supportsWebSearch: false,
+  supportsCitations: false,
+  supportsStructuredOutput: false,
+  supportsUsage: false
+};
+
+// packages/ai/src/search/ai-search-client.ts
+var defaultAiSearchBaseUrl = "https://openrouter.ai/api/v1";
+var defaultAiSearchModel = "perplexity/sonar";
+var DEFAULT_TIMEOUT_MS2 = 45e3;
+var MAX_RETRIES2 = 1;
+var BACKOFF_MS = 800;
+var DEFAULT_MAX_RESULTS = 8;
+var SEARCH_SYSTEM_PROMPT = "You are a research assistant with live web search enabled. Answer the question in Russian. Always base your answer on what you find on the web and always attach the real sources you actually used as url_citation annotations. Never invent URLs. If you cannot cite sources, say so explicitly instead of fabricating references.";
+var AISearchClient = class {
+  providerName = "ai-search";
+  model;
+  capabilities;
+  apiKey;
+  baseUrl;
+  timeoutMs;
+  fetchImpl;
+  constructor(config2) {
+    if (config2.apiKey.trim() === "") {
+      throw new AISearchConfigError("AI_SEARCH_API_KEY is required to construct the client");
+    }
+    this.apiKey = config2.apiKey.trim();
+    this.baseUrl = (config2.baseUrl ?? defaultAiSearchBaseUrl).trim().replace(/\/+$/, "");
+    this.model = (config2.model ?? defaultAiSearchModel).trim();
+    this.capabilities = config2.capabilities ?? NO_AI_CAPABILITIES;
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS2;
+    this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
+  }
+  /**
+   * Runs a live web-search request and returns the real citations the
+   * provider used. Throws AISearchNoCitationsError when a declared
+   * web-search call returned no citations (plain text is never trusted as a
+   * source of discovered sites).
+   */
+  async searchCitations(query, options = {}) {
+    if (this.model === "") {
+      throw new AISearchConfigError("AI_SEARCH_MODEL is required to call the search provider");
+    }
+    if (!this.capabilities.supportsWebSearch || !this.capabilities.supportsCitations) {
+      throw new AISearchConfigError(
+        "AISearchClient cannot perform web search: AI_SEARCH_CAPABILITIES does not declare web_search, citations"
+      );
+    }
+    if (query.trim() === "") {
+      return [];
+    }
+    const maxCitations = Math.max(1, Math.min(options.maxResults ?? DEFAULT_MAX_RESULTS, 20));
+    const body = {
+      model: this.model,
+      messages: [
+        { role: "system", content: SEARCH_SYSTEM_PROMPT },
+        { role: "user", content: query }
+      ],
+      max_tokens: 1200
+    };
+    let lastError = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES2; attempt += 1) {
+      if (attempt > 0 && lastError !== null) {
+        await sleep2(BACKOFF_MS);
+      }
+      try {
+        const result = await this.completeOnce(body, options.timeoutMs ?? this.timeoutMs);
+        if (result.citations.length === 0) {
+          throw new AISearchNoCitationsError(
+            `Search provider (${this.providerName}) returned no citations for query "${query.slice(0, 80)}"`
+          );
+        }
+        return result.citations.slice(0, maxCitations);
+      } catch (error51) {
+        if (error51 instanceof AISearchNoCitationsError) {
+          throw error51;
+        }
+        if (!(error51 instanceof AISearchClientError)) {
+          throw error51;
+        }
+        if (!isRetryable2(error51) || attempt >= MAX_RETRIES2) {
+          throw error51;
+        }
+        lastError = error51;
+      }
+    }
+    if (lastError !== null) throw lastError;
+    throw new AISearchClientError("response", "Search provider returned no response", null);
+  }
+  /** Single transport call returning content + citations + usage. */
+  async completeOnce(body, timeoutMs) {
+    let response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs)
+      });
+    } catch (error51) {
+      if (error51 instanceof Error && error51.name === "TimeoutError") {
+        throw new AISearchClientError(
+          "timeout",
+          `Search provider request timed out after ${timeoutMs}ms`,
+          null
+        );
+      }
+      throw new AISearchClientError(
+        "network",
+        "Search provider network error while calling chat completions",
+        null
+      );
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new AISearchClientError(
+        "auth",
+        "Search provider rejected the API key (HTTP 401/403) \u2014 check AI_SEARCH_API_KEY",
+        response.status
+      );
+    }
+    if (response.status === 429) {
+      throw new AISearchClientError(
+        "rate-limit",
+        "Search provider rate limit exceeded (429)",
+        response.status
+      );
+    }
+    if (response.status >= 500) {
+      throw new AISearchClientError(
+        "server",
+        `Search provider server error (HTTP ${response.status})`,
+        response.status
+      );
+    }
+    if (response.status >= 400 && response.status < 500) {
+      throw new AISearchClientError(
+        "validation",
+        `Search provider rejected the request (HTTP ${response.status}) \u2014 check AI_SEARCH_MODEL and the payload`,
+        response.status
+      );
+    }
+    if (!response.ok) {
+      throw new AISearchClientError(
+        "response",
+        `Search provider rejected the request (HTTP ${response.status})`,
+        response.status
+      );
+    }
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new AISearchClientError(
+        "response",
+        "Search provider returned malformed JSON envelope",
+        response.status
+      );
+    }
+    const { content, citations } = extractCitations(payload);
+    if (content === "") {
+      throw new AISearchClientError(
+        "response",
+        "Search provider response had no assistant content",
+        response.status
+      );
+    }
+    return {
+      content,
+      citations,
+      usage: extractUsage(payload),
+      model: this.model
+    };
+  }
+};
+function extractUsage(payload) {
+  const usage = payload !== null && typeof payload === "object" ? payload.usage : void 0;
+  if (usage === null || typeof usage !== "object") return null;
+  const promptTokens = usage.prompt_tokens;
+  const completionTokens = usage.completion_tokens;
+  const totalTokens = usage.total_tokens;
+  if (typeof promptTokens !== "number" || typeof completionTokens !== "number" || typeof totalTokens !== "number") {
+    return null;
+  }
+  return { promptTokens, completionTokens, totalTokens };
+}
+function isRetryable2(error51) {
+  return error51.category === "rate-limit" || error51.category === "server" || error51.category === "network" || error51.category === "timeout";
+}
+function sleep2(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // packages/application/src/use-cases/opportunity/classify-opportunity.use-case.ts
 var NEUTRAL_DETERMINISTIC_SCORE = 50;
 var CLASSIFICATION_SCHEMA_VERSION = "1";
@@ -19602,8 +19900,8 @@ var InMemoryPlacementProviderRegistry = class {
 
 // packages/integrations/src/web/duckduckgo-search.ts
 var DEFAULT_SEARCH_URL = "https://html.duckduckgo.com/html/";
-var DEFAULT_TIMEOUT_MS2 = 1e4;
-var DEFAULT_MAX_RESULTS = 10;
+var DEFAULT_TIMEOUT_MS3 = 1e4;
+var DEFAULT_MAX_RESULTS2 = 10;
 var USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 var DuckDuckGoSearchProvider = class {
   name = "duckduckgo";
@@ -19612,14 +19910,14 @@ var DuckDuckGoSearchProvider = class {
   fetchImpl;
   constructor(config2 = {}) {
     this.baseUrl = (config2.baseUrl ?? DEFAULT_SEARCH_URL).trim().replace(/\/+$/, "") + "/";
-    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS2;
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS3;
     this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
   }
   async search(query, options) {
     if (query.trim() === "") {
       return [];
     }
-    const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS;
+    const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS2;
     const url2 = new URL(this.baseUrl);
     url2.searchParams.set("q", query);
     let response;
@@ -19677,7 +19975,7 @@ function parseResults(html, source) {
     if (titleMatch === null) continue;
     const rawHref = decodeHtml(titleMatch[1] ?? "");
     const url2 = unwrapDuckDuckGoUrl(rawHref);
-    if (!isHttpUrl2(url2)) continue;
+    if (!isHttpUrl3(url2)) continue;
     const title = stripTags(decodeHtml(titleMatch[2] ?? "")).trim();
     if (title === "") continue;
     const snippetMatch = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i.exec(block);
@@ -19713,7 +20011,7 @@ function unwrapDuckDuckGoUrl(href) {
   }
   return absolute;
 }
-function isHttpUrl2(value) {
+function isHttpUrl3(value) {
   try {
     const url2 = new URL(value);
     return url2.protocol === "http:" || url2.protocol === "https:";
@@ -19744,6 +20042,91 @@ function stripTags(html) {
 }
 function decodeHtml(value) {
   return value.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&nbsp;/g, " ");
+}
+
+// packages/integrations/src/web/ai-search-provider.ts
+var DEFAULT_MAX_RESULTS3 = 10;
+var AISearchCitationsProvider = class {
+  name = "ai-search";
+  client;
+  constructor(client) {
+    this.client = client;
+  }
+  async search(query, options) {
+    if (query.trim() === "") {
+      return [];
+    }
+    const maxResults = options?.maxResults ?? DEFAULT_MAX_RESULTS3;
+    let citations;
+    try {
+      citations = await this.client.searchCitations(query, {
+        ...options?.timeoutMs !== void 0 && options.timeoutMs !== null ? { timeoutMs: options.timeoutMs } : {},
+        maxResults
+      });
+    } catch (error51) {
+      if (error51 instanceof Error) {
+        throw new ProviderError(
+          this.name,
+          "search",
+          errorCategory(error51),
+          `Search-capable AI provider failed for query "${query.slice(0, 80)}": ${error51.message}`,
+          { cause: error51 }
+        );
+      }
+      throw new ProviderError(
+        this.name,
+        "search",
+        "UNKNOWN",
+        `Search-capable AI provider failed for query "${query.slice(0, 80)}"`
+      );
+    }
+    if (citations.length === 0) {
+      throw new ProviderError(
+        this.name,
+        "search",
+        "UNKNOWN",
+        `Search-capable AI provider returned no citations for query "${query.slice(0, 80)}" (an LLM answer without real citations is never treated as discovered sites)`
+      );
+    }
+    const results = [];
+    for (const citation of citations) {
+      const url2 = citation.url.trim();
+      if (!isHttpUrl4(url2)) continue;
+      results.push({
+        url: url2,
+        title: citation.title,
+        snippet: null,
+        domain: domainOf2(url2),
+        source: this.name
+      });
+      if (results.length >= maxResults) break;
+    }
+    return results;
+  }
+};
+function errorCategory(error51) {
+  if (!(error51 instanceof Error)) return "UNKNOWN";
+  const name = error51.name;
+  if (name.includes("Auth")) return "AUTH";
+  if (name.includes("RateLimit")) return "RATE_LIMIT";
+  if (name.includes("Timeout")) return "TIMEOUT";
+  if (name.includes("Network")) return "NETWORK";
+  return "UNKNOWN";
+}
+function isHttpUrl4(value) {
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "http:" || url2.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+function domainOf2(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 // packages/integrations/src/web/html.ts
@@ -19863,7 +20246,7 @@ function stripTags2(html) {
 }
 
 // packages/integrations/src/web/http-page-analysis-provider.ts
-var DEFAULT_TIMEOUT_MS3 = 8e3;
+var DEFAULT_TIMEOUT_MS4 = 8e3;
 var MAX_REDIRECTS = 5;
 var MAX_BODY_BYTES = 512 * 1024;
 var USER_AGENT2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -19873,7 +20256,7 @@ var HttpPageAnalysisProvider = class {
   maxRedirects;
   fetchImpl;
   constructor(config2 = {}) {
-    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS3;
+    this.timeoutMs = config2.timeoutMs ?? DEFAULT_TIMEOUT_MS4;
     this.maxRedirects = config2.maxRedirects ?? MAX_REDIRECTS;
     this.fetchImpl = config2.fetchImpl ?? ((...args) => fetch(...args));
   }
@@ -20662,7 +21045,11 @@ var AssessOpportunityUseCase = class {
       risk,
       scoreV2
     });
-    const updated = await this.opportunities.update({ ...opportunity, metadata, updatedAt: /* @__PURE__ */ new Date() });
+    const updated = await this.opportunities.update({
+      ...opportunity,
+      metadata,
+      updatedAt: /* @__PURE__ */ new Date()
+    });
     await this.auditLog.append({
       actor: "system",
       action: "OPPORTUNITY_INTEL_ASSESSED",
@@ -20778,7 +21165,11 @@ var AssessOpportunityUseCase = class {
     if (analysis === null) {
       throw new NoCompanyAnalysisError(campaignId);
     }
-    return validateAIOutput(companyAnalysisSchema, analysis.structuredOutput, "stored companyAnalysis");
+    return validateAIOutput(
+      companyAnalysisSchema,
+      analysis.structuredOutput,
+      "stored companyAnalysis"
+    );
   }
 };
 
@@ -21072,7 +21463,11 @@ var UpdateOutreachStatusUseCase = class {
       throw new ValidationError("Outreach message is empty");
     }
     assertTransitionOutreach(outreach.status, command.status);
-    const next = { ...outreach, status: command.status, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    const next = {
+      ...outreach,
+      status: command.status,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
     if (command.status === "SENT") {
       let provider = outreach.provider;
       let externalId = outreach.externalId;
@@ -21277,7 +21672,10 @@ var RespondNegotiationUseCase = class {
       nextOutreach = { ...outreach, status: "REJECTED", updatedAt: now2 };
       session.status = "RESOLVED";
     }
-    const metadata = writeIntel(opportunity.metadata, { negotiation: session, outreach: nextOutreach });
+    const metadata = writeIntel(opportunity.metadata, {
+      negotiation: session,
+      outreach: nextOutreach
+    });
     const updated = await this.opportunities.update({
       ...opportunity,
       metadata,
@@ -23258,10 +23656,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(91, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(8400, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 24, external: 18, dofollow: 12 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 24, external: 18, dofollow: 12 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u0412\u0442\u043E\u0440\u043E\u0439 \u0430\u0431\u0437\u0430\u0446, \u043F\u043E\u0441\u043B\u0435 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u044F \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u043E\u0432 \u0434\u043B\u044F \u043A\u0443\u0445\u043E\u043D\u044C",
     summary: "\u041F\u043E\u0434\u0431\u043E\u0440\u043A\u0430 \u0438\u0434\u0435\u0439 \u0434\u043B\u044F \u043A\u0443\u0445\u043D\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437: \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B, \u043F\u043B\u0430\u043D\u0438\u0440\u043E\u0432\u043A\u0430, \u0431\u0440\u0435\u043D\u0434\u044B \u0438 \u0441\u043E\u0432\u0435\u0442\u044B \u0434\u0438\u0437\u0430\u0439\u043D\u0435\u0440\u043E\u0432. \u0421\u0442\u0430\u0442\u044C\u044F \u043E\u0442\u043A\u0440\u044B\u0442\u0430 \u0434\u043B\u044F \u0440\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u044B\u0445 \u0441\u0441\u044B\u043B\u043E\u043A \u043D\u0430 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u0435\u0439 \u043C\u0435\u0431\u0435\u043B\u0438.",
     analyzedAt: now()
@@ -23275,10 +23670,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(86, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(5200, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 12, external: 9, dofollow: 6 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 12, external: 9, dofollow: 6 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u0422\u0440\u0435\u0442\u0438\u0439 \u0430\u0431\u0437\u0430\u0446, \u0432 \u043A\u043E\u043D\u0442\u0435\u043A\u0441\u0442\u0435 \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438",
     summary: "\u0413\u0438\u0434 \u043F\u043E \u0432\u044B\u0431\u043E\u0440\u0443 \u043C\u0435\u0431\u0435\u043B\u0438 \u0434\u043B\u044F \u043D\u0435\u0431\u043E\u043B\u044C\u0448\u0438\u0445 \u043A\u0432\u0430\u0440\u0442\u0438\u0440: \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0435 \u0448\u043A\u0430\u0444\u044B, \u0442\u0440\u0430\u043D\u0441\u0444\u043E\u0440\u043C\u0438\u0440\u0443\u0435\u043C\u0430\u044F \u043C\u0435\u0431\u0435\u043B\u044C, \u0441\u043E\u0432\u0435\u0442\u044B \u043F\u043E \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u0438 \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0430.",
     analyzedAt: now()
@@ -23292,10 +23684,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(84, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(6900, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 16, external: 11, dofollow: 8 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 16, external: 11, dofollow: 8 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u041F\u043E\u0441\u043B\u0435 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \u0441 \u043C\u044F\u0433\u043A\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u044C\u044E",
     summary: "\u041E\u0431\u0437\u043E\u0440 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043E\u0432 \u0438\u0437 \u043A\u043E\u043B\u043B\u0435\u043A\u0446\u0438\u0438 \u0436\u0443\u0440\u043D\u0430\u043B\u0430: \u0430\u0432\u0442\u043E\u0440\u0441\u043A\u0438\u0435 \u0440\u0435\u0448\u0435\u043D\u0438\u044F, \u043C\u0435\u0431\u0435\u043B\u044C \u0438 \u0430\u043A\u0441\u0435\u0441\u0441\u0443\u0430\u0440\u044B \u0434\u043B\u044F \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u044B\u0445 \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432.",
     analyzedAt: now()
@@ -23309,10 +23698,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(79, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(7100, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 9, external: 7, dofollow: 4 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 9, external: 7, dofollow: 4 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u0412\u043D\u0443\u0442\u0440\u0438 \u0440\u0430\u0437\u0434\u0435\u043B\u0430 \xAB\u041F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u0438 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u044B\xBB",
     summary: "\u0420\u0435\u0434\u0430\u043A\u0446\u0438\u043E\u043D\u043D\u044B\u0439 \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B \u043E \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u0435 \u043C\u0435\u0431\u0435\u043B\u0438 \u0438 \u0435\u0451 \u0440\u043E\u043B\u0438 \u0432 \u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u0443\u0440\u043D\u044B\u0445 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u0430\u0445.",
     analyzedAt: now()
@@ -23326,10 +23712,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(87, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(3800, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 14, external: 10, dofollow: 7 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 14, external: 10, dofollow: 7 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u041F\u0435\u0440\u0432\u044B\u0439 \u0430\u0431\u0437\u0430\u0446, \u043F\u043E\u0441\u043B\u0435 \u0432\u0432\u043E\u0434\u043D\u043E\u0433\u043E \u0442\u0435\u043A\u0441\u0442\u0430 \u043E \u0440\u044B\u043D\u043A\u0435",
     summary: "\u041E\u0431\u0437\u043E\u0440 \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u044B\u0445 \u043A\u0443\u0445\u043E\u043D\u044C: \u0442\u0435\u0445\u043D\u043E\u043B\u043E\u0433\u0438\u0438 \u043F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0441\u0442\u0432\u0430, \u043C\u0430\u0442\u0435\u0440\u0438\u0430\u043B\u044B, \u0432\u0435\u0434\u0443\u0449\u0438\u0435 \u0444\u0430\u0431\u0440\u0438\u043A\u0438 \u0438 \u0431\u0440\u0435\u043D\u0434\u044B.",
     analyzedAt: now()
@@ -23343,10 +23726,7 @@ var PAGE_FIXTURES = {
     linkInsertSuitability: syntheticDatum(83, DEMO_SOURCE),
     indexation: syntheticDatum("INDEXED", DEMO_SOURCE),
     traffic: syntheticDatum(4400, DEMO_SOURCE),
-    outboundLinkSignals: syntheticDatum(
-      { total: 18, external: 13, dofollow: 9 },
-      DEMO_SOURCE
-    ),
+    outboundLinkSignals: syntheticDatum({ total: 18, external: 13, dofollow: 9 }, DEMO_SOURCE),
     suggestedPlacementLocation: "\u0420\u0430\u0437\u0434\u0435\u043B \xAB\u0412\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0435 \u0448\u043A\u0430\u0444\u044B\xBB",
     summary: "\u0418\u0434\u0435\u0438 \u043F\u043E \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438: \u0448\u043A\u0430\u0444\u044B-\u043A\u0443\u043F\u0435, \u0433\u0430\u0440\u0434\u0435\u0440\u043E\u0431\u043D\u044B\u0435, \u043C\u0435\u0431\u0435\u043B\u044C \u0434\u043B\u044F \u043D\u0438\u0448 \u0438 \u044D\u043A\u043E\u043D\u043E\u043C\u0438\u044F \u043F\u0440\u043E\u0441\u0442\u0440\u0430\u043D\u0441\u0442\u0432\u0430.",
     analyzedAt: now()
@@ -24834,6 +25214,7 @@ var RuntimeConfigError = class extends Error {
 function loadRuntimeConfig(env = process.env) {
   const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
   const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
+  const discoveryProvider = parseDiscoveryProvider(env.DISCOVERY_PROVIDER);
   const apiKey = (env.OPENCODE_API_KEY ?? "").trim();
   const wantsReal = aiMode === "real" || discoveryMode === "real";
   if (wantsReal && apiKey === "") {
@@ -24842,14 +25223,50 @@ function loadRuntimeConfig(env = process.env) {
     );
   }
   const baseUrl = (env.OPENCODE_BASE_URL ?? "").trim();
+  const aiSearch = resolveAiSearchConfig(env, discoveryMode, discoveryProvider);
   return {
     aiMode,
     discoveryMode,
+    discoveryProvider,
     openCode: wantsReal ? {
       apiKey,
       baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
       model: (env.OPENCODE_MODEL ?? "").trim() || DEFAULT_OPENCODE_MODEL
-    } : null
+    } : null,
+    aiSearch
+  };
+}
+function resolveAiSearchConfig(env, discoveryMode, discoveryProvider) {
+  if (discoveryMode !== "real" || discoveryProvider !== "ai-search") {
+    return null;
+  }
+  const apiKey = (env.AI_SEARCH_API_KEY ?? "").trim();
+  if (apiKey === "") {
+    throw new RuntimeConfigError(
+      "DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_API_KEY. The OpenCode Go key is a plain LLM endpoint and cannot be reused for web search; use a search-capable provider key (e.g. OpenRouter with perplexity/sonar)."
+    );
+  }
+  const capabilities = parseSearchCapabilities({
+    declared: env.AI_SEARCH_CAPABILITIES ?? ""
+  });
+  if (capabilities === null) {
+    throw new RuntimeConfigError(
+      'DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to declare the endpoint capabilities (e.g. "web_search,citations,usage"). Capabilities are never guessed from a model name.'
+    );
+  }
+  if (!capabilities.supportsWebSearch || !capabilities.supportsCitations) {
+    throw new RuntimeConfigError(
+      `DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to include "web_search" and "citations"; got "${env.AI_SEARCH_CAPABILITIES ?? ""}". A provider that does not support web search cannot run discovery.`
+    );
+  }
+  const baseUrl = (env.AI_SEARCH_BASE_URL ?? "").trim();
+  const rawTimeout = Number(env.AI_SEARCH_TIMEOUT_MS ?? 45e3);
+  return {
+    apiKey,
+    baseUrl: baseUrl === "" ? defaultAiSearchBaseUrl : baseUrl,
+    model: (env.AI_SEARCH_MODEL ?? "").trim() || defaultAiSearchModel,
+    capabilities,
+    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 45e3
   };
 }
 function openCodeProviderConfig(config2, env = process.env) {
@@ -24871,25 +25288,66 @@ function parseMode(value, name, fallback) {
     `${name} must be "real" or "demo", got "${value}". Leave it unset for the deterministic demo mode.`
   );
 }
+function parseDiscoveryProvider(value) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "") return "duckduckgo";
+  if (normalized === "ai-search" || normalized === "duckduckgo") return normalized;
+  throw new RuntimeConfigError(
+    `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". Leave it unset for the DuckDuckGo backend.`
+  );
+}
 
 // apps/api/src/bootstrap.ts
-async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
+async function createRealEnvironment(config2 = loadRuntimeConfig()) {
   const providerConfig = openCodeProviderConfig(config2);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
   const envOptions = {};
-  if (openCodeProvider !== null) {
+  if (config2.aiMode === "real" && openCodeProvider !== null) {
     envOptions.ai = openCodeProvider;
     envOptions.seoMetrics = null;
     envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
   }
   const env = createNordhausEnvironment(envOptions);
   if (config2.discoveryMode === "real") {
+    const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
+    const searchProvider = config2.discoveryProvider === "ai-search" && config2.aiSearch !== null ? new AISearchCitationsProvider(
+      new AISearchClient({
+        apiKey: config2.aiSearch.apiKey,
+        baseUrl: config2.aiSearch.baseUrl,
+        model: config2.aiSearch.model,
+        capabilities: config2.aiSearch.capabilities,
+        timeoutMs: config2.aiSearch.timeoutMs
+      })
+    ) : new DuckDuckGoSearchProvider();
     env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(
-        env.lookups,
-        new DuckDuckGoSearchProvider(),
-        openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator()
-      )
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator)
+    ];
+  }
+  return env;
+}
+async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
+  const providerConfig = openCodeProviderConfig(config2);
+  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
+  const envOptions = {};
+  if (config2.aiMode === "real" && openCodeProvider !== null) {
+    envOptions.ai = openCodeProvider;
+    envOptions.seoMetrics = null;
+    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
+  }
+  const env = createNordhausEnvironment(envOptions);
+  if (config2.discoveryMode === "real") {
+    const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
+    const searchProvider = config2.discoveryProvider === "ai-search" && config2.aiSearch !== null ? new AISearchCitationsProvider(
+      new AISearchClient({
+        apiKey: config2.aiSearch.apiKey,
+        baseUrl: config2.aiSearch.baseUrl,
+        model: config2.aiSearch.model,
+        capabilities: config2.aiSearch.capabilities,
+        timeoutMs: config2.aiSearch.timeoutMs
+      })
+    ) : new DuckDuckGoSearchProvider();
+    env.discoverySources = [
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator)
     ];
   }
   const seed = await seedNordhausScenario(env);
@@ -24921,7 +25379,8 @@ async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
 var cachedApp;
 async function getApp() {
   if (cachedApp === void 0) {
-    const services = await runNordhausBootstrap(loadRuntimeConfig());
+    const config2 = loadRuntimeConfig();
+    const services = config2.aiMode === "real" || config2.discoveryMode === "real" ? await createRealEnvironment(config2) : await runNordhausBootstrap(config2);
     cachedApp = createApiApp(services);
   }
   return cachedApp;
