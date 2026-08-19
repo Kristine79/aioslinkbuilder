@@ -52,6 +52,15 @@ export interface RuntimeConfig {
   discoveryProvider: DiscoveryProvider;
   openCode: OpenCodeRuntimeConfig | null;
   aiSearch: AiSearchRuntimeConfig | null;
+  /** Bounds for real web discovery (cost/latency limits for serverless). */
+  discoveryLimits: DiscoveryLimits;
+}
+
+export interface DiscoveryLimits {
+  maxQueries: number;
+  maxResultsPerQuery: number;
+  maxCandidates: number;
+  concurrency: number;
 }
 
 export class RuntimeConfigError extends Error {
@@ -60,6 +69,13 @@ export class RuntimeConfigError extends Error {
     this.name = 'RuntimeConfigError';
   }
 }
+
+const DEFAULT_DISCOVERY_LIMITS: DiscoveryLimits = {
+  maxQueries: 10,
+  maxResultsPerQuery: 8,
+  maxCandidates: 40,
+  concurrency: 2,
+};
 
 export function loadRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
@@ -92,6 +108,7 @@ export function loadRuntimeConfig(
         }
       : null,
     aiSearch,
+    discoveryLimits: resolveDiscoveryLimits(env),
   };
 }
 
@@ -187,4 +204,20 @@ function parseDiscoveryProvider(value: string | undefined): DiscoveryProvider {
     `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". ` +
       'Leave it unset for the DuckDuckGo backend.',
   );
+}
+
+function resolveDiscoveryLimits(env: Readonly<Record<string, string | undefined>>): DiscoveryLimits {
+  const pick = (name: string, fallback: number): number => {
+    const raw = Number(env[name] ?? '');
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : fallback;
+  };
+  return {
+    maxQueries: pick('DISCOVERY_MAX_QUERIES', DEFAULT_DISCOVERY_LIMITS.maxQueries),
+    maxResultsPerQuery: pick(
+      'DISCOVERY_MAX_RESULTS_PER_QUERY',
+      DEFAULT_DISCOVERY_LIMITS.maxResultsPerQuery,
+    ),
+    maxCandidates: pick('DISCOVERY_MAX_CANDIDATES', DEFAULT_DISCOVERY_LIMITS.maxCandidates),
+    concurrency: pick('DISCOVERY_CONCURRENCY', DEFAULT_DISCOVERY_LIMITS.concurrency),
+  };
 }

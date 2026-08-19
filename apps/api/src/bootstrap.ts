@@ -46,9 +46,9 @@ export interface NordhausBootstrap extends ApiServices {
  * the API/UI instead. Falls back to the demo bootstrap when no real mode is
  * active.
  */
-export async function createRealEnvironment(
+export function createRealEnvironment(
   config: RuntimeConfig = loadRuntimeConfig(),
-): Promise<ApiServices> {
+): ApiServices {
   const providerConfig = openCodeProviderConfig(config);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
 
@@ -77,7 +77,12 @@ export async function createRealEnvironment(
           )
         : new DuckDuckGoSearchProvider();
     env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator),
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
+        maxQueries: config.discoveryLimits.maxQueries,
+        maxResultsPerQuery: config.discoveryLimits.maxResultsPerQuery,
+        maxCandidates: config.discoveryLimits.maxCandidates,
+        concurrency: config.discoveryLimits.concurrency,
+      }),
     ];
   }
   return { env, campaign: undefined };
@@ -119,7 +124,12 @@ export async function runNordhausBootstrap(
           )
         : new DuckDuckGoSearchProvider();
     env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator),
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
+        maxQueries: config.discoveryLimits.maxQueries,
+        maxResultsPerQuery: config.discoveryLimits.maxResultsPerQuery,
+        maxCandidates: config.discoveryLimits.maxCandidates,
+        concurrency: config.discoveryLimits.concurrency,
+      }),
     ];
   }
   const seed = await seedNordhausScenario(env);

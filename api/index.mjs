@@ -25217,6 +25217,12 @@ var RuntimeConfigError = class extends Error {
     this.name = "RuntimeConfigError";
   }
 };
+var DEFAULT_DISCOVERY_LIMITS = {
+  maxQueries: 10,
+  maxResultsPerQuery: 8,
+  maxCandidates: 40,
+  concurrency: 2
+};
 function loadRuntimeConfig(env = process.env) {
   const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
   const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
@@ -25239,7 +25245,8 @@ function loadRuntimeConfig(env = process.env) {
       baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
       model: (env.OPENCODE_MODEL ?? "").trim() || DEFAULT_OPENCODE_MODEL
     } : null,
-    aiSearch
+    aiSearch,
+    discoveryLimits: resolveDiscoveryLimits(env)
   };
 }
 function resolveAiSearchConfig(env, discoveryMode, discoveryProvider) {
@@ -25302,9 +25309,24 @@ function parseDiscoveryProvider(value) {
     `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". Leave it unset for the DuckDuckGo backend.`
   );
 }
+function resolveDiscoveryLimits(env) {
+  const pick2 = (name, fallback) => {
+    const raw2 = Number(env[name] ?? "");
+    return Number.isFinite(raw2) && raw2 > 0 ? Math.floor(raw2) : fallback;
+  };
+  return {
+    maxQueries: pick2("DISCOVERY_MAX_QUERIES", DEFAULT_DISCOVERY_LIMITS.maxQueries),
+    maxResultsPerQuery: pick2(
+      "DISCOVERY_MAX_RESULTS_PER_QUERY",
+      DEFAULT_DISCOVERY_LIMITS.maxResultsPerQuery
+    ),
+    maxCandidates: pick2("DISCOVERY_MAX_CANDIDATES", DEFAULT_DISCOVERY_LIMITS.maxCandidates),
+    concurrency: pick2("DISCOVERY_CONCURRENCY", DEFAULT_DISCOVERY_LIMITS.concurrency)
+  };
+}
 
 // apps/api/src/bootstrap.ts
-async function createRealEnvironment(config2 = loadRuntimeConfig()) {
+function createRealEnvironment(config2 = loadRuntimeConfig()) {
   const providerConfig = openCodeProviderConfig(config2);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
   const envOptions = {};
@@ -25326,7 +25348,12 @@ async function createRealEnvironment(config2 = loadRuntimeConfig()) {
       })
     ) : new DuckDuckGoSearchProvider();
     env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator)
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
+        maxQueries: config2.discoveryLimits.maxQueries,
+        maxResultsPerQuery: config2.discoveryLimits.maxResultsPerQuery,
+        maxCandidates: config2.discoveryLimits.maxCandidates,
+        concurrency: config2.discoveryLimits.concurrency
+      })
     ];
   }
   return { env, campaign: void 0 };
@@ -25353,7 +25380,12 @@ async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
       })
     ) : new DuckDuckGoSearchProvider();
     env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator)
+      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
+        maxQueries: config2.discoveryLimits.maxQueries,
+        maxResultsPerQuery: config2.discoveryLimits.maxResultsPerQuery,
+        maxCandidates: config2.discoveryLimits.maxCandidates,
+        concurrency: config2.discoveryLimits.concurrency
+      })
     ];
   }
   const seed = await seedNordhausScenario(env);
@@ -25386,7 +25418,7 @@ var cachedApp;
 async function getApp() {
   if (cachedApp === void 0) {
     const config2 = loadRuntimeConfig();
-    const services = config2.aiMode === "real" || config2.discoveryMode === "real" ? await createRealEnvironment(config2) : await runNordhausBootstrap(config2);
+    const services = config2.aiMode === "real" || config2.discoveryMode === "real" ? createRealEnvironment(config2) : await runNordhausBootstrap(config2);
     cachedApp = createApiApp(services);
   }
   return cachedApp;

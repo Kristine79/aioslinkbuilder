@@ -39,7 +39,7 @@ async function getApp(): Promise<Hono> {
     const config = loadRuntimeConfig();
     const services =
       config.aiMode === 'real' || config.discoveryMode === 'real'
-        ? await createRealEnvironment(config)
+        ? createRealEnvironment(config)
         : await runNordhausBootstrap(config);
     cachedApp = createApiApp(services);
   }
