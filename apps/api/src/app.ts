@@ -830,7 +830,9 @@ export function createApiApp(services: ApiServices): Hono {
         negotiationIntent: item.negotiation?.analysis?.intent ?? null,
       }));
 
-    const recentActivity = (await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)], 10))
+    const recentActivity = (
+      await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)], 10)
+    )
       .map((entry) => mapAuditEvent(entry))
       .reverse();
 

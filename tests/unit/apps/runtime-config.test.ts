@@ -75,18 +75,18 @@ describe('loadRuntimeConfig', () => {
 describe('loadRuntimeConfig with MOCK_PROVIDERS', () => {
   it('denies MOCK providers by default (production-safe)', () => {
     expect(loadRuntimeConfig(DEFAULTS).allowMockProviders).toBe(false);
-    expect(
-      loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'deny' }).allowMockProviders,
-    ).toBe(false);
+    expect(loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'deny' }).allowMockProviders).toBe(
+      false,
+    );
   });
 
   it('allows MOCK providers only for explicit "allow"', () => {
     expect(loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: 'allow' }).allowMockProviders).toBe(
       true,
     );
-    expect(
-      loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: ' ALLOW ' }).allowMockProviders,
-    ).toBe(true);
+    expect(loadRuntimeConfig({ ...DEFAULTS, MOCK_PROVIDERS: ' ALLOW ' }).allowMockProviders).toBe(
+      true,
+    );
   });
 
   it('fails startup on unknown values instead of silently allowing mocks', () => {

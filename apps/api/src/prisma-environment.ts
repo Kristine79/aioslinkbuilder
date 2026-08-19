@@ -26,10 +26,7 @@ import {
 } from '@aios/application';
 import type { PlatformDiscoverySource, SeoMetricsProvider } from '@aios/application';
 import type { PageAnalysisProvider, OutreachProvider } from '@aios/application';
-import {
-  AIBackedSearchQueryGenerator,
-  DeterministicSearchQueryGenerator,
-} from '@aios/application';
+import { AIBackedSearchQueryGenerator, DeterministicSearchQueryGenerator } from '@aios/application';
 import {
   AISearchCitationsProvider,
   DuckDuckGoSearchProvider,

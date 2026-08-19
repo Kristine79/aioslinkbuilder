@@ -133,6 +133,9 @@ AI_MODE=real DISCOVERY_MODE=real OPENCODE_API_KEY=sk-... pnpm start
   persisted into the platform catalog and labeled `web-search`.
 - Real modes without `OPENCODE_API_KEY` fail fast at startup — the product
   never silently falls back to demo data.
+- `MOCK_PROVIDERS` (default `deny`) controls whether MOCK placement providers
+  are bound into the delivery composition — production excludes them by
+  default (ADR-015); only demo/test/preview set `MOCK_PROVIDERS=allow`.
 - UI provenance is explicit: `OpenCode Go` provider label, `Веб-поиск` source
   chip, `измерено`/`оценка AI`/`демо-данные`/`нет данных` metric badges.
 

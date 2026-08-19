@@ -58,7 +58,8 @@ export function DashboardScreen() {
           <div>
             <div className="hero-brand">AI Backlink OS</div>
             <div className="hero-tagline">
-              Платформа для поиска, оценки и получения качественных backlink-размещений с помощью AI.
+              Платформа для поиска, оценки и получения качественных backlink-размещений с помощью
+              AI.
             </div>
           </div>
           <Link to="/help" className="btn btn-secondary btn-sm">

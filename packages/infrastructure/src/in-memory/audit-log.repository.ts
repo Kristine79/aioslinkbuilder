@@ -30,8 +30,6 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
     const matches = this.entries
       .filter((entry) => requested.has(entry.entityId))
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return Promise.resolve(
-      limit !== undefined && limit > 0 ? matches.slice(0, limit) : matches,
-    );
+    return Promise.resolve(limit !== undefined && limit > 0 ? matches.slice(0, limit) : matches);
   }
 }

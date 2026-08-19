@@ -10,8 +10,9 @@ scale. Priorities follow `docs/PRODUCTION_READINESS.md`.
    reachable network (ADR-008; `20260818120000_link_building_intel` +
    `20260819120000_placement_plan`). Verify `GET /api/health` shows `prisma: ok`.
 2. Configure Vercel env vars (`DATABASE_URL`, `DIRECT_URL`, `OPENCODE_API_KEY`,
-   mode flags); verify production boots in demo mode and that MOCK providers are
-   excluded (`allowMocks: false`).
+   mode flags; `MOCK_PROVIDERS` — leave unset or set `deny`, never `allow`);
+   verify production boots in demo mode. MOCK provider exclusion is already
+   enforced by default (ADR-015, P0#3 in PRODUCTION_READINESS.md).
 3. CI pipeline: typecheck + lint + format:check + unit + E2E on every push; add
    integration tests on the CI network (where Neon is reachable).
 

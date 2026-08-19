@@ -23831,6 +23831,7 @@ function loadRuntimeConfig(env = process.env) {
   const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
   const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
   const discoveryProvider = parseDiscoveryProvider(env.DISCOVERY_PROVIDER);
+  const allowMockProviders = parseMockProviders(env.MOCK_PROVIDERS);
   const apiKey = (env.OPENCODE_API_KEY ?? "").trim();
   const wantsReal = aiMode === "real" || discoveryMode === "real";
   if (wantsReal && apiKey === "") {
@@ -23844,6 +23845,7 @@ function loadRuntimeConfig(env = process.env) {
     aiMode,
     discoveryMode,
     discoveryProvider,
+    allowMockProviders,
     openCode: wantsReal ? {
       apiKey,
       baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
@@ -23911,6 +23913,15 @@ function parseDiscoveryProvider(value) {
   if (normalized === "ai-search" || normalized === "duckduckgo") return normalized;
   throw new RuntimeConfigError(
     `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". Leave it unset for the DuckDuckGo backend.`
+  );
+}
+function parseMockProviders(value) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "") return false;
+  if (normalized === "allow") return true;
+  if (normalized === "deny") return false;
+  throw new RuntimeConfigError(
+    `MOCK_PROVIDERS must be "allow" or "deny", got "${value}". Leave it unset (or set "deny") for the production-safe default.`
   );
 }
 function resolveDiscoveryLimits(env) {
@@ -25088,7 +25099,7 @@ async function createPrismaEnvironment(config2 = loadRuntimeConfig()) {
       "Platform catalog is empty. Run `pnpm db:seed` to load categories, platforms and providers."
     );
   }
-  const registry2 = buildRegistry(providers);
+  const registry2 = buildRegistry(providers, config2.allowMockProviders);
   let discoverySources;
   if (config2.discoveryMode === "real") {
     const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
@@ -25137,25 +25148,27 @@ async function createPrismaEnvironment(config2 = loadRuntimeConfig()) {
     db
   };
 }
-function buildRegistry(providers) {
+function buildRegistry(providers, allowMocks) {
   const mockProviders = providers.filter(
     (provider) => provider.providerType === "MOCK" || provider.providerType === "MANUAL"
   );
   const bindings = /* @__PURE__ */ new Map();
-  for (const provider of mockProviders) {
-    let options = void 0;
-    if (provider.id === "provider-2gis-mock") {
-      options = { timeline: ["pending_publication", "published"] };
+  if (allowMocks) {
+    for (const provider of mockProviders) {
+      let options = void 0;
+      if (provider.id === "provider-2gis-mock") {
+        options = { timeline: ["pending_publication", "published"] };
+      }
+      if (provider.id === "provider-archi-ru-mock") {
+        options = { failCreate: 1 };
+      }
+      bindings.set(
+        provider.id,
+        new MockPlacementProvider(provider.name, provider.capabilities, options)
+      );
     }
-    if (provider.id === "provider-archi-ru-mock") {
-      options = { failCreate: 1 };
-    }
-    bindings.set(
-      provider.id,
-      new MockPlacementProvider(provider.name, provider.capabilities, options)
-    );
   }
-  return new InMemoryPlacementProviderRegistry([...providers], bindings, { allowMocks: true });
+  return new InMemoryPlacementProviderRegistry([...providers], bindings, { allowMocks });
 }
 async function withTimeout(promise2, ms) {
   let timer;

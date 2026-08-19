@@ -38,9 +38,14 @@ core logic.
 2. **Secrets hygiene** — `DATABASE_URL`/`DIRECT_URL`/`OPENCODE_API_KEY` must exist in
    Vercel project env vars; `.env` stays gitignored; key is never sent to the client
    (server-only, verified by tests: 401 → no retry, no key leakage).
-3. **Production composition must pass `allowMocks: false`** — MOCK provider records
-   can never be selected in production (registry excludes them). Verify in the
-   Vercel/CI environment that provider selection never yields a MOCK record.
+3. **MOCK providers are excluded in production (DONE — ADR-015)** — `MOCK_PROVIDERS`
+   defaults to `deny` in the production composition; the registry excludes MOCK
+   records from listing and resolution (`ProviderUnavailableError`), so provider
+   selection can never yield a MOCK record and automated execution against
+   synthetic providers is impossible in production. Covered by runtime-config
+   tests, the composition policy test suite and the Neon-gated integration test
+   (`tests/integration/production-composition.test.ts`). Verify at deploy time that
+   `MOCK_PROVIDERS` is unset or `deny` (never `allow`).
 
 ## Recommended before production launch (P1)
 

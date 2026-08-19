@@ -17,7 +17,13 @@ import { buildRegistry } from '../../../apps/api/src/prisma-environment.js';
  * platforms and a MANUAL provider for the manual flow.
  */
 function seedLikeProviders(): PlacementProvider[] {
-  const execCapabilities: readonly string[] = ['DISCOVER', 'VALIDATE', 'CREATE', 'GET_STATUS', 'VERIFY'];
+  const execCapabilities: readonly string[] = [
+    'DISCOVER',
+    'VALIDATE',
+    'CREATE',
+    'GET_STATUS',
+    'VERIFY',
+  ];
   return [
     {
       id: 'provider-yandex-business-mock',

@@ -1011,8 +1011,8 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
           работающей интеграции нет. Поэтому корректная формулировка такая: архитектура готова
           подключать реальные placement providers, а текущая demo-среда использует MockProvider для
           демонстрации полного lifecycle (подробнее — раздел 18). В production-композиции
-          mock-провайдеры должны быть исключены на границе реестра (это одно из требований
-          readiness-аудита, раздел 25).
+          mock-провайдеры исключены на границе реестра по умолчанию (MOCK_PROVIDERS=deny, ADR-015);
+          их запуск возможен только при явном включении для demo/test/preview.
         </Paragraph>
         <Heading>Автоматический путь (через провайдера)</Heading>
         <Paragraph>
@@ -1398,7 +1398,7 @@ export const HELP_SECTIONS: readonly HelpSection[] = [
               },
               {
                 title: 'Производственная композиция: ',
-                text: 'реестр провайдеров должен исключать MOCK-записи на границе (allowMocks: false) — сейчас проверяется в составе readiness-требований.',
+                text: 'MOCK-провайдеры исключены на границе реестра по умолчанию (MOCK_PROVIDERS=deny, ADR-015); allow включается только явно для demo/test/preview.',
               },
             ]}
           />

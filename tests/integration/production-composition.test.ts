@@ -31,15 +31,13 @@ describeDb('production composition mock provider policy', () => {
     try {
       const providers = await env.lookups.listProviders();
       const mock = providers.find((provider) => provider.providerType === 'MOCK');
-      expect(mock, 'seed must contain a MOCK provider (\`pnpm db:seed\`)').toBeDefined();
+      expect(mock, 'seed must contain a MOCK provider (run: pnpm db:seed)').toBeDefined();
       expect(mock?.providerType).toBe('MOCK');
 
       const listed = await env.registry.listByPlatformId(mock!.platformId);
       expect(listed.map((provider) => provider.id)).not.toContain(mock!.id);
 
-      await expect(env.registry.resolve(mock!.id)).rejects.toBeInstanceOf(
-        ProviderUnavailableError,
-      );
+      await expect(env.registry.resolve(mock!.id)).rejects.toBeInstanceOf(ProviderUnavailableError);
 
       const best = selectBestProvider(listed, EXECUTION_REQUIRED_CAPABILITIES);
       expect(best).toBeNull();
@@ -57,7 +55,7 @@ describeDb('production composition mock provider policy', () => {
     try {
       const providers = await env.lookups.listProviders();
       const mock = providers.find((provider) => provider.providerType === 'MOCK');
-      expect(mock, 'seed must contain a MOCK provider (\`pnpm db:seed\`)').toBeDefined();
+      expect(mock, 'seed must contain a MOCK provider (run: pnpm db:seed)').toBeDefined();
 
       const listed = await env.registry.listByPlatformId(mock!.platformId);
       expect(listed.map((provider) => provider.id)).toContain(mock!.id);

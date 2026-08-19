@@ -105,8 +105,9 @@ Every state change and AI action emits an immutable audit event (actor
   (the state machine is the only authority).
 - The placement plan is a read-side decision layer — it does not create states
   or bypass transitions.
-- MOCK providers are excluded at the composition boundary in production
-  (`allowMocks: false`).
+- MOCK providers are excluded at the composition boundary in production by
+  default (`MOCK_PROVIDERS=deny`, ADR-015); only explicit `MOCK_PROVIDERS=allow`
+  enables them for demo/test/preview.
 - Demo/synthetic data is always labeled; never present `SYNTHETIC` as measured.
 - Without a verified CREATE capability, automatic execution is impossible —
   the plan still works, marking the item for review/manual.
