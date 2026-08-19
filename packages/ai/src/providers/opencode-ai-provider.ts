@@ -595,7 +595,9 @@ function searchQueriesPrompt(input: GenerateSearchQueriesInput): Array<{
         'Return 4-8 research intents. For each intent: a short direction name (e.g. "мебельные каталоги"), ' +
         'the catalog categoryCode from the available list when it matches (otherwise null), and 1-3 concrete ' +
         'web search queries. Queries must be site-discovery oriented (catalogs, directories, media, resource pages, ' +
-        'industry portals), not product searches.',
+        'industry portals), not product searches.\n' +
+        'CRITICAL: categoryCode must be one of the exact strings from availableCategoryCodes, copied verbatim, ' +
+        'or null. Never invent, translate, pluralize or shorten the code. If none of the available codes matches, return null.',
     },
   ];
 }
