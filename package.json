@@ -22,7 +22,7 @@
     "dev:api": "tsx watch apps/api/src/server.ts",
     "dev:web": "pnpm --filter @aios/web dev",
     "build:web": "pnpm --filter @aios/web build",
-    "build:vercel:api": "esbuild scripts/vercel-entry.ts --bundle --platform=node --format=esm --target=node22 --outfile=api/index.mjs --external:node:*",
+    "build:vercel:api": "esbuild scripts/vercel-entry.ts --bundle --platform=node --format=esm --target=node22 --outfile=api/index.mjs --external:node:* --external:@prisma/client",
     "build:vercel": "pnpm build:web && pnpm build:vercel:api",
     "start": "tsx apps/api/src/server.ts",
     "db:generate": "prisma generate --schema packages/infrastructure/prisma/schema.prisma",

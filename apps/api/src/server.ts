@@ -1,7 +1,14 @@
 /**
- * Composition root: builds the Nordhaus scenario state, wires the Hono app
- * and starts the HTTP server. Serves the built web app (apps/web/dist) when
- * present so `pnpm start` runs the whole product on one port.
+ * Composition root: builds the Prisma-backed persistence environment,
+ * wires the Hono app and starts the HTTP server. Serves the built web app
+ * (apps/web/dist) when present so `pnpm start` runs the whole product on
+ * one port.
+ *
+ * Persistence policy: in production (NODE_ENV=production, e.g. Vercel) the
+ * app is strictly Prisma-backed and fails fast when PostgreSQL is
+ * unreachable. On a local dev machine without database reachability the
+ * server falls back to the in-memory Nordhaus demo with an explicit
+ * warning — data is not persisted in that case (ADR-012).
  */
 
 import { serve } from '@hono/node-server';
@@ -12,6 +19,7 @@ import type { Hono } from 'hono';
 
 import { createApiApp, type ApiServices } from './app.js';
 import { runNordhausBootstrap } from './bootstrap.js';
+import { createPrismaEnvironment } from './prisma-environment.js';
 import { loadRuntimeConfig } from './runtime-config.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -71,18 +79,44 @@ export function createServerApp(services: ApiServices): Hono {
 }
 
 async function main(): Promise<void> {
-  const services = await runNordhausBootstrap(loadRuntimeConfig());
+  const config = loadRuntimeConfig();
+  let services: ApiServices;
+  let dbDisconnect: (() => Promise<void>) | undefined;
+
+  try {
+    const env = await createPrismaEnvironment(config);
+    services = { env, campaign: undefined };
+    dbDisconnect = () => env.db.$disconnect().catch(() => undefined);
+    console.log('[api] PostgreSQL persistence ready');
+  } catch (error) {
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+    const cause = error instanceof Error ? error.message : String(error);
+    console.warn(
+      '[api] PostgreSQL unreachable — falling back to the in-memory Nordhaus demo ' +
+        `(data will NOT be persisted). Run pnpm db:migrate && pnpm db:seed when the ` +
+        `database is reachable. Cause: ${cause}`,
+    );
+    const bootstrap = await runNordhausBootstrap(config);
+    services = bootstrap;
+    console.log(
+      `[api] Nordhaus demo ready: ${bootstrap.company.name} / ${bootstrap.campaign.name}`,
+    );
+  }
+
   const app = createServerApp(services);
 
   const display = existsSync(WEB_DIST)
     ? `serving UI from ${WEB_DIST}`
     : 'UI not built (run pnpm dev:web for development mode)';
-  console.log(
-    `[api] Nordhaus scenario ready: ${services.company.name} / ${services.campaign.name}`,
-  );
   console.log(`[api] listening on http://localhost:${PORT} (${display})`);
 
-  serve({ fetch: app.fetch, port: PORT });
+  await new Promise<void>((resolve) => {
+    const server = serve({ fetch: app.fetch, port: PORT });
+    server.once('close', () => resolve());
+  });
+  await dbDisconnect?.();
 }
 
 // Only boot the server when this module is the entry point (pnpm start /

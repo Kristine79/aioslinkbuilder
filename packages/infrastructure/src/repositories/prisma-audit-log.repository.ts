@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { AuditLogDraft, AuditLogRepository } from '@aios/application';
+import type { AuditLogEntry } from '@aios/domain';
 
-import { toPrismaJson } from './mappers.js';
+import { toDomainMetadata, toPrismaJson } from './mappers.js';
 
 export class PrismaAuditLogRepository implements AuditLogRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -16,5 +17,25 @@ export class PrismaAuditLogRepository implements AuditLogRepository {
         metadata: toPrismaJson(draft.metadata),
       },
     });
+  }
+
+  async findByEntityIds(entityIds: readonly string[], limit?: number): Promise<AuditLogEntry[]> {
+    if (entityIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db.auditLog.findMany({
+      where: { entityId: { in: [...entityIds] } },
+      orderBy: { timestamp: 'desc' },
+      ...(limit !== undefined && limit > 0 ? { take: limit } : {}),
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      actor: row.actor,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      metadata: toDomainMetadata(row.metadata),
+    }));
   }
 }

@@ -4,7 +4,7 @@ Phases 0–6: modular-monolith monorepo with a strict domain layer, PostgreSQL (
 
 The prototype is evolving into an **AI Link Building Operations Platform / Copilot**: AI automates research, qualification, preparation and routine work, while humans handle negotiation, approval and cases where automation is impossible. It is not a fully autonomous link-building bot.
 
-Product requirements and design live in: `PRD.md`, `ARCHITECTURE.md`, `DOMAIN_MODEL.md`, `STATE_MACHINE.md`, `SCORING.md`, `INTEGRATIONS.md`, `TESTING.md`, `AI_WORKFLOWS.md`, `docs/decisions/`.
+Product requirements and design live in: `PRD.md`, `ARCHITECTURE.md`, `DOMAIN_MODEL.md`, `STATE_MACHINE.md`, `SCORING.md`, `INTEGRATIONS.md`, `TESTING.md`, `AI_WORKFLOWS.md`, `docs/decisions/`. Operational playbooks: `docs/LINK_BUILDING_OPERATIONS.md` (end-to-end flow), `docs/DEMO.md` (demo transcript), `docs/PROJECT_STATUS.md` (capability classification). Production: `docs/PRODUCTION_READINESS.md`, `docs/PRODUCTION_ARCHITECTURE.md`, `docs/PRODUCTION_ROADMAP.md`.
 
 ## Link-building intelligence features
 
@@ -38,6 +38,12 @@ Product requirements and design live in: `PRD.md`, `ARCHITECTURE.md`, `DOMAIN_MO
   source, placement type, risk, min score, min donor quality, min traffic) and
   sorting (score / donor quality / traffic / relevance / lowest risk / ease).
 - **Campaign links / anchor profile** view, and a dashboard health overview.
+- **AI placement plan** ("План размещений") — one batched AI call interprets the
+  deterministic signals (score, donor quality, risk, provider availability, method)
+  into a per-opportunity decision: `RECOMMENDED` (with next action + automation mode),
+  `REVIEW_REQUIRED`, or `NOT_RECOMMENDED` (with reason). The domain re-reconciles the
+  AI decision map against current state, so the final bucket/action/automation is always
+  deterministic; see ADR-013.
 
 ## Repository layout
 
@@ -77,7 +83,7 @@ The project uses Neon PostgreSQL. There is no local PostgreSQL requirement.
 
 Local dev network note: on some networks the Neon direct endpoint is unreachable while the pooled endpoint works; if `prisma migrate dev` fails with `P1001`, point `DIRECT_URL` at the pooled endpoint for local work (see ADR-008). On Vercel/CI use the native direct endpoint.
 
-New values were added to the `PlacementType` and `AIAnalysisType` enums for the link-building-intelligence feature. The migration `.../prisma/migrations/20260818120000_link_building_intel/migration.sql` must be applied (`prisma migrate dev`) when the database is reachable; the in-memory demo/API already uses the new types directly.
+New values were added to the `PlacementType` and `AIAnalysisType` enums for the link-building-intelligence feature, and `AIAnalysisType.PLACEMENT_PLAN` for the placement plan. The migrations `.../prisma/migrations/20260818120000_link_building_intel/migration.sql` and `.../prisma/migrations/20260819120000_placement_plan/migration.sql` must be applied (`prisma migrate dev`) when the database is reachable; the in-memory demo/API already use the new types directly.
 
 ## Setup and commands
 
@@ -89,14 +95,24 @@ pnpm db:seed          # idempotent demo data: 8 categories, 8 platforms, 6 provi
 pnpm demo             # deterministic end-to-end demo (in-memory, no DB): Nordhaus campaign
                       # analysis → strategy → discovery → classification → approval →
                       # execution (incl. retry) → monitoring → manual flow → verification
+                      # → AI placement plan ([4e] per-platform decisions + summary)
 pnpm start            # run the whole product on one port (http://localhost:8787): API +
-                      # built web UI (apps/web/dist); serves the bootstrapped Nordhaus mid-state
+                      # built web UI (apps/web/dist). Production: Prisma-backed over
+                      # PostgreSQL (Neon) — data persists across restarts.
+                      # Outside NODE_ENV=production with a unreachable database it
+                      # falls back to the in-memory Nordhaus demo with an explicit
+                      # warning (no persistence)
 pnpm dev:web          # Vite dev server (http://localhost:5173, /api proxied to :8787)
 pnpm dev:api          # API dev server with watch
 pnpm build:web        # production web build into apps/web/dist
 ```
 
-The API bootstraps the Nordhaus scenario to a mid-flight state on every start: approved opportunities, published/verified placement (Яндекс Бизнес), an in-progress submission (2ГИС, monitor from the UI), a failed attempt awaiting retry (Archi.ru), a manual placement awaiting completion (INMYROOM) and two awaiting approval. All transitions are performed through the real application use cases.
+In production (Vercel serverless, or `NODE_ENV=production`) the app is
+persistence-first: it fails fast when PostgreSQL is unreachable and never
+silently falls back to in-memory data (ADR-014). `pnpm db:seed` must have
+been run once so the platform catalog (categories/platforms/providers)
+exists — users then create companies and campaigns via the UI, and they
+survive cold starts and multiple serverless instances.
 
 ## Real AI and web discovery (production mode)
 
@@ -145,6 +161,7 @@ pnpm test:e2e         # E2E: boots the production composition over HTTP and driv
 | 5     | Russian UI (apps/web + apps/api delivery layer)                                                                                  | done   |
 | 6     | E2E flow + quality pass                                                                                                          | done   |
 | 7     | link-building intelligence: donor quality, page analysis, anchor/link insert, outreach, negotiation, HITL, Score 2.0, comparison | done   |
+| 8     | AI placement plan ("План размещений"): batched AI decision map + deterministic re-reconciliation + API + UI + tests + docs       | done   |
 
 ## Key decisions
 
@@ -158,6 +175,8 @@ pnpm test:e2e         # E2E: boots the production composition over HTTP and driv
 - Provider alignment is deterministic domain logic: verified providers that support CREATE+VERIFY are selected by type priority (API > MOCK > BROWSER > MANUAL); unverified capabilities stay explicit (never claimed). Classification and execution read provider availability from the same registry; MOCK providers are excluded at the composition/registry boundary in production.
 - Failed attempts are retried with a fresh Placement record; manual placements go through NEEDS_MANUAL and reach PUBLISHED only with proof (human-in-the-loop path).
 - `pnpm demo` runs the full deterministic Nordhaus scenario end-to-end on the MockProvider (in-memory, no database needed).
+- The AI placement plan is generated by the deterministic ScenarioAIProvider, persisted as an `AIAnalysis` of type `PLACEMENT_PLAN`, and re-reconciled against current state on every read; AI interprets signals but never writes business state (ADR-013).
+- Production persistence: the Vercel deployment and `pnpm start` run the Prisma-backed environment over PostgreSQL (Neon) via the shared `ApiEnvironment` contract; the delivery layer reads audit/company data through the repository ports, and the serverless bundle keeps `@prisma/client` external (ADR-014).
 
 ## Deployment target
 
@@ -168,6 +187,6 @@ Deployment notes (Vercel):
 - `packageManager` pins `pnpm@11.9.0` (`allowBuilds`/`patchedDependencies` are pnpm 11 features).
 - `postinstall` runs `prisma generate` during `pnpm install`, and the Prisma generator declares `binaryTargets = ["native", "debian-openssl-3.0.x"]`, so the Linux query engine is produced on Vercel.
 - `vercel.json` runs `pnpm build:vercel` (`build:web` + `build:vercel:api`), serves `apps/web/dist` and rewrites non-API routes to `/index.html` (SPA fallback) and `/api/(.*)` to `/api/index` (the API function). The Vercel build does not run the API server; the API runs as a serverless function instead.
-- The API function is `scripts/vercel-entry.ts` bundled to `api/index.mjs` (esbuild, committed to the repo). The bundle is required because Vercel leaves workspace dependencies external, and their package exports point at TypeScript sources that the Node runtime cannot import. The bundle is committed because Vercel scans the `api/` directory for functions before the build command runs — a file generated during the build is never collected. Both Vercel launcher conventions are covered: named exports (web launcher) and a default `(req, res)` adapter that feeds a standard `Request` to the same Hono app as `pnpm start` (`createApiApp` + `runNordhausBootstrap`, bootstrapped once per warm instance). Local single-port mode (`pnpm start`) is unchanged.
+- The API function is `scripts/vercel-entry.ts` bundled to `api/index.mjs` (esbuild, committed to the repo). The bundle is required because Vercel leaves workspace dependencies external, and their package exports point at TypeScript sources that the Node runtime cannot import. The bundle is committed because Vercel scans the `api/` directory for functions before the build command runs — a file generated during the build is never collected. Both Vercel launcher conventions are covered: named exports (web launcher) and a default `(req, res)` adapter that feeds a standard `Request` to the same Hono app as `pnpm start`. Persistence is PostgreSQL via the Prisma-backed environment (`createPrismaEnvironment`), built once per warm instance; `@prisma/client` stays external to the bundle so the generated client and query engine resolve from `node_modules` at runtime (same proven path as `api/health.mjs`, ADR-014).
 - `prisma@6.19.3` is published with a broken `exports` map (root export points to a `build/types.js` that is missing from the tarball), which makes every `prisma generate` attempt an auto-install. The package is patched via pnpm `patchedDependencies` (`patches/prisma@6.19.3.patch`), and the `prisma` CLI is a devDependency of `packages/infrastructure` — generation is deterministic.
 - `api/health.mjs` is a Vercel function that reports DB reachability (stage-by-stage raw probe) and Prisma initialization.

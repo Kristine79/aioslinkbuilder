@@ -4,15 +4,18 @@
  * This file is bundled to `api/index.mjs` by `pnpm build:vercel:api`
  * (esbuild). The bundle is required because Vercel leaves workspace
  * dependencies external, and their package exports point at TypeScript
- * sources, which the Node.js runtime cannot import.
+ * sources, which the Node.js runtime cannot import. `@prisma/client` stays
+ * external on purpose: the generated client and its query engine are
+ * resolved from `node_modules` at runtime (see ADR-012).
  *
  * All /api/* requests are rewritten to this function by vercel.json
  * (`/api/(.*)` -> `/api/index`), so the single Hono application sees the
  * original URL and routes exactly as the local single-port server
- * (`pnpm start`, apps/api/src/server.ts). The Nordhaus bootstrap runs once
- * per warm function instance, mirroring the local demo state (in-memory
- * repositories, MockProvider, fixture AI). Static web assets come from the
- * Vercel build output (apps/web/dist) with SPA rewrites in vercel.json.
+ * (`pnpm start`, apps/api/src/server.ts). Persistence is PostgreSQL (Neon)
+ * via the Prisma-backed environment — data survives cold starts and
+ * multiple function instances; nothing is kept in memory. Static web assets
+ * come from the Vercel build output (apps/web/dist) with SPA rewrites in
+ * vercel.json.
  *
  * Both Vercel launcher conventions are covered: named exports for the
  * web-style launcher, and a default export that adapts the Node.js
@@ -24,24 +27,19 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Hono } from 'hono';
 
 import { createApiApp } from '../apps/api/src/app.js';
-import { createRealEnvironment, runNordhausBootstrap } from '../apps/api/src/bootstrap.js';
+import { createPrismaEnvironment } from '../apps/api/src/prisma-environment.js';
 import { loadRuntimeConfig } from '../apps/api/src/runtime-config.js';
 
 let cachedApp: Hono | undefined;
 
 async function getApp(): Promise<Hono> {
   if (cachedApp === undefined) {
-    // Mode is env-driven. In real mode a serverless cold start must not spend
-    // minutes seeding the demo Nordhaus scenario, so we build the real
-    // provider environment without a seed (users create companies via the
-    // API/UI). Without AI_MODE/DISCOVERY_MODE=real we keep the deterministic
-    // demo bootstrap (no network calls, no API key).
-    const config = loadRuntimeConfig();
-    const services =
-      config.aiMode === 'real' || config.discoveryMode === 'real'
-        ? createRealEnvironment(config)
-        : await runNordhausBootstrap(config);
-    cachedApp = createApiApp(services);
+    // Persistence-first: the app always runs against PostgreSQL. If the
+    // database is unreachable the cold start fails (500) instead of
+    // silently falling back to in-memory data — the product never hides a
+    // persistence outage.
+    const services = await createPrismaEnvironment(loadRuntimeConfig());
+    cachedApp = createApiApp({ env: services, campaign: undefined });
   }
   return cachedApp;
 }

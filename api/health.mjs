@@ -204,9 +204,15 @@ async function probePrisma() {
 }
 
 async function run() {
-  const database = await probeDatabase();
+  const probe = await probeDatabase();
   const prisma = await probePrisma();
-  return { ...database, prisma };
+  // The raw TCP probe (SSLRequest + TLS handshake) is incompatible with the
+  // Neon pooled endpoint ("server idle timeout" on the tls stage), while the
+  // real client works. Prisma is the source of truth for reachability: when
+  // it works, the database is up and the raw-probe failure is reported
+  // separately as `probe`.
+  const database = probe.database === 'error' && prisma === 'ok' ? 'ok' : probe.database;
+  return { database, ...(database === 'ok' ? { probe: probe.database } : {}), prisma };
 }
 
 const isDirectRun = process.argv[1] === new URL(import.meta.url).pathname;

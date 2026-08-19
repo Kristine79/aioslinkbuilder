@@ -12,6 +12,11 @@ export class PrismaCompanyRepository implements CompanyRepository {
     return row === null ? null : toCompany(row);
   }
 
+  async all(): Promise<Company[]> {
+    const rows = await this.db.company.findMany({ orderBy: { createdAt: 'desc' } });
+    return rows.map(toCompany);
+  }
+
   async create(draft: CompanyDraft): Promise<Company> {
     const row = await this.db.company.create({ data: { ...draft } });
     return toCompany(row);

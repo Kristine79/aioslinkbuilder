@@ -2135,6 +2135,16 @@ var PLACEMENT_METHODS = [
   "UNKNOWN"
 ];
 
+// packages/domain/src/enums/provider-capability.ts
+var PROVIDER_CAPABILITIES = [
+  "DISCOVER",
+  "VALIDATE",
+  "CREATE",
+  "UPDATE",
+  "GET_STATUS",
+  "VERIFY"
+];
+
 // packages/domain/src/enums/evidence-type.ts
 var EVIDENCE_TYPES = [
   "LIVE_URL",
@@ -18750,7 +18760,8 @@ function searchQueriesPrompt(input) {
 relevantCategoryCodes: ${JSON.stringify(input.relevantCategoryCodes)}
 availableCategoryCodes: ${JSON.stringify(input.availableCategoryCodes)}
 
-Return 4-8 research intents. For each intent: a short direction name (e.g. "\u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438"), the catalog categoryCode from the available list when it matches (otherwise null), and 1-3 concrete web search queries. Queries must be site-discovery oriented (catalogs, directories, media, resource pages, industry portals), not product searches.`
+Return 4-8 research intents. For each intent: a short direction name (e.g. "\u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438"), the catalog categoryCode from the available list when it matches (otherwise null), and 1-3 concrete web search queries. Queries must be site-discovery oriented (catalogs, directories, media, resource pages, industry portals), not product searches.
+CRITICAL: categoryCode must be one of the exact strings from availableCategoryCodes, copied verbatim, or null. Never invent, translate, pluralize or shorten the code. If none of the available codes matches, return null.`
     }
   ];
 }
@@ -22994,7 +23005,7 @@ function createApiApp(services) {
       outreachStatus: item.outreach?.status ?? null,
       negotiationIntent: item.negotiation?.analysis?.intent ?? null
     }));
-    const recentActivity = [...env.auditLog.entries].filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId)).slice(-10).map((entry) => mapAuditEvent(entry)).reverse();
+    const recentActivity = (await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)], 10)).map((entry) => mapAuditEvent(entry)).reverse();
     const overview = {
       company: {
         id: company.id,
@@ -23043,7 +23054,7 @@ function createApiApp(services) {
         });
       }
     }
-    const audit = [...env.auditLog.entries].filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId)).map((entry) => mapAuditEvent(entry)).reverse();
+    const audit = (await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)])).map((entry) => mapAuditEvent(entry)).reverse();
     return c.json({ verifications, audit });
   });
   app.notFound((c) => {
@@ -23219,323 +23230,704 @@ async function mapOpportunityWithRelations(env, opportunity, context) {
   );
 }
 
-// packages/infrastructure/src/in-memory/company.repository.ts
-import { randomUUID } from "node:crypto";
-var InMemoryCompanyRepository = class {
-  companies = /* @__PURE__ */ new Map();
-  findById(id) {
-    return Promise.resolve(this.companies.get(id) ?? null);
+// packages/infrastructure/src/db.ts
+import { PrismaClient } from "@prisma/client";
+function createPrismaClient() {
+  return new PrismaClient();
+}
+
+// packages/infrastructure/src/repositories/mappers.ts
+import { Prisma } from "@prisma/client";
+function toDomainMetadata(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
   }
-  all() {
-    return Promise.resolve([...this.companies.values()]);
+  return value;
+}
+function toPrismaJson(value) {
+  if (value === null) {
+    return Prisma.JsonNull;
   }
-  create(draft) {
-    const now2 = /* @__PURE__ */ new Date();
-    const company = {
-      id: randomUUID(),
-      name: draft.name,
-      description: draft.description ?? null,
-      industry: draft.industry ?? null,
-      geography: draft.geography ?? [],
-      locations: draft.locations ?? [],
-      products: draft.products ?? [],
-      targetAudience: draft.targetAudience ?? [],
-      website: draft.website ?? null,
-      metadata: null,
-      createdAt: now2,
-      updatedAt: now2
-    };
-    this.companies.set(company.id, company);
-    return Promise.resolve(company);
+  const parsed = JSON.parse(JSON.stringify(value));
+  return parsed;
+}
+function toDomainCapabilities(value) {
+  if (!Array.isArray(value)) {
+    return [];
   }
-  update(company) {
-    this.companies.set(company.id, company);
-    return Promise.resolve(company);
+  return value.filter(
+    (capability) => typeof capability === "string" && PROVIDER_CAPABILITIES.includes(capability)
+  );
+}
+
+// packages/infrastructure/src/repositories/prisma-company.repository.ts
+var PrismaCompanyRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findById(id) {
+    const row = await this.db.company.findUnique({ where: { id } });
+    return row === null ? null : toCompany(row);
+  }
+  async all() {
+    const rows = await this.db.company.findMany({ orderBy: { createdAt: "desc" } });
+    return rows.map(toCompany);
+  }
+  async create(draft) {
+    const row = await this.db.company.create({ data: { ...draft } });
+    return toCompany(row);
+  }
+  async update(company) {
+    const row = await this.db.company.update({
+      where: { id: company.id },
+      data: {
+        name: company.name,
+        description: company.description,
+        industry: company.industry,
+        geography: company.geography,
+        locations: company.locations,
+        products: company.products,
+        targetAudience: company.targetAudience,
+        website: company.website,
+        metadata: toPrismaJson(company.metadata)
+      }
+    });
+    return toCompany(row);
   }
 };
+function toCompany(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    industry: row.industry,
+    geography: row.geography,
+    locations: row.locations,
+    products: row.products,
+    targetAudience: row.targetAudience,
+    website: row.website,
+    metadata: toDomainMetadata(row.metadata),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-campaign.repository.ts
+var PrismaCampaignRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findById(id) {
+    const row = await this.db.campaign.findUnique({ where: { id } });
+    return row === null ? null : toCampaign(row);
+  }
+  async findByCompanyId(companyId) {
+    const rows = await this.db.campaign.findMany({ where: { companyId } });
+    return rows.map(toCampaign);
+  }
+  async create(draft) {
+    const row = await this.db.campaign.create({
+      data: { companyId: draft.companyId, name: draft.name, goals: draft.goals }
+    });
+    return toCampaign(row);
+  }
+  async update(campaign) {
+    const row = await this.db.campaign.update({
+      where: { id: campaign.id },
+      data: { name: campaign.name, goals: campaign.goals, status: campaign.status }
+    });
+    return toCampaign(row);
+  }
+};
+function toCampaign(row) {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    name: row.name,
+    goals: row.goals,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-audit-log.repository.ts
+var PrismaAuditLogRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async append(draft) {
+    await this.db.auditLog.create({
+      data: {
+        actor: draft.actor,
+        action: draft.action,
+        entityType: draft.entityType,
+        entityId: draft.entityId,
+        metadata: toPrismaJson(draft.metadata)
+      }
+    });
+  }
+  async findByEntityIds(entityIds, limit) {
+    if (entityIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db.auditLog.findMany({
+      where: { entityId: { in: [...entityIds] } },
+      orderBy: { timestamp: "desc" },
+      ...limit !== void 0 && limit > 0 ? { take: limit } : {}
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      actor: row.actor,
+      action: row.action,
+      entityType: row.entityType,
+      entityId: row.entityId,
+      metadata: toDomainMetadata(row.metadata)
+    }));
+  }
+};
+
+// packages/infrastructure/src/repositories/prisma-lookup.repository.ts
+var PrismaLookupRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async listCategories() {
+    const rows = await this.db.placementCategory.findMany({ orderBy: { sortOrder: "asc" } });
+    return rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      description: row.description,
+      sortOrder: row.sortOrder
+    }));
+  }
+  async listPlatforms() {
+    const rows = await this.db.platform.findMany({ orderBy: { name: "asc" } });
+    return rows.map(toDomainPlatform);
+  }
+  async listProviders() {
+    const rows = await this.db.placementProvider.findMany({ orderBy: { name: "asc" } });
+    return rows.map((row) => ({
+      id: row.id,
+      platformId: row.platformId,
+      name: row.name,
+      providerType: row.providerType,
+      capabilities: toDomainCapabilities(row.capabilities),
+      capabilitiesVerified: row.capabilitiesVerified,
+      notes: row.notes
+    }));
+  }
+  async createPlatform(platform) {
+    if (platform.url !== null) {
+      const existing = await this.db.platform.findFirst({
+        where: { url: platform.url }
+      });
+      if (existing !== null) {
+        return toDomainPlatform(existing);
+      }
+    } else {
+      const existing = await this.db.platform.findFirst({
+        where: { name: platform.name, url: null }
+      });
+      if (existing !== null) {
+        return toDomainPlatform(existing);
+      }
+    }
+    const created = await this.db.platform.create({
+      data: {
+        id: platform.id,
+        name: platform.name,
+        url: platform.url,
+        country: platform.country,
+        categoryId: platform.categoryId,
+        notes: platform.notes,
+        metadata: toPrismaJson(platform.metadata)
+      }
+    });
+    return toDomainPlatform(created);
+  }
+};
+function toDomainPlatform(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    url: row.url,
+    country: row.country,
+    categoryId: row.categoryId,
+    notes: row.notes,
+    metadata: toDomainMetadata(row.metadata)
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-opportunity.repository.ts
+var PrismaPlacementOpportunityRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findById(id) {
+    const row = await this.db.placementOpportunity.findUnique({ where: { id } });
+    return row === null ? null : toOpportunity(row);
+  }
+  async findByCampaignId(campaignId) {
+    const rows = await this.db.placementOpportunity.findMany({ where: { campaignId } });
+    return rows.map(toOpportunity);
+  }
+  async findByCampaignIdAndPlatformId(campaignId, platformId) {
+    const row = await this.db.placementOpportunity.findUnique({
+      where: { campaignId_platformId: { campaignId, platformId } }
+    });
+    return row === null ? null : toOpportunity(row);
+  }
+  async create(draft) {
+    const row = await this.db.placementOpportunity.create({
+      data: {
+        campaignId: draft.campaignId,
+        platformId: draft.platformId,
+        categoryId: draft.categoryId ?? null,
+        placementType: draft.placementType,
+        placementMethod: draft.placementMethod,
+        metadata: toPrismaJson(draft.metadata ?? null)
+      }
+    });
+    return toOpportunity(row);
+  }
+  async update(opportunity) {
+    const row = await this.db.placementOpportunity.update({
+      where: { id: opportunity.id },
+      data: {
+        categoryId: opportunity.categoryId,
+        placementType: opportunity.placementType,
+        relevance: opportunity.relevance,
+        score: opportunity.score,
+        scoreBreakdown: toPrismaJson(
+          opportunity.scoreBreakdown
+        ),
+        recommendation: opportunity.recommendation,
+        whyRecommended: opportunity.whyRecommended,
+        placementMethod: opportunity.placementMethod,
+        providerCapabilities: [...opportunity.providerCapabilities],
+        status: opportunity.status,
+        metadata: toPrismaJson(opportunity.metadata)
+      }
+    });
+    return toOpportunity(row);
+  }
+};
+function toOpportunity(row) {
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    platformId: row.platformId,
+    categoryId: row.categoryId,
+    placementType: row.placementType,
+    relevance: row.relevance,
+    score: row.score,
+    scoreBreakdown: toDomainScoreBreakdown(row.scoreBreakdown),
+    recommendation: row.recommendation,
+    whyRecommended: row.whyRecommended,
+    placementMethod: row.placementMethod,
+    providerCapabilities: toDomainCapabilities(row.providerCapabilities),
+    status: row.status,
+    metadata: toDomainMetadata(row.metadata),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+function toDomainScoreBreakdown(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record2 = value;
+  const dimensions = [
+    "topicalRelevance",
+    "audienceMatch",
+    "geographicRelevance",
+    "authority",
+    "placementQuality",
+    "automationPotential",
+    "total"
+  ];
+  if (!dimensions.every((dimension) => typeof record2[dimension] === "number")) {
+    return null;
+  }
+  return record2;
+}
+
+// packages/infrastructure/src/repositories/prisma-ai-analysis.repository.ts
+var PrismaAIAnalysisRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findByCampaignId(campaignId) {
+    const rows = await this.db.aIAnalysis.findMany({
+      where: { campaignId },
+      orderBy: { createdAt: "desc" }
+    });
+    return rows.map(toAnalysis);
+  }
+  async findLatestValidCompanyAnalysis(campaignId) {
+    const row = await this.db.aIAnalysis.findFirst({
+      where: {
+        campaignId,
+        analysisType: "COMPANY_ANALYSIS",
+        validationStatus: "VALID"
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return row === null ? null : toAnalysis(row);
+  }
+  async findLatestValidPlacementPlan(campaignId) {
+    const row = await this.db.aIAnalysis.findFirst({
+      where: {
+        campaignId,
+        analysisType: "PLACEMENT_PLAN",
+        validationStatus: "VALID"
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return row === null ? null : toAnalysis(row);
+  }
+  async create(draft) {
+    const row = await this.db.aIAnalysis.create({
+      data: {
+        campaignId: draft.campaignId,
+        analysisType: draft.analysisType,
+        provider: draft.provider,
+        model: draft.model,
+        inputReference: toPrismaJson(draft.inputReference),
+        structuredOutput: toPrismaJson(draft.structuredOutput),
+        schemaVersion: draft.schemaVersion,
+        validationStatus: draft.validationStatus
+      }
+    });
+    return toAnalysis(row);
+  }
+};
+function toAnalysis(row) {
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    analysisType: row.analysisType,
+    provider: row.provider,
+    model: row.model,
+    inputReference: toDomainMetadata(row.inputReference),
+    structuredOutput: toDomainMetadata(row.structuredOutput) ?? {},
+    schemaVersion: row.schemaVersion,
+    validationStatus: row.validationStatus,
+    createdAt: row.createdAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-placement.repository.ts
+var PrismaPlacementRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findById(id) {
+    const row = await this.db.placement.findUnique({ where: { id } });
+    return row === null ? null : toPlacement(row);
+  }
+  async findByOpportunityId(opportunityId) {
+    const rows = await this.db.placement.findMany({ where: { opportunityId } });
+    return rows.map(toPlacement);
+  }
+  async create(draft) {
+    const row = await this.db.placement.create({
+      data: {
+        opportunityId: draft.opportunityId,
+        providerId: draft.providerId,
+        status: draft.status ?? "READY"
+      }
+    });
+    return toPlacement(row);
+  }
+  async save(placement) {
+    const row = await this.db.placement.upsert({
+      where: { id: placement.id },
+      create: {
+        id: placement.id,
+        opportunityId: placement.opportunityId,
+        providerId: placement.providerId,
+        status: placement.status,
+        externalId: placement.externalId,
+        submittedAt: placement.submittedAt,
+        publishedAt: placement.publishedAt,
+        liveUrl: placement.liveUrl,
+        metadata: toPrismaJson(placement.metadata),
+        createdAt: placement.createdAt
+      },
+      update: {
+        providerId: placement.providerId,
+        status: placement.status,
+        externalId: placement.externalId,
+        submittedAt: placement.submittedAt,
+        publishedAt: placement.publishedAt,
+        liveUrl: placement.liveUrl,
+        metadata: toPrismaJson(placement.metadata)
+      }
+    });
+    return toPlacement(row);
+  }
+};
+function toPlacement(row) {
+  return {
+    id: row.id,
+    opportunityId: row.opportunityId,
+    providerId: row.providerId,
+    status: row.status,
+    externalId: row.externalId,
+    submittedAt: row.submittedAt,
+    publishedAt: row.publishedAt,
+    liveUrl: row.liveUrl,
+    metadata: toDomainMetadata(row.metadata),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-verification.repository.ts
+var PrismaVerificationRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findById(id) {
+    const row = await this.db.verification.findUnique({ where: { id } });
+    return row === null ? null : toVerification(row);
+  }
+  async findByPlacementId(placementId) {
+    const rows = await this.db.verification.findMany({ where: { placementId } });
+    return rows.map(toVerification);
+  }
+  async create(draft) {
+    const row = await this.db.verification.create({
+      data: {
+        placementId: draft.placementId,
+        status: draft.status,
+        checkedAt: draft.checkedAt,
+        result: toPrismaJson(draft.result),
+        failureReason: draft.failureReason
+      }
+    });
+    return toVerification(row);
+  }
+  async save(verification) {
+    const row = await this.db.verification.upsert({
+      where: { id: verification.id },
+      create: {
+        id: verification.id,
+        placementId: verification.placementId,
+        status: verification.status,
+        checkedAt: verification.checkedAt,
+        result: toPrismaJson(verification.result),
+        failureReason: verification.failureReason,
+        createdAt: verification.createdAt
+      },
+      update: {
+        status: verification.status,
+        checkedAt: verification.checkedAt,
+        result: toPrismaJson(verification.result),
+        failureReason: verification.failureReason
+      }
+    });
+    return toVerification(row);
+  }
+};
+function toVerification(row) {
+  return {
+    id: row.id,
+    placementId: row.placementId,
+    status: row.status,
+    checkedAt: row.checkedAt,
+    result: toDomainMetadata(row.result),
+    failureReason: row.failureReason,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-evidence.repository.ts
+var PrismaEvidenceRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findByVerificationId(verificationId) {
+    const rows = await this.db.evidence.findMany({ where: { verificationId } });
+    return rows.map(toEvidence);
+  }
+  async create(draft) {
+    const row = await this.db.evidence.create({
+      data: {
+        verificationId: draft.verificationId,
+        type: draft.type,
+        url: draft.url,
+        content: draft.content,
+        metadata: toPrismaJson(draft.metadata)
+      }
+    });
+    return toEvidence(row);
+  }
+};
+function toEvidence(row) {
+  return {
+    id: row.id,
+    verificationId: row.verificationId,
+    type: row.type,
+    url: row.url,
+    content: row.content,
+    metadata: toDomainMetadata(row.metadata),
+    createdAt: row.createdAt
+  };
+}
+
+// packages/infrastructure/src/in-memory/company.repository.ts
+import { randomUUID } from "node:crypto";
 
 // packages/infrastructure/src/in-memory/campaign.repository.ts
 import { randomUUID as randomUUID2 } from "node:crypto";
-var InMemoryCampaignRepository = class {
-  campaigns = /* @__PURE__ */ new Map();
-  findById(id) {
-    return Promise.resolve(this.campaigns.get(id) ?? null);
-  }
-  findByCompanyId(companyId) {
-    return Promise.resolve(
-      [...this.campaigns.values()].filter((campaign) => campaign.companyId === companyId)
-    );
-  }
-  create(draft) {
-    const now2 = /* @__PURE__ */ new Date();
-    const campaign = {
-      id: randomUUID2(),
-      companyId: draft.companyId,
-      name: draft.name,
-      goals: draft.goals,
-      status: "DRAFT",
-      createdAt: now2,
-      updatedAt: now2
-    };
-    this.campaigns.set(campaign.id, campaign);
-    return Promise.resolve(campaign);
-  }
-  update(campaign) {
-    this.campaigns.set(campaign.id, campaign);
-    return Promise.resolve(campaign);
-  }
-};
 
 // packages/infrastructure/src/in-memory/audit-log.repository.ts
 import { randomUUID as randomUUID3 } from "node:crypto";
-var InMemoryAuditLogRepository = class {
-  entries = [];
-  append(draft) {
-    this.entries.push({
-      id: randomUUID3(),
-      timestamp: /* @__PURE__ */ new Date(),
-      actor: draft.actor,
-      action: draft.action,
-      entityType: draft.entityType,
-      entityId: draft.entityId,
-      metadata: draft.metadata
-    });
-    return Promise.resolve();
-  }
-};
 
 // packages/infrastructure/src/in-memory/opportunity.repository.ts
 import { randomUUID as randomUUID4 } from "node:crypto";
-var InMemoryPlacementOpportunityRepository = class {
-  opportunities = /* @__PURE__ */ new Map();
-  findById(id) {
-    return Promise.resolve(this.opportunities.get(id) ?? null);
-  }
-  findByCampaignId(campaignId) {
-    return Promise.resolve(
-      [...this.opportunities.values()].filter(
-        (opportunity) => opportunity.campaignId === campaignId
-      )
-    );
-  }
-  findByCampaignIdAndPlatformId(campaignId, platformId) {
-    const match2 = [...this.opportunities.values()].find(
-      (opportunity) => opportunity.campaignId === campaignId && opportunity.platformId === platformId
-    );
-    return Promise.resolve(match2 ?? null);
-  }
-  create(draft) {
-    const now2 = /* @__PURE__ */ new Date();
-    const opportunity = {
-      id: randomUUID4(),
-      campaignId: draft.campaignId,
-      platformId: draft.platformId,
-      categoryId: draft.categoryId ?? null,
-      placementType: draft.placementType,
-      relevance: null,
-      score: null,
-      scoreBreakdown: null,
-      recommendation: null,
-      whyRecommended: null,
-      placementMethod: draft.placementMethod,
-      providerCapabilities: [],
-      status: "DISCOVERED",
-      metadata: draft.metadata ?? null,
-      createdAt: now2,
-      updatedAt: now2
-    };
-    this.opportunities.set(opportunity.id, opportunity);
-    return Promise.resolve(opportunity);
-  }
-  update(opportunity) {
-    this.opportunities.set(opportunity.id, opportunity);
-    return Promise.resolve(opportunity);
-  }
-};
-
-// packages/infrastructure/src/in-memory/lookup.repository.ts
-var InMemoryLookupRepository = class {
-  categories = [];
-  platforms = [];
-  providers = [];
-  listCategories() {
-    return Promise.resolve(this.categories);
-  }
-  listPlatforms() {
-    return Promise.resolve(this.platforms);
-  }
-  listProviders() {
-    return Promise.resolve(this.providers);
-  }
-  createPlatform(platform) {
-    if (platform.url !== null) {
-      const existing = this.platforms.find(
-        (candidate) => candidate.url !== null && sameUrl(candidate.url, platform.url ?? "")
-      );
-      if (existing !== void 0) {
-        return Promise.resolve(existing);
-      }
-    } else {
-      const existing = this.platforms.find(
-        (candidate) => candidate.url === null && candidate.name === platform.name
-      );
-      if (existing !== void 0) {
-        return Promise.resolve(existing);
-      }
-    }
-    this.platforms.push(platform);
-    return Promise.resolve(platform);
-  }
-};
-function sameUrl(a, b) {
-  try {
-    return normalize(a) === normalize(b);
-  } catch {
-    return a.toLowerCase() === b.toLowerCase();
-  }
-}
-function normalize(value) {
-  const url2 = new URL(value);
-  url2.hash = "";
-  url2.search = "";
-  return url2.toString().replace(/\/$/, "").replace(/^https?:\/\/(www\.)?/, "").toLowerCase();
-}
 
 // packages/infrastructure/src/in-memory/ai-analysis.repository.ts
 import { randomUUID as randomUUID5 } from "node:crypto";
-var InMemoryAIAnalysisRepository = class {
-  analyses = /* @__PURE__ */ new Map();
-  findByCampaignId(campaignId) {
-    return Promise.resolve(
-      [...this.analyses.values()].filter((analysis) => analysis.campaignId === campaignId)
-    );
-  }
-  findLatestValidCompanyAnalysis(campaignId) {
-    const candidates = [...this.analyses.values()].filter(
-      (analysis) => analysis.campaignId === campaignId && analysis.analysisType === "COMPANY_ANALYSIS" && analysis.validationStatus === "VALID"
-    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return Promise.resolve(candidates[0] ?? null);
-  }
-  findLatestValidPlacementPlan(campaignId) {
-    const candidates = [...this.analyses.values()].filter(
-      (analysis) => analysis.campaignId === campaignId && analysis.analysisType === "PLACEMENT_PLAN" && analysis.validationStatus === "VALID"
-    ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    return Promise.resolve(candidates[0] ?? null);
-  }
-  create(draft) {
-    const analysis = {
-      id: randomUUID5(),
-      campaignId: draft.campaignId,
-      analysisType: draft.analysisType,
-      provider: draft.provider,
-      model: draft.model,
-      inputReference: draft.inputReference,
-      structuredOutput: draft.structuredOutput,
-      schemaVersion: draft.schemaVersion,
-      validationStatus: draft.validationStatus,
-      createdAt: /* @__PURE__ */ new Date()
-    };
-    this.analyses.set(analysis.id, analysis);
-    return Promise.resolve(analysis);
-  }
-};
 
 // packages/infrastructure/src/in-memory/placement.repository.ts
 import { randomUUID as randomUUID6 } from "node:crypto";
-var InMemoryPlacementRepository = class {
-  placements = /* @__PURE__ */ new Map();
-  findById(id) {
-    return Promise.resolve(this.placements.get(id) ?? null);
-  }
-  findByOpportunityId(opportunityId) {
-    return Promise.resolve(
-      [...this.placements.values()].filter(
-        (placement) => placement.opportunityId === opportunityId
-      )
-    );
-  }
-  create(draft) {
-    const now2 = /* @__PURE__ */ new Date();
-    const placement = {
-      id: randomUUID6(),
-      opportunityId: draft.opportunityId,
-      providerId: draft.providerId,
-      status: draft.status ?? "READY",
-      externalId: null,
-      submittedAt: null,
-      publishedAt: null,
-      liveUrl: null,
-      metadata: null,
-      createdAt: now2,
-      updatedAt: now2
-    };
-    this.placements.set(placement.id, placement);
-    return Promise.resolve(placement);
-  }
-  save(placement) {
-    this.placements.set(placement.id, placement);
-    return Promise.resolve(placement);
-  }
-};
 
 // packages/infrastructure/src/in-memory/verification.repository.ts
 import { randomUUID as randomUUID7 } from "node:crypto";
-var InMemoryVerificationRepository = class {
-  verifications = /* @__PURE__ */ new Map();
-  findById(id) {
-    return Promise.resolve(this.verifications.get(id) ?? null);
-  }
-  findByPlacementId(placementId) {
-    return Promise.resolve(
-      [...this.verifications.values()].filter(
-        (verification) => verification.placementId === placementId
-      )
-    );
-  }
-  create(draft) {
-    const now2 = /* @__PURE__ */ new Date();
-    const verification = {
-      id: randomUUID7(),
-      placementId: draft.placementId,
-      status: draft.status,
-      checkedAt: draft.checkedAt,
-      result: draft.result,
-      failureReason: draft.failureReason,
-      createdAt: now2,
-      updatedAt: now2
-    };
-    this.verifications.set(verification.id, verification);
-    return Promise.resolve(verification);
-  }
-  save(verification) {
-    this.verifications.set(verification.id, verification);
-    return Promise.resolve(verification);
-  }
-};
 
 // packages/infrastructure/src/in-memory/evidence.repository.ts
 import { randomUUID as randomUUID8 } from "node:crypto";
-var InMemoryEvidenceRepository = class {
-  evidence = /* @__PURE__ */ new Map();
-  findByVerificationId(verificationId) {
-    return Promise.resolve(
-      [...this.evidence.values()].filter((entry) => entry.verificationId === verificationId)
-    );
-  }
-  create(draft) {
-    const entry = {
-      id: randomUUID8(),
-      verificationId: draft.verificationId,
-      type: draft.type,
-      url: draft.url,
-      content: draft.content,
-      metadata: draft.metadata,
-      createdAt: /* @__PURE__ */ new Date()
-    };
-    this.evidence.set(entry.id, entry);
-    return Promise.resolve(entry);
+
+// apps/api/src/runtime-config.ts
+var RuntimeConfigError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "RuntimeConfigError";
   }
 };
+var DEFAULT_DISCOVERY_LIMITS = {
+  maxQueries: 10,
+  maxResultsPerQuery: 8,
+  maxCandidates: 40,
+  concurrency: 2
+};
+function loadRuntimeConfig(env = process.env) {
+  const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
+  const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
+  const discoveryProvider = parseDiscoveryProvider(env.DISCOVERY_PROVIDER);
+  const apiKey = (env.OPENCODE_API_KEY ?? "").trim();
+  const wantsReal = aiMode === "real" || discoveryMode === "real";
+  if (wantsReal && apiKey === "") {
+    throw new RuntimeConfigError(
+      'AI_MODE or DISCOVERY_MODE is "real" but OPENCODE_API_KEY is not set. Set OPENCODE_API_KEY (https://opencode.ai) or switch the mode back to "demo".'
+    );
+  }
+  const baseUrl = (env.OPENCODE_BASE_URL ?? "").trim();
+  const aiSearch = resolveAiSearchConfig(env, discoveryMode, discoveryProvider);
+  return {
+    aiMode,
+    discoveryMode,
+    discoveryProvider,
+    openCode: wantsReal ? {
+      apiKey,
+      baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
+      model: (env.OPENCODE_MODEL ?? "").trim() || DEFAULT_OPENCODE_MODEL
+    } : null,
+    aiSearch,
+    discoveryLimits: resolveDiscoveryLimits(env)
+  };
+}
+function resolveAiSearchConfig(env, discoveryMode, discoveryProvider) {
+  if (discoveryMode !== "real" || discoveryProvider !== "ai-search") {
+    return null;
+  }
+  const apiKey = (env.AI_SEARCH_API_KEY ?? "").trim();
+  if (apiKey === "") {
+    throw new RuntimeConfigError(
+      "DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_API_KEY. The OpenCode Go key is a plain LLM endpoint and cannot be reused for web search; use a search-capable provider key (e.g. OpenRouter with perplexity/sonar)."
+    );
+  }
+  const capabilities = parseSearchCapabilities({
+    declared: env.AI_SEARCH_CAPABILITIES ?? ""
+  });
+  if (capabilities === null) {
+    throw new RuntimeConfigError(
+      'DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to declare the endpoint capabilities (e.g. "web_search,citations,usage"). Capabilities are never guessed from a model name.'
+    );
+  }
+  if (!capabilities.supportsWebSearch || !capabilities.supportsCitations) {
+    throw new RuntimeConfigError(
+      `DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to include "web_search" and "citations"; got "${env.AI_SEARCH_CAPABILITIES ?? ""}". A provider that does not support web search cannot run discovery.`
+    );
+  }
+  const baseUrl = (env.AI_SEARCH_BASE_URL ?? "").trim();
+  const rawTimeout = Number(env.AI_SEARCH_TIMEOUT_MS ?? 45e3);
+  return {
+    apiKey,
+    baseUrl: baseUrl === "" ? defaultAiSearchBaseUrl : baseUrl,
+    model: (env.AI_SEARCH_MODEL ?? "").trim() || defaultAiSearchModel,
+    capabilities,
+    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 45e3
+  };
+}
+function openCodeProviderConfig(config2, env = process.env) {
+  if (config2.openCode === null) return null;
+  const { apiKey, baseUrl, model } = config2.openCode;
+  const rawTimeout = Number(env.OPENCODE_TIMEOUT_MS ?? 3e4);
+  return {
+    apiKey,
+    baseUrl,
+    model,
+    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 3e4
+  };
+}
+function parseMode(value, name, fallback) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "") return fallback;
+  if (normalized === "real" || normalized === "demo") return normalized;
+  throw new RuntimeConfigError(
+    `${name} must be "real" or "demo", got "${value}". Leave it unset for the deterministic demo mode.`
+  );
+}
+function parseDiscoveryProvider(value) {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized === "") return "duckduckgo";
+  if (normalized === "ai-search" || normalized === "duckduckgo") return normalized;
+  throw new RuntimeConfigError(
+    `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". Leave it unset for the DuckDuckGo backend.`
+  );
+}
+function resolveDiscoveryLimits(env) {
+  const pick2 = (name, fallback) => {
+    const raw2 = Number(env[name] ?? "");
+    return Number.isFinite(raw2) && raw2 > 0 ? Math.floor(raw2) : fallback;
+  };
+  return {
+    maxQueries: pick2("DISCOVERY_MAX_QUERIES", DEFAULT_DISCOVERY_LIMITS.maxQueries),
+    maxResultsPerQuery: pick2(
+      "DISCOVERY_MAX_RESULTS_PER_QUERY",
+      DEFAULT_DISCOVERY_LIMITS.maxResultsPerQuery
+    ),
+    maxCandidates: pick2("DISCOVERY_MAX_CANDIDATES", DEFAULT_DISCOVERY_LIMITS.maxCandidates),
+    concurrency: pick2("DISCOVERY_CONCURRENCY", DEFAULT_DISCOVERY_LIMITS.concurrency)
+  };
+}
 
 // apps/api/src/scenario/nordhaus-intel.ts
 var DEMO_SOURCE = "demo";
@@ -23895,188 +24287,6 @@ var NORDHAUS_CATEGORIES = [
     sortOrder: 8
   }
 ];
-var NORDHAUS_PLATFORMS = [
-  {
-    id: "platform-yandex-business",
-    name: "\u042F\u043D\u0434\u0435\u043A\u0441 \u0411\u0438\u0437\u043D\u0435\u0441",
-    url: "https://business.yandex.ru",
-    country: "Russia",
-    categoryId: "cat-maps-local",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-2gis",
-    name: "2\u0413\u0418\u0421",
-    url: "https://2gis.ru",
-    country: "Russia",
-    categoryId: "cat-maps-local",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-mebel-ru",
-    name: "\u041C\u0435\u0431\u0435\u043B\u044C.\u0440\u0443",
-    url: "https://mebel.ru",
-    country: "Russia",
-    categoryId: "cat-furniture-directories",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-inmyroom",
-    name: "INMYROOM",
-    url: "https://inmyroom.ru",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-salon-interior",
-    name: "SALON-interior",
-    url: "https://salon.ru",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-archi-ru",
-    name: "Archi.ru",
-    url: "https://archi.ru",
-    country: "Russia",
-    categoryId: "cat-architecture",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-houzz",
-    name: "Houzz",
-    url: "https://www.houzz.ru",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-vk",
-    name: "VK",
-    url: "https://vk.com",
-    country: "Russia",
-    categoryId: "cat-social-platforms",
-    notes: "Demo platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-zoon",
-    name: "Zoon.ru",
-    url: "https://zoon.ru",
-    country: "Russia",
-    categoryId: "cat-maps-local",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-flamp",
-    name: "Flamp",
-    url: "https://flamp.ru",
-    country: "Russia",
-    categoryId: "cat-maps-local",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-divan-ru",
-    name: "Divan.ru",
-    url: "https://divan.ru",
-    country: "Russia",
-    categoryId: "cat-furniture-directories",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-mebelion",
-    name: "Mebelion",
-    url: "https://mebelion.ru",
-    country: "Russia",
-    categoryId: "cat-furniture-directories",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-mebel-ot-fabrik",
-    name: "\u041C\u0435\u0431\u0435\u043B\u044C \u043E\u0442 \u0444\u0430\u0431\u0440\u0438\u043A",
-    url: "https://mebel-ot-fabrik.ru",
-    country: "Russia",
-    categoryId: "cat-furniture-directories",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-designmate",
-    name: "Design Mate",
-    url: "https://designmate.ru",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-roomble",
-    name: "Roomble",
-    url: "https://roomble.com",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-mydecor",
-    name: "MyDecor",
-    url: "https://mydecor.ru",
-    country: "Russia",
-    categoryId: "cat-interior-design",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-archspeech",
-    name: "Archspeech",
-    url: "https://archspeech.com",
-    country: "Russia",
-    categoryId: "cat-architecture",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-profi-ru",
-    name: "\u041F\u0440\u043E\u0444\u0438.\u0440\u0443",
-    url: "https://profi.ru",
-    country: "Russia",
-    categoryId: "cat-professional-platforms",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-vc-ru",
-    name: "VC.ru",
-    url: "https://vc.ru",
-    country: "Russia",
-    categoryId: "cat-media-pr",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  },
-  {
-    id: "platform-dzen",
-    name: "\u0414\u0437\u0435\u043D",
-    url: "https://dzen.ru",
-    country: "Russia",
-    categoryId: "cat-media-pr",
-    notes: "Search-discovered platform (synthetic seed data)",
-    metadata: null
-  }
-];
 var NORDHAUS_SEARCH_PLATFORM_IDS = [
   "platform-zoon",
   "platform-flamp",
@@ -24100,125 +24310,6 @@ var NORDHAUS_CORE_PLATFORM_IDS = [
   "platform-archi-ru",
   "platform-houzz",
   "platform-vk"
-];
-var NORDHAUS_PROVIDERS = [
-  {
-    id: "provider-yandex-business-mock",
-    platformId: "platform-yandex-business",
-    name: "YandexBusiness Mock",
-    providerType: "MOCK",
-    capabilities: ["DISCOVER", "VALIDATE", "CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-2gis-mock",
-    platformId: "platform-2gis",
-    name: "TwoGIS Mock",
-    providerType: "MOCK",
-    capabilities: ["DISCOVER", "VALIDATE", "CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-mebel-ru-mock",
-    platformId: "platform-mebel-ru",
-    name: "MebelRu Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes (execution without discovery/validation)"
-  },
-  {
-    id: "provider-archi-ru-mock",
-    platformId: "platform-archi-ru",
-    name: "ArchiRu Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-inmyroom-manual",
-    platformId: "platform-inmyroom",
-    name: "INMYROOM Manual",
-    providerType: "MANUAL",
-    capabilities: ["VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Manual submission workflow; no automated create capability"
-  },
-  {
-    id: "provider-vk-browser",
-    platformId: "platform-vk",
-    name: "VK Browser",
-    providerType: "BROWSER",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: false,
-    notes: "Browser automation candidate; capabilities not yet verified"
-  },
-  {
-    id: "provider-zoon-mock",
-    platformId: "platform-zoon",
-    name: "ZoonRu Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-flamp-mock",
-    platformId: "platform-flamp",
-    name: "Flamp Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-divan-ru-mock",
-    platformId: "platform-divan-ru",
-    name: "DivanRu Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-designmate-mock",
-    platformId: "platform-designmate",
-    name: "DesignMate Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-roomble-mock",
-    platformId: "platform-roomble",
-    name: "Roomble Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-archspeech-mock",
-    platformId: "platform-archspeech",
-    name: "Archspeech Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  },
-  {
-    id: "provider-profi-ru-mock",
-    platformId: "platform-profi-ru",
-    name: "ProfiRu Mock",
-    providerType: "MOCK",
-    capabilities: ["CREATE", "GET_STATUS", "VERIFY"],
-    capabilitiesVerified: true,
-    notes: "Mock provider for demo purposes"
-  }
 ];
 var NORDHAUS_COMPANY_ANALYSIS_FIXTURE = {
   businessType: "\u041F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437",
@@ -24949,15 +25040,105 @@ function classifyNegotiationReply(input) {
     fallbackOption: "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u0432\u0442\u043E\u0440\u043D\u044B\u0439 \u0437\u0430\u043F\u0440\u043E\u0441 \u0441 \u0431\u043E\u043B\u0435\u0435 \u043A\u043E\u0440\u043E\u0442\u043A\u0438\u043C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0435\u043D\u0438\u0435\u043C."
   };
 }
-function nordhausProviderCapabilities(providerId) {
-  const provider = NORDHAUS_PROVIDERS.find((candidate) => candidate.id === providerId);
-  if (provider === void 0) {
-    throw new Error(`missing scenario provider ${providerId}`);
+
+// apps/api/src/prisma-environment.ts
+var DB_CONNECT_TIMEOUT_MS = 15e3;
+async function createPrismaEnvironment(config2 = loadRuntimeConfig()) {
+  const db = createPrismaClient();
+  try {
+    await withTimeout(db.$queryRaw`SELECT 1`, DB_CONNECT_TIMEOUT_MS);
+  } catch (error51) {
+    await db.$disconnect().catch(() => void 0);
+    const cause = error51 instanceof Error ? error51.message : String(error51);
+    throw new Error(
+      `PostgreSQL (Neon) is unreachable. Set DATABASE_URL/DIRECT_URL and run pnpm db:migrate && pnpm db:seed. Underlying error: ${cause}`
+    );
   }
-  return provider.capabilities;
+  const companies = new PrismaCompanyRepository(db);
+  const campaigns = new PrismaCampaignRepository(db);
+  const lookups = new PrismaLookupRepository(db);
+  const opportunities = new PrismaPlacementOpportunityRepository(db);
+  const placements = new PrismaPlacementRepository(db);
+  const verifications = new PrismaVerificationRepository(db);
+  const evidence = new PrismaEvidenceRepository(db);
+  const analyses = new PrismaAIAnalysisRepository(db);
+  const auditLog = new PrismaAuditLogRepository(db);
+  const providerConfig = openCodeProviderConfig(config2);
+  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
+  let ai;
+  let seoMetrics;
+  let pageAnalysis;
+  if (config2.aiMode === "real" && openCodeProvider !== null) {
+    ai = openCodeProvider;
+    seoMetrics = null;
+    pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
+  } else {
+    ai = new ScenarioAIProvider();
+    seoMetrics = new ScenarioSeoMetricsProvider();
+    pageAnalysis = new ScenarioPageAnalysisProvider();
+  }
+  const outreach = new ScenarioOutreachProvider();
+  const [categories, platforms, providers] = await Promise.all([
+    lookups.listCategories(),
+    lookups.listPlatforms(),
+    lookups.listProviders()
+  ]);
+  if (categories.length === 0 || platforms.length === 0) {
+    throw new Error(
+      "Platform catalog is empty. Run `pnpm db:seed` to load categories, platforms and providers."
+    );
+  }
+  const registry2 = buildRegistry(providers);
+  let discoverySources;
+  if (config2.discoveryMode === "real") {
+    const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
+    const searchProvider = config2.discoveryProvider === "ai-search" && config2.aiSearch !== null ? new AISearchCitationsProvider(
+      new AISearchClient({
+        apiKey: config2.aiSearch.apiKey,
+        baseUrl: config2.aiSearch.baseUrl,
+        model: config2.aiSearch.model,
+        capabilities: config2.aiSearch.capabilities,
+        timeoutMs: config2.aiSearch.timeoutMs
+      })
+    ) : new DuckDuckGoSearchProvider();
+    discoverySources = [
+      new WebSearchPlatformDiscoverySource(lookups, searchProvider, queryGenerator, {
+        maxQueries: config2.discoveryLimits.maxQueries,
+        maxResultsPerQuery: config2.discoveryLimits.maxResultsPerQuery,
+        maxCandidates: config2.discoveryLimits.maxCandidates,
+        concurrency: config2.discoveryLimits.concurrency
+      })
+    ];
+  } else {
+    const searchPlatforms = platforms.filter(
+      (platform) => NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id)
+    );
+    discoverySources = [
+      new CatalogPlatformDiscoverySource(lookups, NORDHAUS_CORE_PLATFORM_IDS),
+      new SearchPlatformDiscoverySource(searchPlatforms, categories)
+    ];
+  }
+  return {
+    companies,
+    campaigns,
+    lookups,
+    opportunities,
+    placements,
+    verifications,
+    evidence,
+    analyses,
+    auditLog,
+    registry: registry2,
+    ai,
+    seoMetrics,
+    pageAnalysis,
+    outreach,
+    discoverySources,
+    db
+  };
 }
-function createNordhausRegistry() {
-  const mockProviders = NORDHAUS_PROVIDERS.filter(
+function buildRegistry(providers) {
+  const mockProviders = providers.filter(
     (provider) => provider.providerType === "MOCK" || provider.providerType === "MANUAL"
   );
   const bindings = /* @__PURE__ */ new Map();
@@ -24971,455 +25152,31 @@ function createNordhausRegistry() {
     }
     bindings.set(
       provider.id,
-      new MockPlacementProvider(provider.name, nordhausProviderCapabilities(provider.id), options)
+      new MockPlacementProvider(provider.name, provider.capabilities, options)
     );
   }
-  return new InMemoryPlacementProviderRegistry(NORDHAUS_PROVIDERS, bindings, {
-    allowMocks: true
+  return new InMemoryPlacementProviderRegistry([...providers], bindings, { allowMocks: true });
+}
+async function withTimeout(promise2, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`connection timed out after ${ms}ms`)), ms);
   });
-}
-
-// apps/api/src/scenario/nordhaus-environment.ts
-function createNordhausEnvironment(options = {}) {
-  const env = {
-    companies: new InMemoryCompanyRepository(),
-    campaigns: new InMemoryCampaignRepository(),
-    lookups: new InMemoryLookupRepository(),
-    opportunities: new InMemoryPlacementOpportunityRepository(),
-    placements: new InMemoryPlacementRepository(),
-    verifications: new InMemoryVerificationRepository(),
-    evidence: new InMemoryEvidenceRepository(),
-    analyses: new InMemoryAIAnalysisRepository(),
-    auditLog: new InMemoryAuditLogRepository(),
-    registry: createNordhausRegistry(),
-    ai: options.ai ?? new ScenarioAIProvider(),
-    seoMetrics: "seoMetrics" in options ? options.seoMetrics ?? null : new ScenarioSeoMetricsProvider(),
-    pageAnalysis: options.pageAnalysis ?? new ScenarioPageAnalysisProvider(),
-    outreach: new ScenarioOutreachProvider(),
-    discoverySources: []
-  };
-  env.lookups.categories = NORDHAUS_CATEGORIES;
-  env.lookups.platforms = NORDHAUS_PLATFORMS;
-  env.lookups.providers = NORDHAUS_PROVIDERS;
-  if (options.discoverySources !== void 0) {
-    env.discoverySources = options.discoverySources;
-  } else {
-    const searchPlatforms = NORDHAUS_PLATFORMS.filter(
-      (platform) => NORDHAUS_SEARCH_PLATFORM_IDS.includes(platform.id)
-    );
-    env.discoverySources = [
-      new CatalogPlatformDiscoverySource(env.lookups, NORDHAUS_CORE_PLATFORM_IDS),
-      new SearchPlatformDiscoverySource(searchPlatforms, NORDHAUS_CATEGORIES)
-    ];
+  try {
+    return await Promise.race([promise2, timeout]);
+  } finally {
+    if (timer !== void 0) {
+      clearTimeout(timer);
+    }
   }
-  return env;
-}
-var NORDHAUS_PLATFORM_IDS = {
-  yandex: "platform-yandex-business",
-  twoGis: "platform-2gis",
-  mebel: "platform-mebel-ru",
-  inmyroom: "platform-inmyroom",
-  salon: "platform-salon-interior",
-  archi: "platform-archi-ru",
-  houzz: "platform-houzz",
-  vk: "platform-vk"
-};
-async function seedNordhausScenario(env) {
-  const company = await env.companies.create({
-    name: "Nordhaus",
-    description: "\u041F\u0440\u043E\u0438\u0437\u0432\u043E\u0434\u0438\u0442\u0435\u043B\u044C \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0439 \u043C\u0435\u0431\u0435\u043B\u0438 \u043D\u0430 \u0437\u0430\u043A\u0430\u0437 (\u0441\u0438\u043D\u0442\u0435\u0442\u0438\u0447\u0435\u0441\u043A\u0430\u044F \u0434\u0435\u043C\u043E-\u043A\u043E\u043C\u043F\u0430\u043D\u0438\u044F)",
-    industry: "furniture",
-    geography: ["\u041C\u043E\u0441\u043A\u0432\u0430", "\u0420\u043E\u0441\u0441\u0438\u044F"],
-    locations: ["\u041C\u043E\u0441\u043A\u0432\u0430"],
-    products: ["\u043A\u0443\u0445\u043D\u0438", "\u0448\u043A\u0430\u0444\u044B-\u043A\u0443\u043F\u0435", "\u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u0430\u044F \u043C\u0435\u0431\u0435\u043B\u044C", "\u043C\u044F\u0433\u043A\u0430\u044F \u043C\u0435\u0431\u0435\u043B\u044C"],
-    targetAudience: [
-      "\u0432\u043B\u0430\u0434\u0435\u043B\u044C\u0446\u044B \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0439 \u043D\u0435\u0434\u0432\u0438\u0436\u0438\u043C\u043E\u0441\u0442\u0438",
-      "\u0434\u0438\u0437\u0430\u0439\u043D\u0435\u0440\u044B \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043E\u0432",
-      "\u0430\u0440\u0445\u0438\u0442\u0435\u043A\u0442\u043E\u0440\u044B",
-      "HoReCa"
-    ],
-    website: "https://nordhaus.example.com"
-  });
-  const campaign = await env.campaigns.create({
-    companyId: company.id,
-    name: "Nordhaus Demo Campaign",
-    goals: [
-      "\u041F\u0440\u043E\u0434\u0432\u0438\u0436\u0435\u043D\u0438\u0435 \u043F\u0440\u0435\u043C\u0438\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u043C\u0435\u0431\u0435\u043B\u044C\u043D\u043E\u0433\u043E \u0431\u0440\u0435\u043D\u0434\u0430 \u0432 \u0438\u043D\u0442\u0435\u0440\u044C\u0435\u0440\u043D\u044B\u0445 \u0438 \u0434\u0438\u0437\u0430\u0439\u043D\u0435\u0440\u0441\u043A\u0438\u0445 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430\u0445",
-      "\u0421\u043E\u0437\u0434\u0430\u043D\u0438\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u0435\u0439 \u043D\u0430 \u043A\u0430\u0440\u0442\u0430\u0445 \u0438 \u0432 \u043C\u0435\u0431\u0435\u043B\u044C\u043D\u044B\u0445 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0430\u0445"
-    ]
-  });
-  const analyze = new AnalyzeCompanyUseCase(
-    env.campaigns,
-    env.companies,
-    env.ai,
-    env.analyses,
-    env.auditLog
-  );
-  await analyze.execute({ campaignId: campaign.id });
-  const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
-  if (analysis === null) {
-    throw new Error("scenario: company analysis missing after AnalyzeCompany");
-  }
-  const strategy = new GeneratePlacementStrategyUseCase(
-    env.campaigns,
-    env.companies,
-    env.analyses,
-    env.lookups
-  );
-  const strategyResult = await strategy.execute({ campaignId: campaign.id });
-  const discover = new DiscoverOpportunitiesUseCase(
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.opportunities,
-    env.auditLog,
-    env.discoverySources
-  );
-  const discovered = await discover.execute({
-    campaignId: campaign.id,
-    placementType: "BUSINESS_PROFILE",
-    categoryCodes: NORDHAUS_COMPANY_ANALYSIS_FIXTURE.relevantCategories
-  });
-  const classify = new ClassifyOpportunityUseCase(
-    env.ai,
-    env.opportunities,
-    env.analyses,
-    env.lookups,
-    env.registry,
-    env.auditLog
-  );
-  const classified = [];
-  for (const opportunity of discovered) {
-    classified.push(await classify.execute({ opportunityId: opportunity.id }));
-  }
-  return { company, campaign, analysis, strategy: strategyResult, discovered, classified };
-}
-async function approveScenarioOpportunity(env, platformId) {
-  const opportunity = await findOpportunityByPlatform(env, platformId);
-  const approve = new ApproveOpportunityUseCase(env.opportunities, env.auditLog);
-  return approve.execute({ opportunityId: opportunity.id });
-}
-async function executeScenarioPlacement(env, platformId) {
-  const opportunity = await findOpportunityByPlatform(env, platformId);
-  const execute = new ExecutePlacementUseCase(
-    env.opportunities,
-    env.placements,
-    env.campaigns,
-    env.companies,
-    env.registry,
-    env.auditLog
-  );
-  return execute.execute({ opportunityId: opportunity.id });
-}
-async function verifyScenarioPlacement(env, placementId) {
-  const verify = new VerifyPlacementUseCase(
-    env.placements,
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.registry,
-    env.verifications,
-    env.evidence,
-    env.auditLog
-  );
-  return verify.execute({ placementId });
-}
-async function requestManualScenarioPlacement(env, platformId, reason) {
-  const opportunity = await findOpportunityByPlatform(env, platformId);
-  const requestManual = new RequestManualPlacementUseCase(
-    env.opportunities,
-    env.placements,
-    env.registry,
-    env.auditLog
-  );
-  return requestManual.execute({ opportunityId: opportunity.id, reason });
-}
-function findScenarioCampaign(env) {
-  const campaign = [...env.campaigns.campaigns.values()][0];
-  if (campaign === void 0) {
-    throw new Error("scenario: campaign not seeded");
-  }
-  return campaign;
-}
-async function findOpportunityByPlatform(env, platformId) {
-  const campaign = findScenarioCampaign(env);
-  const opportunity = await env.opportunities.findByCampaignIdAndPlatformId(
-    campaign.id,
-    platformId
-  );
-  if (opportunity === null) {
-    throw new Error(`scenario: no opportunity for platform ${platformId}`);
-  }
-  return opportunity;
-}
-async function assessScenarioOpportunity(env, platformId) {
-  const opportunity = await findOpportunityByPlatform(env, platformId);
-  const assess = new AssessOpportunityUseCase(
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.analyses,
-    env.ai,
-    env.seoMetrics,
-    env.pageAnalysis,
-    env.auditLog
-  );
-  return assess.execute({ opportunityId: opportunity.id });
-}
-async function prepareScenarioLinkInsert(env, platformId) {
-  const opportunity = await findOpportunityByPlatform(env, platformId);
-  await new AssessOpportunityUseCase(
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.analyses,
-    env.ai,
-    env.seoMetrics,
-    env.pageAnalysis,
-    env.auditLog
-  ).execute({ opportunityId: opportunity.id });
-  await new GenerateLinkInsertUseCase(
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.analyses,
-    env.ai,
-    env.auditLog
-  ).execute({ opportunityId: opportunity.id });
-  await new RecommendAnchorUseCase(
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.analyses,
-    env.ai,
-    env.auditLog
-  ).execute({ opportunityId: opportunity.id });
-  await new GenerateOutreachUseCase(
-    env.opportunities,
-    env.campaigns,
-    env.companies,
-    env.lookups,
-    env.analyses,
-    env.ai,
-    env.auditLog
-  ).execute({ opportunityId: opportunity.id });
-  return findOpportunityByPlatform(env, platformId);
-}
-
-// apps/api/src/runtime-config.ts
-var RuntimeConfigError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "RuntimeConfigError";
-  }
-};
-var DEFAULT_DISCOVERY_LIMITS = {
-  maxQueries: 10,
-  maxResultsPerQuery: 8,
-  maxCandidates: 40,
-  concurrency: 2
-};
-function loadRuntimeConfig(env = process.env) {
-  const aiMode = parseMode(env.AI_MODE, "AI_MODE", "demo");
-  const discoveryMode = parseMode(env.DISCOVERY_MODE, "DISCOVERY_MODE", "demo");
-  const discoveryProvider = parseDiscoveryProvider(env.DISCOVERY_PROVIDER);
-  const apiKey = (env.OPENCODE_API_KEY ?? "").trim();
-  const wantsReal = aiMode === "real" || discoveryMode === "real";
-  if (wantsReal && apiKey === "") {
-    throw new RuntimeConfigError(
-      'AI_MODE or DISCOVERY_MODE is "real" but OPENCODE_API_KEY is not set. Set OPENCODE_API_KEY (https://opencode.ai) or switch the mode back to "demo".'
-    );
-  }
-  const baseUrl = (env.OPENCODE_BASE_URL ?? "").trim();
-  const aiSearch = resolveAiSearchConfig(env, discoveryMode, discoveryProvider);
-  return {
-    aiMode,
-    discoveryMode,
-    discoveryProvider,
-    openCode: wantsReal ? {
-      apiKey,
-      baseUrl: baseUrl === "" ? defaultOpenCodeBaseUrl : baseUrl,
-      model: (env.OPENCODE_MODEL ?? "").trim() || DEFAULT_OPENCODE_MODEL
-    } : null,
-    aiSearch,
-    discoveryLimits: resolveDiscoveryLimits(env)
-  };
-}
-function resolveAiSearchConfig(env, discoveryMode, discoveryProvider) {
-  if (discoveryMode !== "real" || discoveryProvider !== "ai-search") {
-    return null;
-  }
-  const apiKey = (env.AI_SEARCH_API_KEY ?? "").trim();
-  if (apiKey === "") {
-    throw new RuntimeConfigError(
-      "DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_API_KEY. The OpenCode Go key is a plain LLM endpoint and cannot be reused for web search; use a search-capable provider key (e.g. OpenRouter with perplexity/sonar)."
-    );
-  }
-  const capabilities = parseSearchCapabilities({
-    declared: env.AI_SEARCH_CAPABILITIES ?? ""
-  });
-  if (capabilities === null) {
-    throw new RuntimeConfigError(
-      'DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to declare the endpoint capabilities (e.g. "web_search,citations,usage"). Capabilities are never guessed from a model name.'
-    );
-  }
-  if (!capabilities.supportsWebSearch || !capabilities.supportsCitations) {
-    throw new RuntimeConfigError(
-      `DISCOVERY_PROVIDER=ai-search requires AI_SEARCH_CAPABILITIES to include "web_search" and "citations"; got "${env.AI_SEARCH_CAPABILITIES ?? ""}". A provider that does not support web search cannot run discovery.`
-    );
-  }
-  const baseUrl = (env.AI_SEARCH_BASE_URL ?? "").trim();
-  const rawTimeout = Number(env.AI_SEARCH_TIMEOUT_MS ?? 45e3);
-  return {
-    apiKey,
-    baseUrl: baseUrl === "" ? defaultAiSearchBaseUrl : baseUrl,
-    model: (env.AI_SEARCH_MODEL ?? "").trim() || defaultAiSearchModel,
-    capabilities,
-    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 45e3
-  };
-}
-function openCodeProviderConfig(config2, env = process.env) {
-  if (config2.openCode === null) return null;
-  const { apiKey, baseUrl, model } = config2.openCode;
-  const rawTimeout = Number(env.OPENCODE_TIMEOUT_MS ?? 3e4);
-  return {
-    apiKey,
-    baseUrl,
-    model,
-    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 3e4
-  };
-}
-function parseMode(value, name, fallback) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  if (normalized === "") return fallback;
-  if (normalized === "real" || normalized === "demo") return normalized;
-  throw new RuntimeConfigError(
-    `${name} must be "real" or "demo", got "${value}". Leave it unset for the deterministic demo mode.`
-  );
-}
-function parseDiscoveryProvider(value) {
-  const normalized = (value ?? "").trim().toLowerCase();
-  if (normalized === "") return "duckduckgo";
-  if (normalized === "ai-search" || normalized === "duckduckgo") return normalized;
-  throw new RuntimeConfigError(
-    `DISCOVERY_PROVIDER must be "ai-search" or "duckduckgo", got "${value}". Leave it unset for the DuckDuckGo backend.`
-  );
-}
-function resolveDiscoveryLimits(env) {
-  const pick2 = (name, fallback) => {
-    const raw2 = Number(env[name] ?? "");
-    return Number.isFinite(raw2) && raw2 > 0 ? Math.floor(raw2) : fallback;
-  };
-  return {
-    maxQueries: pick2("DISCOVERY_MAX_QUERIES", DEFAULT_DISCOVERY_LIMITS.maxQueries),
-    maxResultsPerQuery: pick2(
-      "DISCOVERY_MAX_RESULTS_PER_QUERY",
-      DEFAULT_DISCOVERY_LIMITS.maxResultsPerQuery
-    ),
-    maxCandidates: pick2("DISCOVERY_MAX_CANDIDATES", DEFAULT_DISCOVERY_LIMITS.maxCandidates),
-    concurrency: pick2("DISCOVERY_CONCURRENCY", DEFAULT_DISCOVERY_LIMITS.concurrency)
-  };
-}
-
-// apps/api/src/bootstrap.ts
-function createRealEnvironment(config2 = loadRuntimeConfig()) {
-  const providerConfig = openCodeProviderConfig(config2);
-  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
-  const envOptions = {};
-  if (config2.aiMode === "real" && openCodeProvider !== null) {
-    envOptions.ai = openCodeProvider;
-    envOptions.seoMetrics = null;
-    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
-  }
-  const env = createNordhausEnvironment(envOptions);
-  if (config2.discoveryMode === "real") {
-    const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
-    const searchProvider = config2.discoveryProvider === "ai-search" && config2.aiSearch !== null ? new AISearchCitationsProvider(
-      new AISearchClient({
-        apiKey: config2.aiSearch.apiKey,
-        baseUrl: config2.aiSearch.baseUrl,
-        model: config2.aiSearch.model,
-        capabilities: config2.aiSearch.capabilities,
-        timeoutMs: config2.aiSearch.timeoutMs
-      })
-    ) : new DuckDuckGoSearchProvider();
-    env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
-        maxQueries: config2.discoveryLimits.maxQueries,
-        maxResultsPerQuery: config2.discoveryLimits.maxResultsPerQuery,
-        maxCandidates: config2.discoveryLimits.maxCandidates,
-        concurrency: config2.discoveryLimits.concurrency
-      })
-    ];
-  }
-  return { env, campaign: void 0 };
-}
-async function runNordhausBootstrap(config2 = loadRuntimeConfig()) {
-  const providerConfig = openCodeProviderConfig(config2);
-  const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
-  const envOptions = {};
-  if (config2.aiMode === "real" && openCodeProvider !== null) {
-    envOptions.ai = openCodeProvider;
-    envOptions.seoMetrics = null;
-    envOptions.pageAnalysis = new HttpPageAnalysisProvider({ timeoutMs: 8e3 });
-  }
-  const env = createNordhausEnvironment(envOptions);
-  if (config2.discoveryMode === "real") {
-    const queryGenerator = openCodeProvider !== null ? new AIBackedSearchQueryGenerator(openCodeProvider) : new DeterministicSearchQueryGenerator();
-    const searchProvider = config2.discoveryProvider === "ai-search" && config2.aiSearch !== null ? new AISearchCitationsProvider(
-      new AISearchClient({
-        apiKey: config2.aiSearch.apiKey,
-        baseUrl: config2.aiSearch.baseUrl,
-        model: config2.aiSearch.model,
-        capabilities: config2.aiSearch.capabilities,
-        timeoutMs: config2.aiSearch.timeoutMs
-      })
-    ) : new DuckDuckGoSearchProvider();
-    env.discoverySources = [
-      new WebSearchPlatformDiscoverySource(env.lookups, searchProvider, queryGenerator, {
-        maxQueries: config2.discoveryLimits.maxQueries,
-        maxResultsPerQuery: config2.discoveryLimits.maxResultsPerQuery,
-        maxCandidates: config2.discoveryLimits.maxCandidates,
-        concurrency: config2.discoveryLimits.concurrency
-      })
-    ];
-  }
-  const seed = await seedNordhausScenario(env);
-  const seededOpportunities = await env.opportunities.findByCampaignId(seed.campaign.id);
-  for (const opportunity of seededOpportunities) {
-    await assessScenarioOpportunity(env, opportunity.platformId);
-  }
-  await prepareScenarioLinkInsert(env, NORDHAUS_PLATFORM_IDS.houzz);
-  await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.yandex);
-  await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.twoGis);
-  await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.mebel);
-  await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.archi);
-  await approveScenarioOpportunity(env, NORDHAUS_PLATFORM_IDS.inmyroom);
-  const yandex = await executeScenarioPlacement(env, NORDHAUS_PLATFORM_IDS.yandex);
-  await executeScenarioPlacement(env, NORDHAUS_PLATFORM_IDS.twoGis);
-  await executeScenarioPlacement(env, NORDHAUS_PLATFORM_IDS.archi).catch((error51) => {
-    void error51;
-  });
-  await requestManualScenarioPlacement(
-    env,
-    NORDHAUS_PLATFORM_IDS.inmyroom,
-    "Complete the partner application on inmyroom.ru"
-  );
-  await verifyScenarioPlacement(env, yandex.id);
-  return { env, company: seed.company, campaign: seed.campaign };
 }
 
 // scripts/vercel-entry.ts
 var cachedApp;
 async function getApp() {
   if (cachedApp === void 0) {
-    const config2 = loadRuntimeConfig();
-    const services = config2.aiMode === "real" || config2.discoveryMode === "real" ? createRealEnvironment(config2) : await runNordhausBootstrap(config2);
-    cachedApp = createApiApp(services);
+    const services = await createPrismaEnvironment(loadRuntimeConfig());
+    cachedApp = createApiApp({ env: services, campaign: void 0 });
   }
   return cachedApp;
 }

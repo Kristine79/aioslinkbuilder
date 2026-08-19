@@ -74,10 +74,10 @@ import {
   type ApiOverviewDto,
   type ApiStrategyItemDto,
 } from './dto.js';
-import type { NordhausEnvironment } from './scenario/nordhaus-environment.js';
+import type { ApiEnvironment } from './environment.js';
 
 export interface ApiServices {
-  env: NordhausEnvironment;
+  env: ApiEnvironment;
   /** Default campaign used when the caller does not pass ?campaignId=. Undefined when the environment is seeded only by user actions (serverless real mode). */
   campaign: Campaign | undefined;
 }
@@ -830,9 +830,7 @@ export function createApiApp(services: ApiServices): Hono {
         negotiationIntent: item.negotiation?.analysis?.intent ?? null,
       }));
 
-    const recentActivity = [...env.auditLog.entries]
-      .filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId))
-      .slice(-10)
+    const recentActivity = (await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)], 10))
       .map((entry) => mapAuditEvent(entry))
       .reverse();
 
@@ -887,8 +885,7 @@ export function createApiApp(services: ApiServices): Hono {
       }
     }
 
-    const audit = [...env.auditLog.entries]
-      .filter((entry) => campaignScopeIds(campaign, mapped).has(entry.entityId))
+    const audit = (await env.auditLog.findByEntityIds([...campaignScopeIds(campaign, mapped)]))
       .map((entry) => mapAuditEvent(entry))
       .reverse();
 
@@ -907,11 +904,11 @@ export function createApiApp(services: ApiServices): Hono {
 }
 
 /** The discovery sources shared by the scenario seed and the /api/discover route. */
-export function buildDiscoverySources(env: NordhausEnvironment) {
+export function buildDiscoverySources(env: ApiEnvironment) {
   return env.discoverySources;
 }
 
-async function requiredCompany(campaign: Campaign, env: NordhausEnvironment): Promise<Company> {
+async function requiredCompany(campaign: Campaign, env: ApiEnvironment): Promise<Company> {
   const company = await env.companies.findById(campaign.companyId);
   if (company === null) {
     throw new NotFoundError('Company', campaign.companyId);
@@ -1107,7 +1104,7 @@ interface OpportunityContext {
   envProviders: readonly PlacementProvider[];
 }
 
-async function opportunityContext(env: NordhausEnvironment): Promise<OpportunityContext> {
+async function opportunityContext(env: ApiEnvironment): Promise<OpportunityContext> {
   const [categories, platforms, providers] = await Promise.all([
     env.lookups.listCategories(),
     env.lookups.listPlatforms(),
@@ -1117,7 +1114,7 @@ async function opportunityContext(env: NordhausEnvironment): Promise<Opportunity
 }
 
 async function mapOpportunityWithRelations(
-  env: NordhausEnvironment,
+  env: ApiEnvironment,
   opportunity: PlacementOpportunity,
   context: OpportunityContext,
 ): Promise<ReturnType<typeof mapOpportunity>> {
