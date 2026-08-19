@@ -103,9 +103,7 @@ export function AppShell() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          Демо-режим
-          <br />
-          Данные синтетические, интеграции — демо-провайдеры.
+          AI OS · Линкбилдинг
         </div>
       </aside>
       <div className="main">
