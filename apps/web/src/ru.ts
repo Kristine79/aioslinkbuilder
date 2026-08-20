@@ -3,7 +3,12 @@
  * backend; nothing about transitions or scoring is defined here.
  */
 
-import type { EvidenceType, PlacementStatus, VerificationStatus } from './api/types';
+import type {
+  EvidenceType,
+  PlacementStatus,
+  PlanRecommendation,
+  VerificationStatus,
+} from './api/types';
 
 export const STATUS_LABELS: Record<PlacementStatus, string> = {
   DISCOVERED: 'Обнаружено',
@@ -219,7 +224,7 @@ export const ACTION_LABELS: Record<string, string> = {
   completeManual: 'Подтвердить публикацию',
 };
 
-export const PLAN_RECOMMENDATION_LABELS: Record<string, string> = {
+export const PLAN_RECOMMENDATION_LABELS: Record<PlanRecommendation, string> = {
   RECOMMENDED: 'Рекомендовано',
   REVIEW_REQUIRED: 'Требует вашего решения',
   NOT_RECOMMENDED: 'Не рекомендуется',
@@ -331,6 +336,19 @@ export const FUNNEL_ORDER = [
   'published',
   'verified',
 ] as const;
+
+export const PRIORITY_LABELS: Record<string, string> = {
+  HIGH: 'Высокий',
+  MEDIUM: 'Средний',
+};
+
+export function pluralRu(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
 
 export function formatDateTime(value: string | null | undefined): string {
   if (value === null || value === undefined) return '—';

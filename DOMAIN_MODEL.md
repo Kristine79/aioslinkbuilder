@@ -51,6 +51,26 @@ A catalog record of an external platform (name, URL, country, category, notes). 
 
 A concrete integration binding for a platform: provider type (API / BROWSER / MANUAL / MOCK), explicit capability set and a `capabilitiesVerified` flag. One provider record per platform per type. See ADR-006.
 
+## DiscoveryRun
+
+A persisted record of one discovery attempt for a campaign. The backend is the
+single source of truth for discovery state: the UI distinguishes "search never
+ran" from "search finished with no results" from "search failed" via this
+entity, never via sessionStorage or the audit trail.
+
+Key fields:
+- campaignId (one run per campaign, `@@unique`)
+- status — `NOT_RUN` (derived, never stored), `RUNNING`,
+  `COMPLETED_WITH_RESULTS`, `COMPLETED_EMPTY`, `FAILED`
+- lastRunAt, discoveredCount, classifiedCount
+- sources (which discovery sources produced candidates)
+- failure (message when `FAILED`)
+
+A run is stored as RUNNING when discovery starts and transitions to exactly one
+terminal state: WITH_RESULTS when the sources produced new opportunities,
+EMPTY when they ran successfully but found nothing, or FAILED on a
+provider/source error (a failed run must never be reported as EMPTY).
+
 ## PlacementOpportunity
 
 A potential placement discovered for a campaign.
@@ -140,6 +160,7 @@ Fields:
 ```text
 Company
   └── Campaign
+       ├── DiscoveryRun
        └── PlacementOpportunity
               └── Placement
                     └── Verification

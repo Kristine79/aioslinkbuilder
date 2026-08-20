@@ -2,6 +2,9 @@
 
 How the module is deployed and how the pieces work together in production.
 Detailed component design: `ARCHITECTURE.md`; ops flow: `docs/LINK_BUILDING_OPERATIONS.md`.
+This document describes the **intended production architecture implemented by
+the current code**. Where a capability is only planned, it says so explicitly
+(see `docs/PRODUCTION_READINESS.md` for the honest state).
 
 ## Deployment topology
 
@@ -12,14 +15,14 @@ Vercel
   ├── serverless function: api/index.mjs (Hono app, single instance per warm run)
   │     └── routes /api/* → /api/index via vercel.json rewrite
   ├── serverless function: api/health.mjs (DB + Prisma probe)
-  └── env: DATABASE_URL, DIRECT_URL (Neon), AI_MODE/DISCOVERY_MODE/OPENCODE_*,
-            MOCK_PROVIDERS (default deny, ADR-015)
+  └── env: DATABASE_URL, DIRECT_URL (Neon), AI_MODE/DISCOVERY_MODE/DISCOVERY_PROVIDER/
+          OPENCODE_*/AI_SEARCH_*, MOCK_PROVIDERS (default deny, ADR-015)
 Neon PostgreSQL (managed, pooled + direct endpoints)
 ```
 
 Single-port local mode (`pnpm start`, :8787) serves the same app: API +
-built web UI with SPA fallback — the Vercel function is the same `createApiApp` +
-`createPrismaEnvironment` composition.
+built web UI with SPA fallback — the Vercel function is the same
+`createApiApp` + `createPrismaEnvironment` composition.
 
 ## Runtime composition
 
@@ -28,14 +31,31 @@ built web UI with SPA fallback — the Vercel function is the same `createApiApp
   `loadRuntimeConfig()` → `createPrismaEnvironment(config)`. Real repositories
   (Prisma), real AI provider when `AI_MODE=real` (fail-fast without a key),
   real web-search discovery when `DISCOVERY_MODE=real`.
+- Discovery in real mode is the `WebSearchPlatformDiscoverySource`, backed by
+  `DISCOVERY_PROVIDER`: `duckduckgo` (default; DuckDuckGo HTML search) or
+  `ai-search` (search-capable AI provider citations; needs `AI_SEARCH_*`
+  credentials). Both return real external URLs; failures are loud, never
+  replaced with fake results.
 - MOCK placement providers are gated by `MOCK_PROVIDERS` (default `deny`):
   the registry excludes MOCK records from listing and resolution
   (`ProviderUnavailableError`), so automated execution against synthetic
   providers is impossible in production (ADR-015). Only demo/test
   compositions set `MOCK_PROVIDERS=allow`; an unknown value fails startup.
-- The bootstrap reproduces the Nordhaus mid-flight scenario **only for the demo
-  composition** (`pnpm demo`, `scripts/demo-nordhaus.ts`); production boots from the
-  empty database.
+- **No real placement provider is implemented.** The provider registry binds
+  no executable platform integration in production (only MANUAL records stay
+  listed, with the human-in-the-loop flow). Placement therefore reaches
+  `PUBLISHED` only through the manual flow with human proof. Real external
+  publication requires a real adapter behind the `PlacementProvider` contract.
+- The outreach provider bound by the production composition is currently the
+  scenario (`ScenarioOutreachProvider`) implementation: no real
+  email/messaging integration exists yet; sending is human-triggered and the
+  provider returns a synthetic id even in production.
+- The Nordhaus mid-flight **demo bootstrap** runs only in the demo composition
+  (`pnpm demo`, `apps/api/src/scenario/`, local fallback in `server.ts`).
+  The production composition boots from the database: `pnpm db:seed` loads
+  the catalog (categories/platforms/providers) **and** the synthetic
+  Nordhaus company + DRAFT campaign (labeled synthetic); user data is created
+  via the API/UI.
 - Provider selection is pure domain logic: verified providers supporting
   CREATE+VERIFY are chosen by type priority; MOCK is excluded at the registry
   boundary in production.
@@ -64,9 +84,16 @@ it can influence business state.
 ## Persistence
 
 - Prisma + Neon: `DATABASE_URL` (pooled, runtime) / `DIRECT_URL` (migrate).
-- `AIAnalysisType` enum extended by manual migrations
-  (`20260818120000_link_building_intel`, `20260819120000_placement_plan`); they must
-  be applied with `prisma migrate deploy` in production (see PRODUCTION_READINESS.md P0-1).
+- The Vercel build command (`vercel.json`) runs
+  `npx prisma migrate deploy` on every build, so migrations
+  (`20260817134622_init`, `20260818120000_link_building_intel`,
+  `20260819120000_placement_plan`, `20260819180000_add_discovery_run`) are
+  applied to Neon at deploy time
+  (see PRODUCTION_READINESS.md P0-1 — application is implemented; verify on a
+  real deployment).
+- Discovery run state is persisted per campaign (`DiscoveryRun` table) and
+  served at `GET /api/discovery-state`; the UI reads it instead of
+  sessionStorage, so "search ran but found nothing" survives a refresh.
 - Business logic never depends on DB-specific behavior (no triggers; the state
   machine is application-enforced — the DB is a dumb store of records).
 
@@ -90,3 +117,6 @@ it can influence business state.
   re-reconciliation (no AI call).
 - The serverless limit (300s) bounds very large synchronous AI calls; a queue is
   deferred (ADR-013) until a real workload demands it.
+- Real web discovery is latency-bounded by configurable limits
+  (`DISCOVERY_MAX_QUERIES`, `DISCOVERY_MAX_RESULTS_PER_QUERY`,
+  `DISCOVERY_MAX_CANDIDATES`, `DISCOVERY_CONCURRENCY`).

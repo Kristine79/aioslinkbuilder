@@ -13,6 +13,7 @@ import type {
   AuditLogRepository,
   CampaignRepository,
   CompanyRepository,
+  DiscoveryRunRepository,
   EvidenceRepository,
   LookupRepository,
   OutreachProvider,
@@ -35,6 +36,7 @@ export interface ApiEnvironment {
   evidence: EvidenceRepository;
   analyses: AIAnalysisRepository;
   auditLog: AuditLogRepository;
+  discoveryRuns: DiscoveryRunRepository;
   registry: PlacementProviderRegistry;
   ai: AIProvider;
   seoMetrics: SeoMetricsProvider | null;

@@ -103,6 +103,9 @@ GET  /api/meta                  categories for filters
 GET  /api/company               company profile + latest AI analysis
 POST /api/company/analyze       re-run AnalyzeCompanyUseCase
 GET  /api/strategy              placement strategy items
+GET  /api/discovery-state       persisted discovery run state (NOT_RUN / RUNNING /
+                                COMPLETED_WITH_RESULTS / COMPLETED_EMPTY / FAILED + metadata);
+                                the backend is the source of truth (never sessionStorage)
 GET  /api/opportunities         ranked list; server-side filters
                                 category/method/status/source/placementType/risk
                                 /minScore/donorQuality/minTraffic + sort
@@ -158,6 +161,7 @@ Core entities:
 - Evidence
 - AIAnalysis
 - AuditLog
+- DiscoveryRun
 
 Important distinction:
 
@@ -282,6 +286,12 @@ following abstractions (`packages/application/src/ports/`):
 
 All mock/demo providers live in `apps/api/src/scenario/nordhaus-intel.ts` and
 are clearly labeled. Real integrations plug into the same ports.
+
+Repository ports (`packages/application/src/ports/repositories/`) include
+`DiscoveryRunRepository` (findLatestForCampaign/save). `DiscoverOpportunities`
+opens a RUNNING run, then persists exactly one terminal state; a source/provider
+failure is stored as FAILED (never COMPLETED_EMPTY). NOT_RUN is derived from the
+absence of a run and is never stored as a row.
 
 ## 7. State machine
 

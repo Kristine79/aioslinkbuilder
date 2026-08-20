@@ -40,6 +40,7 @@ import {
   PrismaAuditLogRepository,
   PrismaCampaignRepository,
   PrismaCompanyRepository,
+  PrismaDiscoveryRunRepository,
   PrismaEvidenceRepository,
   PrismaLookupRepository,
   PrismaPlacementOpportunityRepository,
@@ -92,6 +93,7 @@ export async function createPrismaEnvironment(
   const evidence = new PrismaEvidenceRepository(db);
   const analyses = new PrismaAIAnalysisRepository(db);
   const auditLog = new PrismaAuditLogRepository(db);
+  const discoveryRuns = new PrismaDiscoveryRunRepository(db);
 
   const providerConfig = openCodeProviderConfig(config);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
@@ -170,6 +172,7 @@ export async function createPrismaEnvironment(
     evidence,
     analyses,
     auditLog,
+    discoveryRuns,
     registry,
     ai,
     seoMetrics,

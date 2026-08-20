@@ -15,6 +15,7 @@ import type {
   CompanyListItemDto,
   ComparisonResultDto,
   DiscoverResultDto,
+  DiscoveryStateDto,
   OpportunityDto,
   OverviewDto,
   PlacementDto,
@@ -145,6 +146,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   activity: (): Promise<ActivityDto> => request(campaignPath('/api/activity')),
+  discoveryState: (): Promise<DiscoveryStateDto> => request(campaignPath('/api/discovery-state')),
   discover: (): Promise<DiscoverResultDto> =>
     request(campaignPath('/api/discover'), { method: 'POST' }),
   placementPlan: (): Promise<PlacementPlanDto> =>

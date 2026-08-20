@@ -5,6 +5,7 @@ import type {
   PlacementPlan,
   PlacementProvider,
   PlanDecisionItem,
+  ProviderType,
 } from '@aios/domain';
 import {
   EXECUTION_REQUIRED_CAPABILITIES,
@@ -40,6 +41,7 @@ export interface PlanRow {
   hasIntel: boolean;
   providerAvailable: boolean;
   providerCapabilitiesVerified: boolean;
+  providerType: ProviderType | null;
   strategySupportsType: boolean;
 }
 
@@ -150,6 +152,7 @@ export async function loadPlanData(
       hasIntel: intel.donorQuality !== null || intel.pageAnalysis !== null,
       providerAvailable: alignment.providerAvailable,
       providerCapabilitiesVerified: alignment.capabilitiesVerified,
+      providerType: alignment.provider?.providerType ?? null,
       strategySupportsType:
         strategyItem !== undefined && strategyItem.placementType === opportunity.placementType,
     };
@@ -162,9 +165,13 @@ export async function loadPlanData(
 function providerAlignment(
   opportunity: PlacementOpportunity,
   providers: readonly PlacementProvider[],
-): { providerAvailable: boolean; capabilitiesVerified: boolean } {
+): {
+  providerAvailable: boolean;
+  capabilitiesVerified: boolean;
+  provider: PlacementProvider | null;
+} {
   if (opportunity.placementMethod === 'OUTREACH') {
-    return { providerAvailable: true, capabilitiesVerified: true };
+    return { providerAvailable: true, capabilitiesVerified: true, provider: null };
   }
   const required =
     opportunity.placementMethod === 'MANUAL'
@@ -174,6 +181,7 @@ function providerAlignment(
   return {
     providerAvailable: selected !== null,
     capabilitiesVerified: selected?.capabilitiesVerified ?? false,
+    provider: selected,
   };
 }
 
@@ -272,6 +280,7 @@ export function buildPlacementPlan(
         donorQuality: row.donorQuality,
         riskLevel: row.riskLevel,
         providerAvailable: row.providerAvailable,
+        providerType: row.providerType,
         decision: reconcilePlanDecision(
           {
             score: row.score,

@@ -142,6 +142,31 @@ Evidence may include:
 - expected backlink
 - verification timestamp
 
+## 10.1 Demo vs production execution
+
+The MVP vertical slice is demonstrated end-to-end using **mock execution**:
+`MockPlacementProvider` simulates a submission lifecycle so the full workflow
+can be shown without external credentials or side effects. Mock execution is a
+legitimate, explicit part of the demo/test vertical slice, but it is not real
+external placement.
+
+- MOCK providers are allowed **only** in explicit demo/test composition
+  (`MOCK_PROVIDERS=allow`). The default production composition excludes them
+  (`MOCK_PROVIDERS=deny`), so automated execution against a synthetic
+  provider is impossible in production.
+- A mock execution is **never presented as a real external placement**. UI
+  provenance labels keep demo/synthetic data distinct from real
+  measurements.
+- Real placement execution requires a real provider/integration, which is a
+  separate effort from this MVP slice.
+- The domain model still contains `MOCK` as a legitimate provider type because
+  demo/test workflows require it; the demo-vs-production policy is enforced
+  at the composition/registry boundary, not in the domain.
+
+The MVP itself is defined by §2–§13 below. Mock execution is one mechanism
+within the MVP to demonstrate one complete vertical slice, not an expansion of
+the product scope.
+
 ## 11. MVP screens
 
 1. Campaign

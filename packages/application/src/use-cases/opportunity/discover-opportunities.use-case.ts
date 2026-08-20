@@ -1,5 +1,11 @@
 import type { PlacementOpportunity } from '@aios/domain';
-import { ValidationError, validateOpportunity } from '@aios/domain';
+import {
+  ValidationError,
+  completeDiscoveryRun,
+  failDiscoveryRun,
+  startDiscoveryRun,
+  validateOpportunity,
+} from '@aios/domain';
 
 import type { DiscoverOpportunitiesCommand } from '../../dtos/opportunity-commands.js';
 import { NotFoundError } from '../../errors.js';
@@ -7,6 +13,7 @@ import type { PlatformDiscoverySource } from '../../ports/discovery-sources.js';
 import type { AuditLogRepository } from '../../ports/repositories/audit-log.repository.js';
 import type { CampaignRepository } from '../../ports/repositories/campaign.repository.js';
 import type { CompanyRepository } from '../../ports/repositories/company.repository.js';
+import type { DiscoveryRunRepository } from '../../ports/repositories/discovery-run.repository.js';
 import type { LookupRepository } from '../../ports/repositories/lookup.repository.js';
 import type { PlacementOpportunityRepository } from '../../ports/repositories/opportunity.repository.js';
 
@@ -21,6 +28,12 @@ import type { PlacementOpportunityRepository } from '../../ports/repositories/op
  * catalog platformId are ignored for now. Discovery sources receive the real
  * company profile (name, geography, campaign goals) so future sources can
  * match platforms against the actual company.
+ *
+ * The use case also owns the campaign's discovery run state: it opens the
+ * RUNNING run, then writes exactly one terminal state. A source/provider
+ * failure becomes FAILED — never COMPLETED_EMPTY. Classification happens
+ * after discovery, so the run's classified count is reported back into the
+ * same run via {@link recordClassified}.
  */
 export class DiscoverOpportunitiesUseCase {
   constructor(
@@ -30,6 +43,7 @@ export class DiscoverOpportunitiesUseCase {
     private readonly opportunities: PlacementOpportunityRepository,
     private readonly auditLog: AuditLogRepository,
     private readonly sources: readonly PlatformDiscoverySource[],
+    private readonly runs: DiscoveryRunRepository,
   ) {}
 
   async execute(command: DiscoverOpportunitiesCommand): Promise<PlacementOpportunity[]> {
@@ -47,6 +61,26 @@ export class DiscoverOpportunitiesUseCase {
       throw new ValidationError('Opportunity categoryCodes must not be empty');
     }
 
+    const run = startDiscoveryRun(command.campaignId, new Date());
+    await this.runs.save(run);
+
+    try {
+      const opportunities = await this.runSources(command, company, campaign, categoryCodes, run);
+      return opportunities;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.runs.save(failDiscoveryRun(run, message, new Date()));
+      throw error;
+    }
+  }
+
+  private async runSources(
+    command: DiscoverOpportunitiesCommand,
+    company: { name: string; geography: string[] },
+    campaign: { goals: string[] },
+    categoryCodes: string[],
+    run: Awaited<ReturnType<typeof startDiscoveryRun>>,
+  ): Promise<PlacementOpportunity[]> {
     const categories = await this.lookups.listCategories();
     const categoryIdsByCode = new Map(categories.map((category) => [category.code, category.id]));
     const allowedCategoryCodes =
@@ -59,6 +93,7 @@ export class DiscoverOpportunitiesUseCase {
     const createdPlatformIds = new Set<string>();
 
     const opportunities: PlacementOpportunity[] = [];
+    const sourceNames: string[] = [];
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
@@ -108,9 +143,33 @@ export class DiscoverOpportunitiesUseCase {
           entityId: opportunity.id,
           metadata: { platformId: candidate.platformId, source: source.name },
         });
+        sourceNames.push(source.name);
         opportunities.push(opportunity);
       }
     }
+    await this.runs.save(
+      completeDiscoveryRun(
+        run,
+        {
+          discoveredCount: opportunities.length,
+          classifiedCount: 0,
+          sources: [...new Set(sourceNames)],
+        },
+        new Date(),
+      ),
+    );
     return opportunities;
+  }
+
+  /**
+   * Reports how many of the discovered opportunities were classified by the
+   * pipeline, keeping the persisted run metadata accurate after discovery.
+   */
+  async recordClassified(campaignId: string, classifiedCount: number): Promise<void> {
+    const run = await this.runs.findLatestForCampaign(campaignId);
+    if (run === null || run.status === 'FAILED' || run.status === 'NOT_RUN') {
+      return;
+    }
+    await this.runs.save({ ...run, classifiedCount, updatedAt: new Date() });
   }
 }

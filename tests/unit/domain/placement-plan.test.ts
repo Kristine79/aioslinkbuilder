@@ -153,6 +153,7 @@ function item(
     donorQuality: null,
     riskLevel: 'LOW',
     providerAvailable: true,
+    providerType: null,
     decision: {
       recommendation,
       recommendationReason: 'r',

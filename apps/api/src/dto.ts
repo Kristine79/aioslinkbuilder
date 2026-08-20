@@ -10,6 +10,7 @@ import type {
   AnchorRecommendation,
   AuditLogEntry,
   Company,
+  DiscoveryRun,
   DonorQualityProfile,
   DonorRiskAssessment,
   Evidence,
@@ -309,6 +310,8 @@ export interface ApiPlanItemDto {
   donorQuality: number | null;
   riskLevel: string | null;
   providerAvailable: boolean;
+  /** Provider type selected for execution (MOCK marks demo content). */
+  providerType: string | null;
   recommendation: string;
   recommendationReason: string;
   nextAction: string;
@@ -342,6 +345,43 @@ export interface ApiPlacementPlanDto {
     placementType: string;
   }>;
   items: ApiPlanItemDto[];
+}
+
+/** Server-side discovery state for a campaign: the backend is authoritative. */
+export interface ApiDiscoveryStateDto {
+  campaignId: string;
+  status: 'NOT_RUN' | 'RUNNING' | 'COMPLETED_WITH_RESULTS' | 'COMPLETED_EMPTY' | 'FAILED';
+  lastRunAt: string | null;
+  discoveredCount: number;
+  classifiedCount: number;
+  sources: string[];
+  failure: string | null;
+}
+
+export function mapDiscoveryState(
+  run: DiscoveryRun | null,
+  campaignId: string,
+): ApiDiscoveryStateDto {
+  if (run === null) {
+    return {
+      campaignId,
+      status: 'NOT_RUN',
+      lastRunAt: null,
+      discoveredCount: 0,
+      classifiedCount: 0,
+      sources: [],
+      failure: null,
+    };
+  }
+  return {
+    campaignId,
+    status: run.status,
+    lastRunAt: toIso(run.lastRunAt),
+    discoveredCount: run.discoveredCount,
+    classifiedCount: run.classifiedCount,
+    sources: [...run.sources],
+    failure: run.failure,
+  };
 }
 
 interface LookupMaps {
@@ -736,6 +776,7 @@ export function mapPlacementPlan(plan: PlacementPlan): ApiPlacementPlanDto {
       donorQuality: item.donorQuality,
       riskLevel: item.riskLevel,
       providerAvailable: item.providerAvailable,
+      providerType: item.providerType,
       recommendation: item.decision.recommendation,
       recommendationReason: item.decision.recommendationReason,
       nextAction: item.decision.nextAction,

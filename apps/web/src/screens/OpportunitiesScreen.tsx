@@ -4,6 +4,14 @@
  * execution method, discovery source and status. The «Найти площадки» action
  * runs the real discovery pipeline (sources → classification → scoring)
  * through the backend and shows the pipeline progress in the UI.
+ *
+ * The screen distinguishes four honest states when the list is empty:
+ * — поиск ещё не запускался;
+ * — поиск завершён, но новых площадок не найдено;
+ * — поиск завершился ошибкой;
+ * — найденные площадки есть, но их скрывают активные фильтры.
+ * The last discovery outcome is loaded from the backend (the server is the
+ * source of truth) and restored across a refresh or a restart.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -11,14 +19,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { api, ApiError } from '../api/client';
 import type { CategoryDto, DiscoverResultDto, OpportunityDto } from '../api/types';
-import { Chip, ChipList, ErrorState, LoadingState, StatusBadge } from '../components/ui';
+import { Alert, Chip, ChipList, ErrorState, LoadingState, StatusBadge } from '../components/ui';
 import { HelpTip } from '../components/HelpTip';
 import { ScoreBadge } from '../components/Score';
+import { discoveryHasRun, useDiscoveryState } from '../discoveryState';
 import {
   ACTION_LABELS,
   CAPABILITY_LABELS,
   DISCOVERY_SOURCE_LABELS,
   METHOD_LABELS,
+  pluralRu,
   STATUS_LABELS,
   TYPE_LABELS,
 } from '../ru';
@@ -32,39 +42,52 @@ const DISCOVERY_STEPS = [
   'Формирование рекомендаций',
 ] as const;
 
-function useOpportunities() {
-  const [searchParams] = useSearchParams();
+interface OpportunitiesQueryState {
+  items: OpportunityDto[] | null;
+  categories: CategoryDto[];
+  error: string | null;
+  filtersActive: boolean;
+  query: ReturnType<typeof readQuery>;
+  load: () => void;
+  prepend: (items: OpportunityDto[]) => void;
+  clearFilters: () => void;
+}
+
+function readQuery(params: URLSearchParams) {
+  const category = params.get('category') ?? undefined;
+  const method = params.get('method') ?? undefined;
+  const status = params.get('status') ?? undefined;
+  const source = params.get('source') ?? undefined;
+  const placementType = params.get('placementType') ?? undefined;
+  const risk = params.get('risk') ?? undefined;
+  const sort = params.get('sort') ?? 'score';
+  const minScoreRaw = params.get('minScore');
+  const minScore = minScoreRaw === null ? undefined : Number(minScoreRaw);
+  const donorQualityRaw = params.get('donorQuality');
+  const donorQuality = donorQualityRaw === null ? undefined : Number(donorQualityRaw);
+  const minTrafficRaw = params.get('minTraffic');
+  const minTraffic = minTrafficRaw === null ? undefined : Number(minTrafficRaw);
+  return {
+    ...(category !== undefined ? { category } : {}),
+    ...(method !== undefined ? { method } : {}),
+    ...(status !== undefined ? { status } : {}),
+    ...(source !== undefined ? { source } : {}),
+    ...(placementType !== undefined ? { placementType } : {}),
+    ...(risk !== undefined ? { risk } : {}),
+    ...(sort !== 'score' ? { sort } : {}),
+    ...(minScore !== undefined ? { minScore } : {}),
+    ...(donorQuality !== undefined ? { donorQuality } : {}),
+    ...(minTraffic !== undefined ? { minTraffic } : {}),
+  };
+}
+
+function useOpportunities(): OpportunitiesQueryState {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<OpportunityDto[] | null>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const query = useMemo(() => {
-    const category = searchParams.get('category') ?? undefined;
-    const method = searchParams.get('method') ?? undefined;
-    const status = searchParams.get('status') ?? undefined;
-    const source = searchParams.get('source') ?? undefined;
-    const placementType = searchParams.get('placementType') ?? undefined;
-    const risk = searchParams.get('risk') ?? undefined;
-    const sort = searchParams.get('sort') ?? 'score';
-    const minScoreRaw = searchParams.get('minScore');
-    const minScore = minScoreRaw === null ? undefined : Number(minScoreRaw);
-    const donorQualityRaw = searchParams.get('donorQuality');
-    const donorQuality = donorQualityRaw === null ? undefined : Number(donorQualityRaw);
-    const minTrafficRaw = searchParams.get('minTraffic');
-    const minTraffic = minTrafficRaw === null ? undefined : Number(minTrafficRaw);
-    return {
-      ...(category !== undefined ? { category } : {}),
-      ...(method !== undefined ? { method } : {}),
-      ...(status !== undefined ? { status } : {}),
-      ...(source !== undefined ? { source } : {}),
-      ...(placementType !== undefined ? { placementType } : {}),
-      ...(risk !== undefined ? { risk } : {}),
-      ...(sort !== 'score' ? { sort } : {}),
-      ...(minScore !== undefined ? { minScore } : {}),
-      ...(donorQuality !== undefined ? { donorQuality } : {}),
-      ...(minTraffic !== undefined ? { minTraffic } : {}),
-    };
-  }, [searchParams]);
+  const query = useMemo(() => readQuery(searchParams), [searchParams]);
 
   const load = useCallback(() => {
     setError(null);
@@ -82,13 +105,50 @@ function useOpportunities() {
     load();
   }, [load]);
 
-  return { items, categories, error, load, query };
+  const prepend = useCallback((newItems: OpportunityDto[]) => {
+    setItems((previous) => {
+      const ids = new Set(newItems.map((item) => item.id));
+      return [...newItems, ...(previous ?? []).filter((item) => !ids.has(item.id))];
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setSearchParams({});
+  }, [setSearchParams]);
+
+  return {
+    items,
+    categories,
+    error,
+    filtersActive: Object.keys(query).length > 0,
+    query,
+    load,
+    prepend,
+    clearFilters,
+  };
 }
 
 export function OpportunitiesScreen() {
-  const { items, categories, error, load, query } = useOpportunities();
+  const { items, categories, error, load, prepend, clearFilters, filtersActive, query } =
+    useOpportunities();
   const [, setSearchParams] = useSearchParams();
   const [showDiscovery, setShowDiscovery] = useState(false);
+  const [discoveryBanner, setDiscoveryBanner] = useState<DiscoverResultDto | null>(null);
+  const { state: discovery, refresh: refreshDiscovery } = useDiscoveryState();
+
+  // Supports the "Найти площадки →" CTA from the company screen: opening
+  // /opportunities?discover=1 starts the search automatically.
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('discover') === '1') {
+      setShowDiscovery(true);
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        next.delete('discover');
+        return next;
+      });
+    }
+  }, []);
 
   const updateFilter = (name: string, value: string) => {
     setSearchParams((current) => {
@@ -100,6 +160,29 @@ export function OpportunitiesScreen() {
       }
       return next;
     });
+  };
+
+  const loadDiscoveryState = useCallback(() => {
+    // The backend is the source of truth for discovery state. After the list
+    // loads we re-sync so the empty state reflects the persisted run outcome
+    // (no results vs. never ran vs. failed) even after a refresh/restart.
+    refreshDiscovery();
+  }, [refreshDiscovery]);
+
+  useEffect(() => {
+    loadDiscoveryState();
+  }, [loadDiscoveryState]);
+
+  const finishDiscovery = (result: DiscoverResultDto | null) => {
+    setShowDiscovery(false);
+    if (result !== null) {
+      if (result.discovered > 0) {
+        prepend(result.items);
+        setDiscoveryBanner(result);
+      }
+    }
+    refreshDiscovery();
+    load();
   };
 
   const methodOptions = useMemo(
@@ -125,11 +208,6 @@ export function OpportunitiesScreen() {
     [items],
   );
 
-  const finishDiscovery = () => {
-    setShowDiscovery(false);
-    load();
-  };
-
   return (
     <div>
       <div className="flex-between">
@@ -143,6 +221,21 @@ export function OpportunitiesScreen() {
           Найти площадки
         </button>
       </div>
+
+      {discoveryBanner !== null && discoveryBanner.discovered > 0 && (
+        <div className="mt-16">
+          <Alert tone="success">
+            Найдено {discoveryBanner.discovered}{' '}
+            {pluralRu(
+              discoveryBanner.discovered,
+              'новая возможность',
+              'новые возможности',
+              'новых возможностей',
+            )}
+            , список обновлён.
+          </Alert>
+        </div>
+      )}
 
       <div className="filters mt-16">
         <select
@@ -248,9 +341,11 @@ export function OpportunitiesScreen() {
           <option value="lowestRisk">По наименьшему риску</option>
           <option value="ease">По простоте исполнения</option>
         </select>
-        <span className="text-tertiary" style={{ fontSize: 12.5, marginLeft: 'auto' }}>
-          сортировка: на сервере
-        </span>
+        {filtersActive && (
+          <button className="btn btn-ghost btn-sm" type="button" onClick={clearFilters}>
+            Сбросить фильтры
+          </button>
+        )}
       </div>
 
       {items === null && error === null && <LoadingState text="Ищем возможности…" />}
@@ -259,19 +354,53 @@ export function OpportunitiesScreen() {
       {items !== null &&
         (items.length === 0 ? (
           <div className="state-box">
-            <div className="state-box-icon">◌</div>
-            <div className="state-box-title">Ничего не найдено</div>
-            <div className="state-box-hint">
-              Запустите «Найти площадки», чтобы система подобрала площадки под компанию, или
-              измените фильтры.
+            <div className="state-box-icon">
+              {filtersActive ? '▦' : discovery.status === 'FAILED' ? '!' : '◌'}
             </div>
-            <button
-              className="btn btn-primary mt-16"
-              type="button"
-              onClick={() => setShowDiscovery(true)}
-            >
-              Найти площадки
-            </button>
+            <div className="state-box-title">
+              {filtersActive
+                ? 'Ничего не соответствует фильтрам'
+                : discovery.status === 'FAILED'
+                  ? 'Поиск площадок завершился ошибкой'
+                  : discovery.status === 'RUNNING'
+                    ? 'Поиск площадок выполняется…'
+                    : discoveryHasRun(discovery.status)
+                      ? 'Новых площадок не найдено'
+                      : 'Поиск ещё не запускался'}
+            </div>
+            <div className="state-box-hint">
+              {filtersActive
+                ? 'Найденные площадки есть, но их скрывают активные фильтры. Сбросьте фильтры или измените условия поиска.'
+                : discovery.status === 'FAILED'
+                  ? `Запуск поиска не завершился: ${discovery.failure ?? 'неизвестная ошибка провайдера'}. Повторите попытку.`
+                  : discovery.status === 'RUNNING'
+                    ? 'Система ищет площадки по направлениям стратегии. Обновите страницу чуть позже.'
+                    : discoveryHasRun(discovery.status)
+                      ? 'По текущей стратегии система не нашла новых подходящих площадок. Можно повторить поиск позже или изменить стратегию размещений.'
+                      : 'Запустите поиск, чтобы найти площадки по направлениям стратегии.'}
+            </div>
+            <div className="state-actions">
+              {filtersActive ? (
+                <button className="btn btn-primary mt-16" type="button" onClick={clearFilters}>
+                  Сбросить фильтры
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn btn-primary mt-16"
+                    type="button"
+                    onClick={() => setShowDiscovery(true)}
+                  >
+                    {discoveryHasRun(discovery.status) ? 'Повторить поиск' : 'Найти площадки'}
+                  </button>
+                  {discoveryHasRun(discovery.status) && (
+                    <Link className="btn btn-secondary mt-16" to="/company">
+                      Изменить стратегию
+                    </Link>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ) : (
           <div className="list">
@@ -320,6 +449,7 @@ function OpportunityRow({ opportunity }: { opportunity: OpportunityDto }) {
               {isDemoProvider ? ' · демо' : ''}
             </span>
           )}
+          {isDemoProvider && <span className="chip chip-demo">Демо</span>}
           {opportunity.platformUrl !== null && (
             <a
               className="platform-link"
@@ -377,11 +507,19 @@ function OpportunityRow({ opportunity }: { opportunity: OpportunityDto }) {
 /**
  * Pipeline modal: shows the discovery stages as they run, then performs the
  * real backend discovery call and reports how many opportunities were found.
+ * The modal always completes visibly — with results, an error or a finished
+ * "nothing new found" state — and hands the outcome back to the screen so
+ * «Показать список» performs a real list transition.
  */
-function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
+function DiscoveryPipelineModal({
+  onClose,
+}: {
+  onClose: (result: DiscoverResultDto | null) => void;
+}) {
   const navigate = useNavigate();
+  const [runId, setRunId] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  const [running, setRunning] = useState(true);
+  const [phase, setPhase] = useState<'pipeline' | 'request' | 'done'>('pipeline');
   const [result, setResult] = useState<DiscoverResultDto | null>(null);
   const [error, setError] = useState<{ message: string; noAnalysis: boolean } | null>(null);
   const timerRef = useRef<number | null>(null);
@@ -394,15 +532,17 @@ function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
         if (cancelled) return;
         setStepIndex(index);
         await new Promise((resolve) => {
-          timerRef.current = window.setTimeout(resolve, 600);
+          timerRef.current = window.setTimeout(resolve, 450);
         });
       }
       if (cancelled) return;
-      setRunning(false);
+      setStepIndex(DISCOVERY_STEPS.length);
+      setPhase('request');
       try {
         const discovery = await api.discover();
         if (cancelled) return;
         setResult(discovery);
+        setPhase('done');
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
@@ -410,6 +550,7 @@ function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
           message,
           noAnalysis: err instanceof ApiError && err.code === 'NO_ANALYSIS',
         });
+        setPhase('done');
       }
     };
 
@@ -418,21 +559,36 @@ function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
       cancelled = true;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     };
-  }, []);
+  }, [runId]);
+
+  const restart = () => {
+    setResult(null);
+    setError(null);
+    setPhase('pipeline');
+    setStepIndex(0);
+    setRunId((current) => current + 1);
+  };
 
   const goToAnalysis = () => {
-    onClose();
+    onClose(null);
     void navigate('/company');
   };
+
+  const showList = () => {
+    onClose(result);
+  };
+
+  const stepsDone = stepIndex >= DISCOVERY_STEPS.length;
 
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal" role="dialog" aria-modal="true" aria-label="Поиск площадок">
         <div className="modal-header">
           <div className="card-title">Поиск площадок</div>
+          {phase === 'request' && <span className="chip">ожидание ответа сервера</span>}
         </div>
 
-        {running && (
+        {phase === 'pipeline' && (
           <div>
             <div className="pipeline-steps">
               {DISCOVERY_STEPS.map((label, index) => {
@@ -454,7 +610,29 @@ function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {!running && error !== null && (
+        {phase === 'request' && (
+          <div>
+            <div className="pipeline-steps">
+              {DISCOVERY_STEPS.map((label) => (
+                <div key={label} className="pipeline-step done">
+                  <span className="pipeline-marker">✓</span>
+                  <span className="pipeline-label">{label}</span>
+                </div>
+              ))}
+            </div>
+            <div className="pipeline-waiting">
+              <span className="spinner" aria-hidden="true" />
+              <div>
+                <div className="pipeline-waiting-title">Запускаем поиск на сервере…</div>
+                <div className="text-tertiary" style={{ fontSize: 12 }}>
+                  Система проверяет площадки по направлениям стратегии. Это может занять до минуты.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {phase === 'done' && error !== null && (
           <div>
             {error.noAnalysis ? (
               <div className="state-box">
@@ -464,55 +642,79 @@ function DiscoveryPipelineModal({ onClose }: { onClose: () => void }) {
                   Поиск площадок начинается с определения релевантных категорий: запустите AI-анализ
                   компании на экране «Компания и анализ».
                 </div>
-                <button className="btn btn-primary mt-16" type="button" onClick={goToAnalysis}>
-                  Перейти к анализу
-                </button>
+                <div className="state-actions">
+                  <button className="btn btn-primary mt-16" type="button" onClick={goToAnalysis}>
+                    Перейти к анализу
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="state-box">
                 <div className="state-box-icon">⚠</div>
                 <div className="state-box-title">Не удалось найти площадки</div>
                 <div className="state-box-hint">{error.message}</div>
-                <button className="btn btn-secondary mt-16" type="button" onClick={onClose}>
-                  Закрыть
-                </button>
+                <div className="state-actions">
+                  <button className="btn btn-secondary mt-16" type="button" onClick={restart}>
+                    Повторить
+                  </button>
+                  <button
+                    className="btn btn-ghost mt-16"
+                    type="button"
+                    onClick={() => onClose(null)}
+                  >
+                    Закрыть
+                  </button>
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {!running && result !== null && (
+        {phase === 'done' && result !== null && (
           <div>
             <div className="state-box">
-              <div className="state-box-icon">✓</div>
+              <div className="state-box-icon">{result.discovered > 0 ? '✓' : '◌'}</div>
               <div className="state-box-title">
-                Найдено {result.discovered}{' '}
-                {plural(result.discovered, 'возможность', 'возможности', 'возможностей')}
+                {result.discovered > 0
+                  ? `Найдено ${result.discovered} ${pluralRu(
+                      result.discovered,
+                      'новая возможность',
+                      'новые возможности',
+                      'новых возможностей',
+                    )}`
+                  : 'Новых площадок не найдено'}
               </div>
               <div className="state-box-hint">
                 {result.discovered > 0
                   ? `Классифицировано и оценено: ${result.classified}. Источники: ${result.sources
                       .map((source) => DISCOVERY_SOURCE_LABELS[source] ?? source)
                       .join(', ')}.`
-                  : 'Новых площадок не найдено — каталог уже полностью изучен для этой кампании.'}
+                  : 'По текущей стратегии система не нашла новых подходящих площадок. Можно повторить поиск позже или изменить стратегию размещений.'}
               </div>
             </div>
+            {stepsDone && (
+              <div className="pipeline-steps" style={{ marginTop: 8 }}>
+                {DISCOVERY_STEPS.map((label) => (
+                  <div key={label} className="pipeline-step done">
+                    <span className="pipeline-marker">✓</span>
+                    <span className="pipeline-label">{label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex mt-16">
-              <button className="btn btn-primary" type="button" onClick={onClose}>
+              <button className="btn btn-primary" type="button" onClick={showList}>
                 Показать список
               </button>
+              {result.discovered === 0 && (
+                <button className="btn btn-secondary" type="button" onClick={restart}>
+                  Повторить поиск
+                </button>
+              )}
             </div>
           </div>
         )}
       </div>
     </div>
   );
-}
-
-function plural(count: number, one: string, few: string, many: string): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
 }

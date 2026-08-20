@@ -1,6 +1,7 @@
 import type { AnchorType } from './anchors.js';
 import type { PlacementMethod } from './enums/placement-method.js';
 import type { PlacementType } from './enums/placement-type.js';
+import type { ProviderType } from './enums/provider-type.js';
 import type { RiskLevel } from './donor-risk.js';
 import type {
   AutomationLevel,
@@ -92,6 +93,8 @@ export interface PlanDecisionItem {
   donorQuality: number | null;
   riskLevel: RiskLevel | null;
   providerAvailable: boolean;
+  /** Provider type selected for execution (MOCK marks demo content). */
+  providerType: ProviderType | null;
   decision: PlanDecision;
   anchorRecommendation: AnchorPlanRecommendation | null;
 }

@@ -19,6 +19,7 @@ import {
   InMemoryAuditLogRepository,
   InMemoryCampaignRepository,
   InMemoryCompanyRepository,
+  InMemoryDiscoveryRunRepository,
   InMemoryLookupRepository,
   InMemoryPlacementOpportunityRepository,
   InMemoryPlacementProviderRegistry,
@@ -55,6 +56,7 @@ async function createHarness(): Promise<Harness> {
   const opportunities = new InMemoryPlacementOpportunityRepository();
   const analyses = new InMemoryAIAnalysisRepository();
   const auditLog = new InMemoryAuditLogRepository();
+  const discoveryRuns = new InMemoryDiscoveryRunRepository();
 
   lookups.categories = seedCategories();
   lookups.platforms = seedPlatforms();
@@ -81,6 +83,7 @@ async function createHarness(): Promise<Harness> {
     opportunities,
     auditLog,
     [new CatalogPlatformDiscoverySource(lookups)],
+    discoveryRuns,
   );
 
   return {
@@ -257,6 +260,7 @@ describe('DiscoverOpportunitiesUseCase', () => {
       opportunities,
       auditLog,
       [spySource],
+      new InMemoryDiscoveryRunRepository(),
     );
 
     await discover.execute({ campaignId: campaign.id, placementType: 'BACKLINK' });
@@ -392,6 +396,7 @@ describe('ClassifyOpportunityUseCase', () => {
       opportunities,
       auditLog,
       [new CatalogPlatformDiscoverySource(lookups)],
+      new InMemoryDiscoveryRunRepository(),
     );
     const [opportunity] = await discover.execute({
       campaignId: campaign.id,

@@ -64,6 +64,7 @@ import {
   buildLookupMaps,
   mapAuditEvent,
   mapCompany,
+  mapDiscoveryState,
   mapOpportunity,
   mapPlacementPlan,
   mapVerification,
@@ -184,6 +185,7 @@ export function createApiApp(services: ApiServices): Hono {
     env.opportunities,
     env.auditLog,
     buildDiscoverySources(env),
+    env.discoveryRuns,
   );
   const classify = new ClassifyOpportunityUseCase(
     env.ai,
@@ -723,6 +725,19 @@ export function createApiApp(services: ApiServices): Hono {
   });
 
   /**
+   * Persisted discovery state for the campaign. The backend is the source of
+   * truth: NOT_RUN / RUNNING / COMPLETED_WITH_RESULTS / COMPLETED_EMPTY /
+   * FAILED plus run metadata (lastRunAt, counts, sources, failure). The UI
+   * uses this (not sessionStorage or the audit trail) to distinguish "search
+   * never ran" from "search finished with no results" across a refresh.
+   */
+  app.get('/api/discovery-state', async (c) => {
+    const campaign = await resolveCampaign(c);
+    const run = await env.discoveryRuns.findLatestForCampaign(campaign.id);
+    return c.json(mapDiscoveryState(run, campaign.id));
+  });
+
+  /**
    * Runs the full discovery pipeline for the campaign: discovery sources
    * (catalog + search) → new opportunities → AI classification → scoring.
    * Returns the newly discovered opportunities with their classification.
@@ -750,6 +765,8 @@ export function createApiApp(services: ApiServices): Hono {
     for (const opportunity of discovered) {
       classified.push(await classify.execute({ opportunityId: opportunity.id }));
     }
+    // Report the classification outcome back into the persisted run.
+    await discover.recordClassified(campaign.id, classified.length).catch(() => undefined);
 
     const context = await opportunityContext(env);
     const items = await Promise.all(

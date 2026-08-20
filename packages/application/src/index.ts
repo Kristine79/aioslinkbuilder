@@ -10,6 +10,7 @@ import type {
 } from './ports/repositories/audit-log.repository.js';
 import type { AIAnalysisDraft } from './ports/repositories/ai-analysis.repository.js';
 import type { LookupRepository } from './ports/repositories/lookup.repository.js';
+import type { DiscoveryRunRepository } from './ports/repositories/discovery-run.repository.js';
 import type {
   EvidenceRepository,
   EvidenceDraft,
@@ -34,7 +35,7 @@ export type { CompanyRepository, CampaignRepository };
 export type { PlacementOpportunityRepository, PlacementRepository };
 export type { VerificationRepository, AIAnalysisRepository, AuditLogRepository };
 export type { AuditLogDraft, AIAnalysisDraft, EvidenceDraft };
-export type { LookupRepository, EvidenceRepository };
+export type { LookupRepository, EvidenceRepository, DiscoveryRunRepository };
 export type { PlacementProviderRegistry };
 export type { SeoMetricsProvider, SeoMetricsSnapshot };
 export type { PageAnalysisProvider };

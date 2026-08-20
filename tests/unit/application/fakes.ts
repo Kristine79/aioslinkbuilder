@@ -46,6 +46,7 @@ export {
   InMemoryPlacementOpportunityRepository,
   InMemoryLookupRepository,
   InMemoryAIAnalysisRepository,
+  InMemoryDiscoveryRunRepository,
   InMemoryPlacementRepository,
   InMemoryVerificationRepository,
   InMemoryEvidenceRepository,

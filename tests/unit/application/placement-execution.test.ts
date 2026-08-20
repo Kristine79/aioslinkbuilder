@@ -24,6 +24,7 @@ import {
   InMemoryAuditLogRepository,
   InMemoryCampaignRepository,
   InMemoryCompanyRepository,
+  InMemoryDiscoveryRunRepository,
   InMemoryEvidenceRepository,
   InMemoryLookupRepository,
   InMemoryPlacementOpportunityRepository,
@@ -125,6 +126,7 @@ async function createHarness(
     opportunities,
     auditLog,
     [new CatalogPlatformDiscoverySource(lookups)],
+    new InMemoryDiscoveryRunRepository(),
   );
   const classify = new ClassifyOpportunityUseCase(
     new StubAIProvider({ classification: CLASSIFICATION }),

@@ -2,16 +2,35 @@
  * Ссылки и анкор-профиль — campaign-level link view: anchors, anchor types,
  * placement types, donor domains, status and verified links. The data comes
  * from the backend (intel prepared per opportunity); no business logic here.
- * In demo mode all values are labeled synthetic.
+ *
+ * This screen is the OUTPUT of the placement workflow
+ * (DISCOVER → … → PLACE → VERIFY): a link appears here only after a placement
+ * was executed and verified. The table intentionally lists only opportunities
+ * that already have placement records — NOT the raw opportunity list.
+ * MOCK/SYNTHETIC placements are always labeled «Демо», even when their status
+ * is PUBLISHED or VERIFIED.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { api } from '../api/client';
-import type { OpportunityDto } from '../api/types';
-import { ErrorState, LoadingState } from '../components/ui';
-import { ANCHOR_TYPE_LABELS, STATUS_LABELS, TYPE_LABELS } from '../ru';
+import type { OpportunityDto, PlacementStatus } from '../api/types';
+import { ErrorState, LoadingState, StatusBadge } from '../components/ui';
+import { ANCHOR_TYPE_LABELS, pluralRu, TYPE_LABELS } from '../ru';
+
+interface LinkRow {
+  opportunityId: string;
+  platformName: string;
+  platformUrl: string | null;
+  placementType: string;
+  placementStatus: PlacementStatus;
+  anchor: string | null;
+  anchorType: string | null;
+  verified: boolean;
+  liveUrl: string | null;
+  isDemoProvider: boolean;
+}
 
 export function LinksScreen() {
   const [items, setItems] = useState<OpportunityDto[] | null>(null);
@@ -31,26 +50,30 @@ export function LinksScreen() {
     load();
   }, [load]);
 
-  const rows = useMemo(() => {
+  const rows = useMemo<LinkRow[]>(() => {
     return (items ?? []).flatMap((item) => {
-      const anchor = item.anchorStrategy?.anchor ?? item.linkInsert?.anchor ?? null;
-      const anchorType = item.anchorStrategy?.anchorType ?? null;
-      const verified = item.placements.some((p) => p.status === 'VERIFIED');
-      const liveUrl = item.placements.find((p) => p.status === 'VERIFIED')?.liveUrl ?? null;
-      const isDemoProvider = item.placements.some((p) => p.providerType === 'MOCK');
-      const anchorCount = 1;
+      // A link appears here only when the opportunity already has a placement
+      // record (submitted, published, verified, failed attempts, manual…).
+      const placements = item.placements;
+      if (placements.length === 0) return [];
+      const latest = placements[placements.length - 1];
+      if (latest === undefined) return [];
+      const verifiedPlacement = placements.find((p) => p.status === 'VERIFIED');
+      const anchorStrategy = item.anchorStrategy;
+      const linkInsert = item.linkInsert;
+      const anchor = anchorStrategy?.anchor ?? linkInsert?.anchor ?? null;
+      const anchorType = anchorStrategy?.anchorType ?? null;
       return {
+        opportunityId: item.id,
         platformName: item.platformName,
         platformUrl: item.platformUrl,
-        opportunityId: item.id,
         placementType: item.placementType,
-        status: item.status,
+        placementStatus: latest.status,
         anchor,
         anchorType,
-        verified,
-        liveUrl,
-        isDemoProvider,
-        anchorCount,
+        verified: verifiedPlacement !== undefined,
+        liveUrl: verifiedPlacement?.liveUrl ?? null,
+        isDemoProvider: placements.some((p) => p.providerType === 'MOCK'),
       };
     });
   }, [items]);
@@ -65,6 +88,8 @@ export function LinksScreen() {
   }, [rows]);
 
   const verifiedCount = rows.filter((row) => row.verified).length;
+  const hasPlacements = rows.length > 0;
+  const hasVerifiedLinks = verifiedCount > 0;
 
   if (items === null && error === null) {
     return <LoadingState text="Загружаем ссылки…" />;
@@ -79,23 +104,37 @@ export function LinksScreen() {
       <p className="page-subtitle">
         Кампания в целом: анкоры, типы размещений, доноры и проверенные ссылки.
       </p>
-      <div className="text-tertiary" style={{ fontSize: 12, marginBottom: 12 }}>
-        Данные синтетические (демо). Анкор-профиль компании пока не подключён — распределение
-        анкоров приведено без ссылки на историю кампании.
+      <div className="text-tertiary" style={{ fontSize: 12, marginBottom: 4 }}>
+        Ссылка появляется здесь после выполнения и проверки размещения.
       </div>
 
       <div className="stat-grid mt-16">
         <div className="stat">
-          <div className="stat-value">{rows.length}</div>
+          <div className="stat-value">{items.length}</div>
           <div className="stat-label">Возможностей</div>
+          <div className="stat-hint">
+            {items.length === 0
+              ? 'Для кампании пока нет найденных площадок.'
+              : `размещено: ${rows.length} ${pluralRu(rows.length, 'площадка', 'площадки', 'площадок')}`}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-value">{verifiedCount}</div>
           <div className="stat-label">Проверенных ссылок</div>
+          <div className="stat-hint">
+            {hasPlacements && !hasVerifiedLinks
+              ? 'Размещения есть, но проверка ещё не выполнена.'
+              : 'Ссылки, подтверждённые проверкой.'}
+          </div>
         </div>
         <div className="stat">
           <div className="stat-value">{distribution.length}</div>
           <div className="stat-label">Типов анкоров</div>
+          <div className="stat-hint">
+            {distribution.length === 0
+              ? 'Анкоры появятся после подготовки вставки ссылки.'
+              : 'По подготовленным рекомендациям анкоров.'}
+          </div>
         </div>
       </div>
 
@@ -119,55 +158,86 @@ export function LinksScreen() {
       <div className="card mt-16">
         <div className="card-header">
           <div className="card-title">Ссылки по площадкам</div>
+          {hasVerifiedLinks && <StatusBadge status="VERIFIED" />}
         </div>
         <div className="card-body">
-          <div className="table-wrap">
-            <table className="compare-table">
-              <thead>
-                <tr>
-                  <th>Донор</th>
-                  <th>Тип</th>
-                  <th>Анкор</th>
-                  <th>Тип анкора</th>
-                  <th>Статус</th>
-                  <th>Ссылка</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i}>
-                    <td>
-                      <Link to={`/opportunities/${row.opportunityId}`}>{row.platformName}</Link>
-                    </td>
-                    <td>{TYPE_LABELS[row.placementType] ?? row.placementType}</td>
-                    <td className="anchor-cell">{row.anchor ?? '—'}</td>
-                    <td>
-                      {row.anchorType !== null
-                        ? (ANCHOR_TYPE_LABELS[row.anchorType] ?? row.anchorType)
-                        : '—'}
-                    </td>
-                    <td>
-                      <div className="flex" style={{ gap: 8, alignItems: 'center' }}>
-                        <span className="badge tone-gray">
-                          {STATUS_LABELS[row.status] ?? row.status}
-                        </span>
-                        {row.isDemoProvider && <span className="chip">демо-провайдер</span>}
-                      </div>
-                    </td>
-                    <td>
-                      {row.verified && row.liveUrl !== null ? (
-                        <a href={row.liveUrl} target="_blank" rel="noreferrer">
-                          {row.liveUrl}
-                        </a>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
+          {!hasPlacements ? (
+            <div className="state-box">
+              <div className="state-box-icon">⌁</div>
+              <div className="state-box-title">Пока нет размещённых ссылок</div>
+              <div className="state-box-hint">
+                Здесь появятся доноры, анкоры, типы размещений и статусы после выполнения и проверки
+                размещений. После проверки ссылка появится здесь автоматически.
+              </div>
+              <div className="state-actions">
+                <Link className="btn btn-primary mt-16" to="/opportunities?discover=1">
+                  Найти площадки →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="compare-table">
+                <thead>
+                  <tr>
+                    <th>Донор</th>
+                    <th>Тип</th>
+                    <th>Анкор</th>
+                    <th>Тип анкора</th>
+                    <th>Статус размещения</th>
+                    <th>Ссылка</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((row) => (
+                    <tr key={row.opportunityId}>
+                      <td>
+                        <Link to={`/opportunities/${row.opportunityId}`}>{row.platformName}</Link>
+                        {row.platformUrl !== null && (
+                          <div className="text-tertiary" style={{ fontSize: 11.5 }}>
+                            {row.platformUrl}
+                          </div>
+                        )}
+                      </td>
+                      <td>{TYPE_LABELS[row.placementType] ?? row.placementType}</td>
+                      <td className="anchor-cell">{row.anchor ?? '—'}</td>
+                      <td>
+                        {row.anchorType !== null
+                          ? (ANCHOR_TYPE_LABELS[row.anchorType] ?? row.anchorType)
+                          : '—'}
+                      </td>
+                      <td>
+                        <div
+                          className="flex"
+                          style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+                        >
+                          <StatusBadge status={row.placementStatus} />
+                          {row.isDemoProvider && <span className="chip chip-demo">Демо</span>}
+                          {row.verified && (
+                            <span className="chip tone-green">ссылка проверена</span>
+                          )}
+                        </div>
+                        {row.isDemoProvider && (
+                          <div className="text-tertiary" style={{ fontSize: 11.5 }}>
+                            размещение выполнено демо-провайдером — это не реальная публикация
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {row.verified && row.liveUrl !== null ? (
+                          <a href={row.liveUrl} target="_blank" rel="noreferrer">
+                            {row.liveUrl}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

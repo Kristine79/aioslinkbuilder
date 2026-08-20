@@ -226,3 +226,7 @@ export type {
 } from './placement-plan.js';
 
 export { derivePlacementMethodForType } from './alignment.js';
+
+export { DISCOVERY_RUN_STATUSES } from './discovery-run.js';
+export type { DiscoveryRunStatus, DiscoveryRun, DiscoveryRunCompletion } from './discovery-run.js';
+export { startDiscoveryRun, failDiscoveryRun, completeDiscoveryRun } from './discovery-run.js';

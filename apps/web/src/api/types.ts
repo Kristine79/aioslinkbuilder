@@ -426,6 +426,19 @@ export interface DiscoverResultDto {
   items: OpportunityDto[];
 }
 
+export type DiscoveryStatus =
+  'NOT_RUN' | 'RUNNING' | 'COMPLETED_WITH_RESULTS' | 'COMPLETED_EMPTY' | 'FAILED';
+
+export interface DiscoveryStateDto {
+  campaignId: string;
+  status: DiscoveryStatus;
+  lastRunAt: string | null;
+  discoveredCount: number;
+  classifiedCount: number;
+  sources: string[];
+  failure: string | null;
+}
+
 export type PlanRecommendation =
   'RECOMMENDED' | 'REVIEW_REQUIRED' | 'NOT_RECOMMENDED' | 'INSUFFICIENT_DATA';
 
@@ -461,6 +474,8 @@ export interface PlanItemDto {
   donorQuality: number | null;
   riskLevel: string | null;
   providerAvailable: boolean;
+  /** Provider type chosen for execution (MOCK = demo). */
+  providerType: string | null;
   recommendation: PlanRecommendation;
   recommendationReason: string;
   nextAction: PlanNextAction;

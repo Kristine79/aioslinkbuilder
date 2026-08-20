@@ -96,6 +96,14 @@ enum AIAnalysisValidationStatus {
   INVALID
 }
 
+enum DiscoveryRunStatus {
+  NOT_RUN
+  RUNNING
+  COMPLETED_WITH_RESULTS
+  COMPLETED_EMPTY
+  FAILED
+}
+
 model Company {
   id             String     @id @default(cuid())
   name           String
@@ -121,6 +129,7 @@ model Campaign {
   status        CampaignStatus       @default(DRAFT)
   opportunities PlacementOpportunity[]
   aiAnalyses    AIAnalysis[]
+  discoveryRun  DiscoveryRun?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
@@ -259,6 +268,23 @@ model AIAnalysis {
   validationStatus AIAnalysisValidationStatus @default(VALID)
   createdAt        DateTime                 @default(now())
 
+  @@index([campaignId])
+}
+
+model DiscoveryRun {
+  id              String             @id @default(cuid())
+  campaignId      String
+  campaign        Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status          DiscoveryRunStatus @default(NOT_RUN)
+  lastRunAt       DateTime?
+  discoveredCount Int                @default(0)
+  classifiedCount Int                @default(0)
+  sources         String[]
+  failure         String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([campaignId])
   @@index([campaignId])
 }
 

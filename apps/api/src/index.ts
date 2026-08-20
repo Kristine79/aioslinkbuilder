@@ -29,6 +29,7 @@ export type {
   ApiCategoryDto,
   ApiCompanyAnalysisDto,
   ApiCompanyDto,
+  ApiDiscoveryStateDto,
   ApiErrorDto,
   ApiEvidenceDto,
   ApiManualActionDto,

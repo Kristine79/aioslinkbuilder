@@ -4,6 +4,7 @@ export { InMemoryAuditLogRepository } from './audit-log.repository.js';
 export { InMemoryPlacementOpportunityRepository } from './opportunity.repository.js';
 export { InMemoryLookupRepository } from './lookup.repository.js';
 export { InMemoryAIAnalysisRepository } from './ai-analysis.repository.js';
+export { InMemoryDiscoveryRunRepository } from './discovery-run.repository.js';
 export { InMemoryPlacementRepository } from './placement.repository.js';
 export { InMemoryVerificationRepository } from './verification.repository.js';
 export { InMemoryEvidenceRepository } from './evidence.repository.js';

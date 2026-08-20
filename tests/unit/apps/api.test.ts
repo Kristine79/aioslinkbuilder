@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { runNordhausBootstrap, createApiApp } from '@aios/api';
-import type { ApiOpportunityDto, ApiPlacementDto } from '@aios/api';
+import type { ApiDiscoveryStateDto, ApiOpportunityDto, ApiPlacementDto } from '@aios/api';
 
 async function setup() {
   const bootstrap = await runNordhausBootstrap();
@@ -387,6 +387,75 @@ describe('API delivery layer (generic company/campaign flow)', () => {
       `/api/overview?campaignId=${campaign.id}`,
     );
     expect(overview.counts.opportunities).toBe(result.discovered);
+  });
+
+  it('serves persisted discovery state: NOT_RUN before the run, COMPLETED_WITH_RESULTS after', async () => {
+    const { app } = await setup();
+    const company = await json<{ id: string }>(
+      await post(app, '/api/companies', {
+        name: 'Мебельная фабрика «Дуб»',
+        industry: 'furniture',
+        geography: ['Москва'],
+      }),
+    );
+    const campaign = await json<{ id: string }>(
+      await post(app, `/api/companies/${company.id}/campaigns`, {
+        name: 'Фабрика Дуб: продвижение',
+        goals: ['Каталоги и карты'],
+      }),
+    );
+
+    const before = await get<ApiDiscoveryStateDto>(
+      app,
+      `/api/discovery-state?campaignId=${campaign.id}`,
+    );
+    expect(before).toEqual({
+      campaignId: campaign.id,
+      status: 'NOT_RUN',
+      lastRunAt: null,
+      discoveredCount: 0,
+      classifiedCount: 0,
+      sources: [],
+      failure: null,
+    });
+
+    const analyzed = await post(app, `/api/company/analyze?campaignId=${campaign.id}`);
+    expect(analyzed.status).toBe(200);
+    const discovery = await post(app, `/api/discover?campaignId=${campaign.id}`);
+    const result = await json<{ discovered: number; classified: number; sources: string[] }>(
+      discovery,
+    );
+
+    const after = await get<ApiDiscoveryStateDto>(
+      app,
+      `/api/discovery-state?campaignId=${campaign.id}`,
+    );
+    expect(after.status).toBe('COMPLETED_WITH_RESULTS');
+    expect(after.discoveredCount).toBe(result.discovered);
+    expect(after.classifiedCount).toBe(result.classified);
+    expect([...after.sources].sort()).toEqual([...result.sources].sort());
+    expect(after.failure).toBeNull();
+    expect(after.lastRunAt).not.toBeNull();
+  });
+
+  it('exposes the selected provider type on placement plan items', async () => {
+    const { app } = await setup();
+    const generated = await post(app, '/api/placement-plan');
+    expect(generated.status).toBe(200);
+    const plan = await json<{
+      items: Array<{ providerType: string | null }>;
+    }>(generated);
+
+    expect(plan.items.length).toBeGreaterThan(0);
+    expect(plan.items.some((item) => item.providerType === 'MOCK')).toBe(true);
+    expect(
+      plan.items.every(
+        (item) =>
+          item.providerType === 'MOCK' ||
+          item.providerType === 'MANUAL' ||
+          item.providerType === null,
+      ),
+    ).toBe(true);
   });
 
   it('rejects an unknown campaign id with 404', async () => {

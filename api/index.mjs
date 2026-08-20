@@ -3318,6 +3318,42 @@ function pickRecommendedToStart(items, limit = 3) {
   }));
 }
 
+// packages/domain/src/discovery-run.ts
+function startDiscoveryRun(campaignId, now2) {
+  return {
+    campaignId,
+    status: "RUNNING",
+    lastRunAt: now2,
+    discoveredCount: 0,
+    classifiedCount: 0,
+    sources: [],
+    failure: null,
+    createdAt: now2,
+    updatedAt: now2
+  };
+}
+function failDiscoveryRun(run, failure, now2) {
+  return {
+    ...run,
+    status: "FAILED",
+    failure,
+    lastRunAt: now2,
+    updatedAt: now2
+  };
+}
+function completeDiscoveryRun(run, outcome, now2) {
+  return {
+    ...run,
+    status: outcome.discoveredCount > 0 ? "COMPLETED_WITH_RESULTS" : "COMPLETED_EMPTY",
+    discoveredCount: outcome.discoveredCount,
+    classifiedCount: outcome.classifiedCount,
+    sources: [...outcome.sources],
+    failure: null,
+    lastRunAt: now2,
+    updatedAt: now2
+  };
+}
+
 // packages/application/src/errors.ts
 var NotFoundError = class extends DomainError {
   constructor(entityType, entityId) {
@@ -3429,13 +3465,14 @@ var ListCampaignsByCompanyUseCase = class {
 
 // packages/application/src/use-cases/opportunity/discover-opportunities.use-case.ts
 var DiscoverOpportunitiesUseCase = class {
-  constructor(campaigns, companies, lookups, opportunities, auditLog, sources) {
+  constructor(campaigns, companies, lookups, opportunities, auditLog, sources, runs) {
     this.campaigns = campaigns;
     this.companies = companies;
     this.lookups = lookups;
     this.opportunities = opportunities;
     this.auditLog = auditLog;
     this.sources = sources;
+    this.runs = runs;
   }
   campaigns;
   companies;
@@ -3443,6 +3480,7 @@ var DiscoverOpportunitiesUseCase = class {
   opportunities;
   auditLog;
   sources;
+  runs;
   async execute(command) {
     const campaign = await this.campaigns.findById(command.campaignId);
     if (campaign === null) {
@@ -3456,6 +3494,18 @@ var DiscoverOpportunitiesUseCase = class {
     if (categoryCodes.some((code) => code.trim().length === 0)) {
       throw new ValidationError("Opportunity categoryCodes must not be empty");
     }
+    const run = startDiscoveryRun(command.campaignId, /* @__PURE__ */ new Date());
+    await this.runs.save(run);
+    try {
+      const opportunities = await this.runSources(command, company, campaign, categoryCodes, run);
+      return opportunities;
+    } catch (error51) {
+      const message = error51 instanceof Error ? error51.message : String(error51);
+      await this.runs.save(failDiscoveryRun(run, message, /* @__PURE__ */ new Date()));
+      throw error51;
+    }
+  }
+  async runSources(command, company, campaign, categoryCodes, run) {
     const categories = await this.lookups.listCategories();
     const categoryIdsByCode = new Map(categories.map((category) => [category.code, category.id]));
     const allowedCategoryCodes = categoryCodes.length === 0 ? null : new Set(categoryCodes.map((code) => code.trim().toLowerCase()));
@@ -3463,6 +3513,7 @@ var DiscoverOpportunitiesUseCase = class {
     const existingPlatformIds = new Set(existing.map((opportunity) => opportunity.platformId));
     const createdPlatformIds = /* @__PURE__ */ new Set();
     const opportunities = [];
+    const sourceNames = [];
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
@@ -3502,10 +3553,33 @@ var DiscoverOpportunitiesUseCase = class {
           entityId: opportunity.id,
           metadata: { platformId: candidate.platformId, source: source.name }
         });
+        sourceNames.push(source.name);
         opportunities.push(opportunity);
       }
     }
+    await this.runs.save(
+      completeDiscoveryRun(
+        run,
+        {
+          discoveredCount: opportunities.length,
+          classifiedCount: 0,
+          sources: [...new Set(sourceNames)]
+        },
+        /* @__PURE__ */ new Date()
+      )
+    );
     return opportunities;
+  }
+  /**
+   * Reports how many of the discovered opportunities were classified by the
+   * pipeline, keeping the persisted run metadata accurate after discovery.
+   */
+  async recordClassified(campaignId, classifiedCount) {
+    const run = await this.runs.findLatestForCampaign(campaignId);
+    if (run === null || run.status === "FAILED" || run.status === "NOT_RUN") {
+      return;
+    }
+    await this.runs.save({ ...run, classifiedCount, updatedAt: /* @__PURE__ */ new Date() });
   }
 };
 
@@ -21771,6 +21845,7 @@ async function loadPlanData(deps, campaignId) {
       hasIntel: intel.donorQuality !== null || intel.pageAnalysis !== null,
       providerAvailable: alignment.providerAvailable,
       providerCapabilitiesVerified: alignment.capabilitiesVerified,
+      providerType: alignment.provider?.providerType ?? null,
       strategySupportsType: strategyItem !== void 0 && strategyItem.placementType === opportunity.placementType
     };
   });
@@ -21778,13 +21853,14 @@ async function loadPlanData(deps, campaignId) {
 }
 function providerAlignment(opportunity, providers) {
   if (opportunity.placementMethod === "OUTREACH") {
-    return { providerAvailable: true, capabilitiesVerified: true };
+    return { providerAvailable: true, capabilitiesVerified: true, provider: null };
   }
   const required2 = opportunity.placementMethod === "MANUAL" ? ["VERIFY"] : EXECUTION_REQUIRED_CAPABILITIES;
   const selected = selectBestProvider(providers, required2);
   return {
     providerAvailable: selected !== null,
-    capabilitiesVerified: selected?.capabilitiesVerified ?? false
+    capabilitiesVerified: selected?.capabilitiesVerified ?? false,
+    provider: selected
   };
 }
 function planAiInput(data) {
@@ -21859,6 +21935,7 @@ function buildPlacementPlan(data, decisionMap, meta3) {
       donorQuality: row.donorQuality,
       riskLevel: row.riskLevel,
       providerAvailable: row.providerAvailable,
+      providerType: row.providerType,
       decision: reconcilePlanDecision(
         {
           score: row.score,
@@ -22082,6 +22159,28 @@ var GetPlacementPlanUseCase = class {
 };
 
 // apps/api/src/dto.ts
+function mapDiscoveryState(run, campaignId) {
+  if (run === null) {
+    return {
+      campaignId,
+      status: "NOT_RUN",
+      lastRunAt: null,
+      discoveredCount: 0,
+      classifiedCount: 0,
+      sources: [],
+      failure: null
+    };
+  }
+  return {
+    campaignId,
+    status: run.status,
+    lastRunAt: toIso(run.lastRunAt),
+    discoveredCount: run.discoveredCount,
+    classifiedCount: run.classifiedCount,
+    sources: [...run.sources],
+    failure: run.failure
+  };
+}
 function buildLookupMaps(platforms, categories, providers) {
   return {
     platformById: new Map(platforms.map((platform) => [platform.id, platform])),
@@ -22377,6 +22476,7 @@ function mapPlacementPlan(plan) {
       donorQuality: item.donorQuality,
       riskLevel: item.riskLevel,
       providerAvailable: item.providerAvailable,
+      providerType: item.providerType,
       recommendation: item.decision.recommendation,
       recommendationReason: item.decision.recommendationReason,
       nextAction: item.decision.nextAction,
@@ -22491,7 +22591,8 @@ function createApiApp(services) {
     env.lookups,
     env.opportunities,
     env.auditLog,
-    buildDiscoverySources(env)
+    buildDiscoverySources(env),
+    env.discoveryRuns
   );
   const classify = new ClassifyOpportunityUseCase(
     env.ai,
@@ -22922,6 +23023,11 @@ function createApiApp(services) {
     });
     return c.json({ placementId: result.id, status: result.status }, 200);
   });
+  app.get("/api/discovery-state", async (c) => {
+    const campaign = await resolveCampaign(c);
+    const run = await env.discoveryRuns.findLatestForCampaign(campaign.id);
+    return c.json(mapDiscoveryState(run, campaign.id));
+  });
   app.post("/api/discover", async (c) => {
     const campaign = await resolveCampaign(c);
     const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
@@ -22941,6 +23047,7 @@ function createApiApp(services) {
     for (const opportunity of discovered) {
       classified.push(await classify.execute({ opportunityId: opportunity.id }));
     }
+    await discover.recordClassified(campaign.id, classified.length).catch(() => void 0);
     const context = await opportunityContext(env);
     const items = await Promise.all(
       classified.map((opportunity) => mapOpportunityWithRelations(env, opportunity, context))
@@ -23623,6 +23730,54 @@ function toAnalysis(row) {
     schemaVersion: row.schemaVersion,
     validationStatus: row.validationStatus,
     createdAt: row.createdAt
+  };
+}
+
+// packages/infrastructure/src/repositories/prisma-discovery-run.repository.ts
+var PrismaDiscoveryRunRepository = class {
+  constructor(db) {
+    this.db = db;
+  }
+  db;
+  async findLatestForCampaign(campaignId) {
+    const row = await this.db.discoveryRun.findUnique({ where: { campaignId } });
+    return row === null ? null : toDiscoveryRun(row);
+  }
+  async save(run) {
+    const row = await this.db.discoveryRun.upsert({
+      where: { campaignId: run.campaignId },
+      create: {
+        campaignId: run.campaignId,
+        status: run.status,
+        lastRunAt: run.lastRunAt,
+        discoveredCount: run.discoveredCount,
+        classifiedCount: run.classifiedCount,
+        sources: run.sources,
+        failure: run.failure
+      },
+      update: {
+        status: run.status,
+        lastRunAt: run.lastRunAt,
+        discoveredCount: run.discoveredCount,
+        classifiedCount: run.classifiedCount,
+        sources: run.sources,
+        failure: run.failure
+      }
+    });
+    return toDiscoveryRun(row);
+  }
+};
+function toDiscoveryRun(row) {
+  return {
+    campaignId: row.campaignId,
+    status: row.status,
+    lastRunAt: row.lastRunAt ?? row.createdAt,
+    discoveredCount: row.discoveredCount,
+    classifiedCount: row.classifiedCount,
+    sources: [...row.sources],
+    failure: row.failure,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
   };
 }
 
@@ -25074,6 +25229,7 @@ async function createPrismaEnvironment(config2 = loadRuntimeConfig()) {
   const evidence = new PrismaEvidenceRepository(db);
   const analyses = new PrismaAIAnalysisRepository(db);
   const auditLog = new PrismaAuditLogRepository(db);
+  const discoveryRuns = new PrismaDiscoveryRunRepository(db);
   const providerConfig = openCodeProviderConfig(config2);
   const openCodeProvider = providerConfig !== null ? new OpenCodeAIProvider(providerConfig) : null;
   let ai;
@@ -25139,6 +25295,7 @@ async function createPrismaEnvironment(config2 = loadRuntimeConfig()) {
     evidence,
     analyses,
     auditLog,
+    discoveryRuns,
     registry: registry2,
     ai,
     seoMetrics,

@@ -46,6 +46,7 @@ import {
   InMemoryAuditLogRepository,
   InMemoryCampaignRepository,
   InMemoryCompanyRepository,
+  InMemoryDiscoveryRunRepository,
   InMemoryEvidenceRepository,
   InMemoryLookupRepository,
   InMemoryPlacementOpportunityRepository,
@@ -90,6 +91,7 @@ export interface NordhausEnvironment {
   evidence: InMemoryEvidenceRepository;
   analyses: InMemoryAIAnalysisRepository;
   auditLog: InMemoryAuditLogRepository;
+  discoveryRuns: InMemoryDiscoveryRunRepository;
   registry: ReturnType<typeof createNordhausRegistry>;
   ai: AIProvider;
   seoMetrics: SeoMetricsProvider | null;
@@ -112,6 +114,7 @@ export function createNordhausEnvironment(
     evidence: new InMemoryEvidenceRepository(),
     analyses: new InMemoryAIAnalysisRepository(),
     auditLog: new InMemoryAuditLogRepository(),
+    discoveryRuns: new InMemoryDiscoveryRunRepository(),
     registry: createNordhausRegistry(),
     ai: options.ai ?? new ScenarioAIProvider(),
     seoMetrics:
@@ -213,6 +216,7 @@ export async function seedNordhausScenario(
     env.opportunities,
     env.auditLog,
     env.discoverySources,
+    env.discoveryRuns,
   );
   const discovered = await discover.execute({
     campaignId: campaign.id,
