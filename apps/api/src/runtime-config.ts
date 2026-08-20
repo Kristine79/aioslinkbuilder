@@ -19,6 +19,13 @@
  *     placement execution against synthetic providers is impossible.
  *   Production must never set "allow": an unknown value fails startup
  *   instead of silently enabling mocks.
+ * - OPENCODE_TIMEOUT_MS (optional) — per-request timeout for all OpenCode Go
+ *   calls (default 30s).
+ * - OPENCODE_PLAN_TIMEOUT_MS (optional) — timeout for placement plan
+ *   generation (default 120s).
+ * - OPENCODE_PLAN_MAX_TOKENS (optional) — output budget for placement plan
+ *   generation (default 8000; "0" omits the cap and uses the provider
+ *   default budget).
  *
  * Explicitly requesting a real mode without the required credentials is a
  * startup error — the product never silently falls back to demo data when
@@ -31,6 +38,8 @@ import {
   defaultAiSearchBaseUrl,
   defaultAiSearchModel,
   parseSearchCapabilities,
+  parsePlanMaxTokens,
+  parsePlanTimeoutMs,
   type AiProviderCapabilities,
   type OpenCodeAIProviderConfig,
 } from '@aios/ai';
@@ -190,6 +199,8 @@ export function openCodeProviderConfig(
     baseUrl,
     model,
     timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 30000,
+    planMaxTokens: parsePlanMaxTokens(env.OPENCODE_PLAN_MAX_TOKENS),
+    planTimeoutMs: parsePlanTimeoutMs(env.OPENCODE_PLAN_TIMEOUT_MS),
   };
 }
 

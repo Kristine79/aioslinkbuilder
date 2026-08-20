@@ -52,10 +52,18 @@ export {
   OpenCodeAIProvider,
   openCodeConfigFromEnv,
   DEFAULT_OPENCODE_MODEL,
+  DEFAULT_OPENCODE_PLAN_MAX_TOKENS,
+  DEFAULT_OPENCODE_PLAN_TIMEOUT_MS,
+  parsePlanMaxTokens,
+  parsePlanTimeoutMs,
 } from './providers/opencode-ai-provider.js';
 export type { OpenCodeAIProviderConfig } from './providers/opencode-ai-provider.js';
 export { OpenCodeClient, OpenCodeClientError } from './providers/opencode-client.js';
-export type { OpenCodeClientConfig, ChatMessage } from './providers/opencode-client.js';
+export type {
+  OpenCodeClientConfig,
+  ChatMessage,
+  OpenCodeChatOptions,
+} from './providers/opencode-client.js';
 export {
   defaultOpenCodeBaseUrl,
   OpenCodeModelConfigError,

@@ -3522,7 +3522,12 @@ var DiscoverOpportunitiesUseCase = class {
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
+        description: company.description,
+        industry: company.industry,
+        website: company.website,
         geography: company.geography,
+        products: company.products,
+        targetAudience: company.targetAudience,
         goals: campaign.goals,
         strategyDirections
       });
@@ -18260,6 +18265,7 @@ var OpenCodeProviderRateLimitError = class extends Error {
 
 // packages/ai/src/providers/opencode-client.ts
 var DEFAULT_TIMEOUT_MS = 3e4;
+var DEFAULT_MAX_TOKENS = 3e3;
 var MAX_RETRIES = 2;
 var BACKOFF_BASE_MS = 800;
 var OpenCodeClientError = class extends Error {
@@ -18293,19 +18299,24 @@ var OpenCodeClient = class {
    * the assistant message content. Throws OpenCodeClientError on transport
    * or response failures; the caller maps it to application errors.
    */
-  async chat(messages, options) {
+  async chat(messages, options = {}) {
     if (this.model === "") {
       throw new OpenCodeModelConfigError("OPENCODE_MODEL is required to call OpenCode Go");
     }
     const body = {
       model: this.model,
       messages,
-      temperature: 0.2,
-      max_tokens: 3e3
+      temperature: 0.2
     };
-    if (options?.jsonMode === true) {
+    if (options.maxTokens === void 0) {
+      body.max_tokens = DEFAULT_MAX_TOKENS;
+    } else if (options.maxTokens !== null) {
+      body.max_tokens = options.maxTokens;
+    }
+    if (options.jsonMode === true) {
       body.response_format = { type: "json_object" };
     }
+    const timeoutMs = options.timeoutMs ?? this.timeoutMs;
     let lastError = null;
     let correctiveApplied = false;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -18319,7 +18330,10 @@ var OpenCodeClient = class {
         }
       ] : [];
       try {
-        return await this.completeOnce({ ...body, messages: [...messages, ...corrective] });
+        return await this.completeOnce(
+          { ...body, messages: [...messages, ...corrective] },
+          timeoutMs
+        );
       } catch (error51) {
         if (!(error51 instanceof OpenCodeClientError)) {
           throw error51;
@@ -18341,7 +18355,7 @@ var OpenCodeClient = class {
     if (lastError !== null) throw lastError;
     throw new OpenCodeClientError("response", "OpenCode Go returned no response", null);
   }
-  async completeOnce(body) {
+  async completeOnce(body, timeoutMs) {
     let response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
@@ -18351,7 +18365,7 @@ var OpenCodeClient = class {
           Authorization: `Bearer ${this.apiKey}`
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.timeoutMs)
+        signal: AbortSignal.timeout(timeoutMs)
       });
     } catch (error51) {
       if (error51 instanceof Error && error51.name === "TimeoutError") {
@@ -18441,7 +18455,18 @@ function extractAssistantContent(payload) {
   const message = first.message;
   if (message === null || typeof message !== "object") return null;
   const content = message.content;
-  return typeof content === "string" && content.trim() !== "" ? content : null;
+  if (typeof content === "string") {
+    return content.trim() !== "" ? content : null;
+  }
+  if (Array.isArray(content)) {
+    const textParts = content.map((part) => {
+      if (part === null || typeof part !== "object") return null;
+      const p = part;
+      return p.type === "text" && typeof p.text === "string" ? p.text : null;
+    }).filter((part) => part !== null).join("");
+    return textParts.trim() !== "" ? textParts : null;
+  }
+  return null;
 }
 function extractJson(content) {
   const trimmed = content.trim();
@@ -18471,11 +18496,26 @@ function sleep(ms) {
 
 // packages/ai/src/providers/opencode-ai-provider.ts
 var DEFAULT_OPENCODE_MODEL = "deepseek-v4-pro";
+var DEFAULT_OPENCODE_PLAN_MAX_TOKENS = 8e3;
+var DEFAULT_OPENCODE_PLAN_TIMEOUT_MS = 12e4;
+function parsePlanMaxTokens(value) {
+  if (value === void 0 || value.trim() === "") return DEFAULT_OPENCODE_PLAN_MAX_TOKENS;
+  const raw2 = Number(value);
+  if (raw2 === 0) return null;
+  return Number.isFinite(raw2) && raw2 > 0 ? Math.floor(raw2) : DEFAULT_OPENCODE_PLAN_MAX_TOKENS;
+}
+function parsePlanTimeoutMs(value) {
+  if (value === void 0 || value.trim() === "") return DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
+  const raw2 = Number(value);
+  return Number.isFinite(raw2) && raw2 > 0 ? Math.floor(raw2) : DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
+}
 var OpenCodeAIProvider = class {
   name;
   /** Configured model id (surfaced to the UI as provenance). */
   model;
   client;
+  planMaxTokens;
+  planTimeoutMs;
   constructor(config2) {
     if (config2.apiKey.trim() === "") {
       throw new OpenCodeModelConfigError("OPENCODE_API_KEY is required for AI_MODE=real");
@@ -18483,6 +18523,8 @@ var OpenCodeAIProvider = class {
     this.name = config2.name ?? "opencode-go";
     this.client = new OpenCodeClient(config2);
     this.model = this.client.model;
+    this.planMaxTokens = config2.planMaxTokens === void 0 ? DEFAULT_OPENCODE_PLAN_MAX_TOKENS : config2.planMaxTokens;
+    this.planTimeoutMs = config2.planTimeoutMs ?? DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
   }
   analyzeCompany(input) {
     return this.structured("analyzeCompany", companyAnalysisPrompt(input));
@@ -18515,15 +18557,21 @@ var OpenCodeAIProvider = class {
     return this.structured("assessDonorRisk", donorRiskPrompt(input));
   }
   generatePlacementPlan(input) {
-    return this.structured("generatePlacementPlan", placementPlanPrompt(input));
+    return this.structured("generatePlacementPlan", placementPlanPrompt(input), {
+      maxTokens: this.planMaxTokens,
+      timeoutMs: this.planTimeoutMs
+    });
   }
   generateSearchQueries(input) {
     return this.structured("generateSearchQueries", searchQueriesPrompt(input));
   }
   /** Runs the prompt through OpenCode Go, mapping failures to typed errors. */
-  async structured(operation, messages) {
+  async structured(operation, messages, options) {
     try {
-      const parsed = await this.client.chat(messages, { jsonMode: true });
+      const parsed = await this.client.chat(messages, {
+        jsonMode: true,
+        ...options !== void 0 ? { maxTokens: options.maxTokens, timeoutMs: options.timeoutMs } : {}
+      });
       return parsed;
     } catch (error51) {
       if (error51 instanceof OpenCodeModelConfigError) {
@@ -19491,12 +19539,12 @@ var WebSearchPlatformDiscoverySource = class {
     const plan = await this.queryGenerator.generate({
       company: {
         name: input.companyName,
-        description: null,
-        industry: null,
-        website: null,
+        description: input.description,
+        industry: input.industry,
+        website: input.website,
         geography: input.geography,
-        products: [],
-        targetAudience: []
+        products: input.products,
+        targetAudience: input.targetAudience
       },
       campaignGoals: input.goals,
       // Search context comes from the campaign's real strategy directions
@@ -19506,9 +19554,10 @@ var WebSearchPlatformDiscoverySource = class {
       availableCategoryCodes: categories.map((category) => category.code)
     });
     const availableCodes = new Set(categories.map((category) => category.code));
-    const queries = plan.intents.flatMap(
-      (intent) => intent.categoryCode !== null && !availableCodes.has(intent.categoryCode) ? [] : intent.queries
-    ).slice(0, options.maxQueries);
+    const survivingIntents = plan.intents.filter(
+      (intent) => intent.categoryCode === null || availableCodes.has(intent.categoryCode)
+    );
+    const queries = selectQueriesBalanced(survivingIntents, options.maxQueries);
     const rawResults = await this.runSearches(queries, options);
     const normalized = normalizeResults(rawResults, options);
     const categoryByUrl = categoryHintByUrl(normalized, plan.intents);
@@ -19597,6 +19646,18 @@ var DiscoverySearchFailedError = class extends Error {
   providerName;
   attemptedQueries;
 };
+function selectQueriesBalanced(intents, maxQueries) {
+  const selected = [];
+  const longest = intents.reduce((max, intent) => Math.max(max, intent.queries.length), 0);
+  for (let round = 0; round < longest; round += 1) {
+    for (const intent of intents) {
+      if (selected.length >= maxQueries) return selected;
+      const query = intent.queries[round];
+      if (query !== void 0) selected.push(query);
+    }
+  }
+  return selected;
+}
 function normalizeResults(results, options) {
   const seen = /* @__PURE__ */ new Set();
   const unique3 = [];
@@ -19995,6 +20056,9 @@ var InMemoryPlacementProviderRegistry = class {
         (provider) => provider.platformId === platformId && this.isUsable(provider)
       )
     );
+  }
+  listProviders() {
+    return Promise.resolve(this.entities.filter((provider) => this.isUsable(provider)));
   }
   resolve(providerId) {
     const entity = this.entities.find((provider) => provider.id === providerId);
@@ -20947,23 +21011,20 @@ var RequestManualPlacementUseCase = class {
     const intel = readIntel(opportunity.metadata);
     const isManual = opportunity.placementMethod === "MANUAL";
     const isAgreedOutreach = opportunity.placementMethod === "OUTREACH" && intel.outreach?.status === "AGREED";
-    if (!isManual && !isAgreedOutreach) {
+    const providers = await this.providers.listByPlatformId(opportunity.platformId);
+    const automatic = selectBestProvider(providers, EXECUTION_REQUIRED_CAPABILITIES);
+    const manualFallback = automatic === null;
+    if (!isManual && !isAgreedOutreach && !manualFallback) {
       throw new ValidationError(
-        `Opportunity ${opportunity.id} is not aligned for manual placement (method ${opportunity.placementMethod}, outreach ${intel.outreach?.status ?? "none"})`
+        `Opportunity ${opportunity.id} cannot be routed to manual placement (method ${opportunity.placementMethod}, outreach ${intel.outreach?.status ?? "none"})`
       );
     }
     let providerId = null;
     if (isManual) {
-      const providers = await this.providers.listByPlatformId(opportunity.platformId);
       const manualProvider = providers.find(
         (provider) => provider.providerType === "MANUAL" && provider.capabilitiesVerified
       );
-      if (manualProvider === void 0) {
-        throw new ValidationError(
-          `No verified manual provider available for platform ${opportunity.platformId}`
-        );
-      }
-      providerId = manualProvider.id;
+      providerId = manualProvider?.id ?? null;
     }
     validatePlacement({
       opportunityId: opportunity.id,
@@ -22260,7 +22321,8 @@ function buildLookupMaps(platforms, categories, providers) {
     providerById: new Map(providers.map((provider) => [provider.id, provider]))
   };
 }
-function opportunityActions(opportunity, intel) {
+function opportunityActions(opportunity, intel, context) {
+  const autoExecution = canExecuteAutomatically(opportunity, context);
   if (opportunity.status === "QUALIFIED") {
     return ["approve"];
   }
@@ -22270,23 +22332,30 @@ function opportunityActions(opportunity, intel) {
     }
     if (opportunity.placementMethod === "MANUAL") {
       const actions = ["requestManual"];
-      if (hasExecutionProvider(opportunity)) actions.push("execute");
+      if (autoExecution) actions.push("execute");
       return actions;
     }
-    return hasExecutionProvider(opportunity) ? ["execute"] : [];
+    if (autoExecution) return ["execute"];
+    return ["requestManual"];
   }
   if (opportunity.status === "READY") {
-    return ["execute"];
+    return autoExecution ? ["execute"] : [];
   }
   if (opportunity.status === "NEEDS_MANUAL" && intel?.outreach?.status === "AGREED") {
     return [];
   }
   return [];
 }
-function hasExecutionProvider(opportunity) {
-  return EXECUTION_REQUIRED_CAPABILITIES.every(
-    (capability) => supportsCapability(opportunity.providerCapabilities, capability)
+function canExecuteAutomatically(opportunity, context) {
+  if (context === void 0) {
+    return EXECUTION_REQUIRED_CAPABILITIES.every(
+      (capability) => supportsCapability(opportunity.providerCapabilities, capability)
+    );
+  }
+  const platformProviders = context.envProviders.filter(
+    (provider) => provider.platformId === opportunity.platformId
   );
+  return selectBestProvider(platformProviders, EXECUTION_REQUIRED_CAPABILITIES) !== null;
 }
 function placementActions(placement) {
   const actions = [];
@@ -22379,7 +22448,7 @@ function mapOpportunity(opportunity, placements, verificationsByPlacement, evide
     status: opportunity.status,
     createdAt: toIso(opportunity.createdAt),
     updatedAt: toIso(opportunity.updatedAt),
-    allowedActions: opportunityActions(opportunity, intel),
+    allowedActions: opportunityActions(opportunity, intel, context),
     placements: placements.map(
       (placement) => mapPlacement(placement, verificationsByPlacement, evidenceByVerification, context.maps)
     ),
@@ -23380,7 +23449,11 @@ async function opportunityContext(env) {
   const [categories, platforms, providers] = await Promise.all([
     env.lookups.listCategories(),
     env.lookups.listPlatforms(),
-    env.lookups.listProviders()
+    // The registry applies the environment policy (e.g. MOCK_PROVIDERS=deny
+    // in production, ADR-015). The display/alignment gate must read the same
+    // provider set the execution use cases resolve from, so it can never
+    // offer an action the backend cannot honor.
+    env.registry.listProviders()
   ]);
   return { maps: buildLookupMaps(platforms, categories, providers), envProviders: providers };
 }
@@ -24163,7 +24236,9 @@ function openCodeProviderConfig(config2, env = process.env) {
     apiKey,
     baseUrl,
     model,
-    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 3e4
+    timeoutMs: Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 3e4,
+    planMaxTokens: parsePlanMaxTokens(env.OPENCODE_PLAN_MAX_TOKENS),
+    planTimeoutMs: parsePlanTimeoutMs(env.OPENCODE_PLAN_TIMEOUT_MS)
   };
 }
 function parseMode(value, name, fallback) {

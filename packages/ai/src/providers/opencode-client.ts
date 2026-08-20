@@ -15,6 +15,7 @@
 import { defaultOpenCodeBaseUrl, OpenCodeModelConfigError } from './opencode-errors.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_TOKENS = 3_000;
 const MAX_RETRIES = 2;
 const BACKOFF_BASE_MS = 800;
 
@@ -31,10 +32,17 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface OpenCodeClientOptions {
-  timeoutMs: number;
-  /** Attempted once per transport call, increments transport-level retries. */
-  attempt: number;
+/** Per-call overrides for chat completions (task-specific limits). */
+export interface OpenCodeChatOptions {
+  jsonMode?: boolean;
+  /**
+   * max_tokens for this call. `undefined` keeps the default configured in
+   * this file; a number overrides it; `null` omits the field entirely
+   * (provider default budget).
+   */
+  maxTokens?: number | null;
+  /** Per-call timeout; falls back to the client-level timeout. */
+  timeoutMs?: number;
 }
 
 export class OpenCodeClientError extends Error {
@@ -72,7 +80,7 @@ export class OpenCodeClient {
    * the assistant message content. Throws OpenCodeClientError on transport
    * or response failures; the caller maps it to application errors.
    */
-  async chat(messages: ChatMessage[], options?: { jsonMode?: boolean }): Promise<unknown> {
+  async chat(messages: ChatMessage[], options: OpenCodeChatOptions = {}): Promise<unknown> {
     if (this.model === '') {
       throw new OpenCodeModelConfigError('OPENCODE_MODEL is required to call OpenCode Go');
     }
@@ -80,11 +88,18 @@ export class OpenCodeClient {
       model: this.model,
       messages,
       temperature: 0.2,
-      max_tokens: 3_000,
     };
-    if (options?.jsonMode === true) {
+    // undefined → the shared default; null → omit (provider default budget);
+    // a number → explicit cap for this call.
+    if (options.maxTokens === undefined) {
+      body.max_tokens = DEFAULT_MAX_TOKENS;
+    } else if (options.maxTokens !== null) {
+      body.max_tokens = options.maxTokens;
+    }
+    if (options.jsonMode === true) {
       body.response_format = { type: 'json_object' };
     }
+    const timeoutMs = options.timeoutMs ?? this.timeoutMs;
 
     let lastError: OpenCodeClientError | null = null;
     let correctiveApplied = false;
@@ -102,7 +117,10 @@ export class OpenCodeClient {
           ]
         : [];
       try {
-        return await this.completeOnce({ ...body, messages: [...messages, ...corrective] });
+        return await this.completeOnce(
+          { ...body, messages: [...messages, ...corrective] },
+          timeoutMs,
+        );
       } catch (error) {
         if (!(error instanceof OpenCodeClientError)) {
           throw error;
@@ -128,7 +146,7 @@ export class OpenCodeClient {
     throw new OpenCodeClientError('response', 'OpenCode Go returned no response', null);
   }
 
-  private async completeOnce(body: Record<string, unknown>): Promise<unknown> {
+  private async completeOnce(body: Record<string, unknown>, timeoutMs: number): Promise<unknown> {
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
@@ -138,7 +156,7 @@ export class OpenCodeClient {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'TimeoutError') {
@@ -231,7 +249,23 @@ function extractAssistantContent(payload: unknown): string | null {
   const message = (first as Record<string, unknown>).message;
   if (message === null || typeof message !== 'object') return null;
   const content = (message as Record<string, unknown>).content;
-  return typeof content === 'string' && content.trim() !== '' ? content : null;
+  if (typeof content === 'string') {
+    return content.trim() !== '' ? content : null;
+  }
+  // OpenAI-compatible responses may split content into typed parts
+  // (e.g. [{ type: "text", text: "..." }]); collect the text parts.
+  if (Array.isArray(content)) {
+    const textParts = content
+      .map((part) => {
+        if (part === null || typeof part !== 'object') return null;
+        const p = part as Record<string, unknown>;
+        return p.type === 'text' && typeof p.text === 'string' ? p.text : null;
+      })
+      .filter((part): part is string => part !== null)
+      .join('');
+    return textParts.trim() !== '' ? textParts : null;
+  }
+  return null;
 }
 
 function extractJson(content: string): unknown {

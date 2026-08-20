@@ -12,6 +12,9 @@
  * - OPENCODE_API_KEY  (required in real mode)
  * - OPENCODE_BASE_URL (optional; default https://opencode.ai/zen/go/v1)
  * - OPENCODE_MODEL    (optional; default deepseek-v4-pro)
+ * - OPENCODE_PLAN_MAX_TOKENS  (placement plan generation budget; default 8000,
+ *   use "0" to omit the cap and rely on the provider default)
+ * - OPENCODE_PLAN_TIMEOUT_MS  (placement plan generation timeout; default 120000)
  */
 
 import type {
@@ -58,9 +61,19 @@ import {
 export interface OpenCodeAIProviderConfig extends OpenCodeClientConfig {
   /** Human-visible provider label (default "opencode-go"). */
   name?: string;
+  /**
+   * max_tokens for placement plan generation (default 8000). `null` omits
+   * max_tokens for this call (provider default budget). Other AI tasks keep
+   * the client-level default.
+   */
+  planMaxTokens?: number | null;
+  /** Timeout for placement plan generation (default 120s). */
+  planTimeoutMs?: number;
 }
 
 export const DEFAULT_OPENCODE_MODEL = 'deepseek-v4-pro';
+export const DEFAULT_OPENCODE_PLAN_MAX_TOKENS = 8_000;
+export const DEFAULT_OPENCODE_PLAN_TIMEOUT_MS = 120_000;
 
 /** Reads provider config from the process environment (no secrets logged). */
 export function openCodeConfigFromEnv(
@@ -71,10 +84,26 @@ export function openCodeConfigFromEnv(
   return {
     apiKey,
     model,
+    planMaxTokens: parsePlanMaxTokens(env.OPENCODE_PLAN_MAX_TOKENS),
+    planTimeoutMs: parsePlanTimeoutMs(env.OPENCODE_PLAN_TIMEOUT_MS),
     ...(env.OPENCODE_BASE_URL !== undefined && env.OPENCODE_BASE_URL.trim() !== ''
       ? { baseUrl: env.OPENCODE_BASE_URL }
       : {}),
   };
+}
+
+/** "0" disables the explicit cap (omit max_tokens); default otherwise. */
+export function parsePlanMaxTokens(value: string | undefined): number | null {
+  if (value === undefined || value.trim() === '') return DEFAULT_OPENCODE_PLAN_MAX_TOKENS;
+  const raw = Number(value);
+  if (raw === 0) return null;
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_OPENCODE_PLAN_MAX_TOKENS;
+}
+
+export function parsePlanTimeoutMs(value: string | undefined): number {
+  if (value === undefined || value.trim() === '') return DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
+  const raw = Number(value);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
 }
 
 /**
@@ -87,6 +116,8 @@ export class OpenCodeAIProvider implements AIProvider {
   /** Configured model id (surfaced to the UI as provenance). */
   readonly model: string;
   private readonly client: OpenCodeClient;
+  private readonly planMaxTokens: number | null;
+  private readonly planTimeoutMs: number;
 
   constructor(config: OpenCodeAIProviderConfig) {
     if (config.apiKey.trim() === '') {
@@ -95,6 +126,9 @@ export class OpenCodeAIProvider implements AIProvider {
     this.name = config.name ?? 'opencode-go';
     this.client = new OpenCodeClient(config);
     this.model = this.client.model;
+    this.planMaxTokens =
+      config.planMaxTokens === undefined ? DEFAULT_OPENCODE_PLAN_MAX_TOKENS : config.planMaxTokens;
+    this.planTimeoutMs = config.planTimeoutMs ?? DEFAULT_OPENCODE_PLAN_TIMEOUT_MS;
   }
 
   analyzeCompany(input: CompanyAnalysisInput): Promise<CompanyAnalysis> {
@@ -138,7 +172,10 @@ export class OpenCodeAIProvider implements AIProvider {
   }
 
   generatePlacementPlan(input: PlacementPlanInput): Promise<PlacementPlanDecisionMap> {
-    return this.structured('generatePlacementPlan', placementPlanPrompt(input));
+    return this.structured('generatePlacementPlan', placementPlanPrompt(input), {
+      maxTokens: this.planMaxTokens,
+      timeoutMs: this.planTimeoutMs,
+    });
   }
 
   generateSearchQueries(input: GenerateSearchQueriesInput): Promise<SearchQueryPlan> {
@@ -149,9 +186,15 @@ export class OpenCodeAIProvider implements AIProvider {
   private async structured<T>(
     operation: string,
     messages: Array<{ role: 'system' | 'user'; content: string }>,
+    options?: { maxTokens?: number | null; timeoutMs?: number },
   ): Promise<T> {
     try {
-      const parsed = await this.client.chat(messages, { jsonMode: true });
+      const parsed = await this.client.chat(messages, {
+        jsonMode: true,
+        ...(options !== undefined
+          ? { maxTokens: options.maxTokens, timeoutMs: options.timeoutMs }
+          : {}),
+      });
       return parsed as T;
     } catch (error) {
       if (error instanceof OpenCodeModelConfigError) {

@@ -12,6 +12,7 @@ export default tseslint.config(
       '.vercel/**',
       'pnpm-lock.yaml',
       'api/index.mjs',
+      '.tmp-qa/**',
     ],
   },
   eslint.configs.recommended,

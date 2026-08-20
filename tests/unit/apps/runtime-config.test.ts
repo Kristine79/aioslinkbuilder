@@ -207,4 +207,42 @@ describe('openCodeProviderConfig', () => {
     expect(providerConfig?.apiKey).toBe('k');
     expect(providerConfig?.timeoutMs).toBe(30000);
   });
+
+  it('defaults the placement plan limits to 8000 tokens and 120s', () => {
+    const config = loadRuntimeConfig({ ...DEFAULTS, AI_MODE: 'real', OPENCODE_API_KEY: 'k' });
+    const providerConfig = openCodeProviderConfig(config);
+    expect(providerConfig?.planMaxTokens).toBe(8000);
+    expect(providerConfig?.planTimeoutMs).toBe(120000);
+  });
+
+  it('reads placement plan limits from the environment', () => {
+    const config = loadRuntimeConfig({ ...DEFAULTS, AI_MODE: 'real', OPENCODE_API_KEY: 'k' });
+    const providerConfig = openCodeProviderConfig(config, {
+      ...process.env,
+      OPENCODE_PLAN_MAX_TOKENS: '16000',
+      OPENCODE_PLAN_TIMEOUT_MS: '180000',
+    });
+    expect(providerConfig?.planMaxTokens).toBe(16000);
+    expect(providerConfig?.planTimeoutMs).toBe(180000);
+  });
+
+  it('supports disabling the plan token cap via "0"', () => {
+    const config = loadRuntimeConfig({ ...DEFAULTS, AI_MODE: 'real', OPENCODE_API_KEY: 'k' });
+    const providerConfig = openCodeProviderConfig(config, {
+      ...process.env,
+      OPENCODE_PLAN_MAX_TOKENS: '0',
+    });
+    expect(providerConfig?.planMaxTokens).toBeNull();
+  });
+
+  it('rejects invalid plan limit values with the defaults', () => {
+    const config = loadRuntimeConfig({ ...DEFAULTS, AI_MODE: 'real', OPENCODE_API_KEY: 'k' });
+    const providerConfig = openCodeProviderConfig(config, {
+      ...process.env,
+      OPENCODE_PLAN_MAX_TOKENS: 'abc',
+      OPENCODE_PLAN_TIMEOUT_MS: '-5',
+    });
+    expect(providerConfig?.planMaxTokens).toBe(8000);
+    expect(providerConfig?.planTimeoutMs).toBe(120000);
+  });
 });

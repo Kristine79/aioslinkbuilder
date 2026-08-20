@@ -16,6 +16,7 @@ function assistantEnvelope(content: string): Response {
 
 interface SentRequest {
   model?: string;
+  max_tokens?: number;
   response_format?: { type?: string };
   messages?: Array<{ role: string; content: string }>;
   headers?: Record<string, string>;
@@ -147,6 +148,68 @@ describe('OpenCodeClient', () => {
 
   it('throws a response error when the envelope has no assistant content', async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ choices: [] }));
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await expect(client.chat([{ role: 'user', content: 'x' }])).rejects.toMatchObject({
+      category: 'response',
+    });
+  });
+
+  it('overrides max_tokens for a call when requested', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(assistantEnvelope('{"ok":true}'));
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await client.chat([{ role: 'user', content: 'x' }], { maxTokens: 8_000 });
+    expect(sentRequest(fetchImpl).max_tokens).toBe(8_000);
+  });
+
+  it('omits max_tokens for a call when explicitly disabled', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(assistantEnvelope('{"ok":true}'));
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await client.chat([{ role: 'user', content: 'x' }], { maxTokens: null });
+    expect(sentRequest(fetchImpl).max_tokens).toBeUndefined();
+  });
+
+  it('keeps the default max_tokens when the call does not override it', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(assistantEnvelope('{"ok":true}'));
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await client.chat([{ role: 'user', content: 'x' }]);
+    expect(sentRequest(fetchImpl).max_tokens).toBe(3_000);
+  });
+
+  it('uses the per-call timeout when provided', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(assistantEnvelope('{"ok":true}'));
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await client.chat([{ role: 'user', content: 'x' }], { timeoutMs: 120_000 });
+    expect(timeoutSpy).toHaveBeenCalledWith(120_000);
+    timeoutSpy.mockRestore();
+  });
+
+  it('extracts assistant content delivered as an array of text parts', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: [
+                { type: 'text', text: '{"a":' },
+                { type: 'text', text: '1}' },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+    const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
+    await expect(client.chat([{ role: 'user', content: 'x' }])).resolves.toEqual({ a: 1 });
+  });
+
+  it('still fails honestly when the content array carries no text', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({
+        choices: [{ message: { role: 'assistant', content: [{ type: 'refusal', text: 'no' }] } }],
+      }),
+    );
     const client = new OpenCodeClient({ apiKey: 'key', model: 'm', fetchImpl });
     await expect(client.chat([{ role: 'user', content: 'x' }])).rejects.toMatchObject({
       category: 'response',
