@@ -80,7 +80,15 @@ export class DiscoverOpportunitiesUseCase {
 
   private async runSources(
     command: DiscoverOpportunitiesCommand,
-    company: { name: string; geography: string[] },
+    company: {
+      name: string;
+      description: string | null;
+      industry: string | null;
+      website: string | null;
+      geography: string[];
+      products: string[];
+      targetAudience: string[];
+    },
     campaign: { goals: string[] },
     categoryCodes: string[],
     run: Awaited<ReturnType<typeof startDiscoveryRun>>,
@@ -110,7 +118,12 @@ export class DiscoverOpportunitiesUseCase {
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
+        description: company.description,
+        industry: company.industry,
+        website: company.website,
         geography: company.geography,
+        products: company.products,
+        targetAudience: company.targetAudience,
         goals: campaign.goals,
         strategyDirections,
       });

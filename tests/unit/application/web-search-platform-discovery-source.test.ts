@@ -40,7 +40,12 @@ class StubSearchProvider implements WebSearchProvider {
 
 const INPUT: DiscoverySourceInput = {
   companyName: 'Nordhaus',
+  description: 'Производитель премиальной мебели на заказ',
+  industry: 'furniture',
+  website: 'https://nordhaus.example.com',
   geography: ['Москва', 'Россия'],
+  products: ['кухни', 'шкафы-купе'],
+  targetAudience: ['дизайнеры интерьеров'],
   goals: ['Профили в мебельных каталогах'],
   strategyDirections: [],
 };
@@ -134,6 +139,17 @@ describe('WebSearchPlatformDiscoverySource', () => {
     // The available list stays the catalog — the generator must not be told
     // that AI-derived codes are catalog categories.
     expect(received[0]?.availableCategoryCodes).toEqual(['furniture-directories', 'media-pr']);
+    // The full company profile reaches the generator: real description,
+    // industry, website, products and audience drive concrete queries.
+    expect(received[0]?.company).toMatchObject({
+      name: 'Nordhaus',
+      description: 'Производитель премиальной мебели на заказ',
+      industry: 'furniture',
+      website: 'https://nordhaus.example.com',
+      geography: ['Москва', 'Россия'],
+      products: ['кухни', 'шкафы-купе'],
+      targetAudience: ['дизайнеры интерьеров'],
+    });
   });
 
   it('reuses already-registered platforms instead of duplicating them', async () => {
@@ -202,6 +218,56 @@ describe('WebSearchPlatformDiscoverySource', () => {
 
     await source.discover(INPUT);
     expect(search.calls).toHaveLength(5);
+  });
+
+  it('spends the query budget fairly across intents (round-robin)', async () => {
+    const lookups = makeEnv();
+    const search = new StubSearchProvider();
+    const generator = {
+      name: 'multi-intent-generator',
+      generate: () =>
+        Promise.resolve({
+          intents: [
+            {
+              intent: 'Каталоги',
+              categoryCode: 'furniture-directories',
+              queries: ['a1', 'a2', 'a3'],
+            },
+            { intent: 'Медиа', categoryCode: 'media-pr', queries: ['b1', 'b2', 'b3'] },
+            { intent: 'Локальные', categoryCode: null, queries: ['c1', 'c2', 'c3'] },
+          ],
+        }),
+    };
+    const source = new WebSearchPlatformDiscoverySource(lookups, search, generator, {
+      maxQueries: 5,
+    });
+
+    await source.discover(INPUT);
+
+    // Every intent yields its first query before any intent yields a second,
+    // so later directions are never starved by the flat cap.
+    expect(search.calls).toEqual(['a1', 'b1', 'c1', 'a2', 'b2']);
+  });
+
+  it('excludes intents with unknown category codes from the query budget', async () => {
+    const lookups = makeEnv();
+    const search = new StubSearchProvider();
+    const generator = {
+      name: 'unknown-category-generator',
+      generate: () =>
+        Promise.resolve({
+          intents: [
+            { intent: 'Каталоги', categoryCode: 'furniture-directories', queries: ['a1', 'a2'] },
+            { intent: 'Неизвестно', categoryCode: 'no-such-code', queries: ['x1', 'x2'] },
+          ],
+        }),
+    };
+    const source = new WebSearchPlatformDiscoverySource(lookups, search, generator, {
+      maxQueries: 10,
+    });
+
+    await source.discover(INPUT);
+    expect(search.calls).toEqual(['a1', 'a2']);
   });
 
   it('keeps working when a single query fails, but fails when all fail', async () => {

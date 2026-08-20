@@ -12,7 +12,13 @@ import type { PlacementStrategyItem } from '@aios/domain';
 
 export interface DiscoverySourceInput {
   companyName: string;
+  /** Company profile passed through to search-intent planning (may be empty). */
+  description: string | null;
+  industry: string | null;
+  website: string | null;
   geography: string[];
+  products: string[];
+  targetAudience: string[];
   goals: string[];
   /**
    * The campaign's real strategy directions (catalog-backed with

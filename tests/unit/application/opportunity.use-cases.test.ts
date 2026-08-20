@@ -287,7 +287,7 @@ describe('DiscoverOpportunitiesUseCase', () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it('passes the real company profile (name and geography) to discovery sources', async () => {
+  it('passes the real company profile (full profile) to discovery sources', async () => {
     const companies = new InMemoryCompanyRepository();
     const campaigns = new InMemoryCampaignRepository();
     const lookups = new InMemoryLookupRepository();
@@ -298,7 +298,12 @@ describe('DiscoverOpportunitiesUseCase', () => {
 
     const company = await companies.create({
       name: 'Nordhaus',
+      description: 'Производитель премиальной мебели на заказ',
+      industry: 'furniture',
+      website: 'https://nordhaus.example.com',
       geography: ['Moscow', 'Russia'],
+      products: ['кухни', 'шкафы-купе'],
+      targetAudience: ['дизайнеры интерьеров'],
     });
     const campaign = await campaigns.create({
       companyId: company.id,
@@ -328,7 +333,12 @@ describe('DiscoverOpportunitiesUseCase', () => {
     expect(received).toHaveLength(1);
     expect(received[0]).toMatchObject({
       companyName: 'Nordhaus',
+      description: 'Производитель премиальной мебели на заказ',
+      industry: 'furniture',
+      website: 'https://nordhaus.example.com',
       geography: ['Moscow', 'Russia'],
+      products: ['кухни', 'шкафы-купе'],
+      targetAudience: ['дизайнеры интерьеров'],
       goals: ['Grow visibility'],
     });
   });

@@ -61,12 +61,12 @@ export class WebSearchPlatformDiscoverySource implements PlatformDiscoverySource
     const plan = await this.queryGenerator.generate({
       company: {
         name: input.companyName,
-        description: null,
-        industry: null,
-        website: null,
+        description: input.description,
+        industry: input.industry,
+        website: input.website,
         geography: input.geography,
-        products: [],
-        targetAudience: [],
+        products: input.products,
+        targetAudience: input.targetAudience,
       },
       campaignGoals: input.goals,
       // Search context comes from the campaign's real strategy directions
@@ -76,15 +76,17 @@ export class WebSearchPlatformDiscoverySource implements PlatformDiscoverySource
       availableCategoryCodes: categories.map((category) => category.code),
     });
 
-    // Safety nets: cap queries, drop intents whose category is unknown.
+    // Safety nets: drop intents whose category is unknown, then spend the
+    // query budget fairly across the surviving directions. A flat concat
+    // would let the first intents consume the whole budget and starve the
+    // rest — round-robin selection gives every direction at least one query
+    // before any direction gets a second, so no search intent is silently
+    // dropped just because it was generated later.
     const availableCodes = new Set(categories.map((category) => category.code));
-    const queries = plan.intents
-      .flatMap((intent) =>
-        intent.categoryCode !== null && !availableCodes.has(intent.categoryCode)
-          ? []
-          : intent.queries,
-      )
-      .slice(0, options.maxQueries);
+    const survivingIntents = plan.intents.filter(
+      (intent) => intent.categoryCode === null || availableCodes.has(intent.categoryCode),
+    );
+    const queries = selectQueriesBalanced(survivingIntents, options.maxQueries);
 
     const rawResults = await this.runSearches(queries, options);
 
@@ -198,6 +200,28 @@ interface WebSearchCandidate {
   domain: string | null;
   source: string;
   query: string;
+}
+
+/**
+ * Spends the query budget fairly across intents: takes the first query of
+ * every intent, then the second, and so on, until `maxQueries` is reached.
+ * Preserves intent/category diversity instead of letting the first intents
+ * consume the whole budget.
+ */
+export function selectQueriesBalanced(
+  intents: Array<{ queries: string[] }>,
+  maxQueries: number,
+): string[] {
+  const selected: string[] = [];
+  const longest = intents.reduce((max, intent) => Math.max(max, intent.queries.length), 0);
+  for (let round = 0; round < longest; round += 1) {
+    for (const intent of intents) {
+      if (selected.length >= maxQueries) return selected;
+      const query = intent.queries[round];
+      if (query !== undefined) selected.push(query);
+    }
+  }
+  return selected;
 }
 
 /** Dedupes by normalized URL; keeps the first title/snippet/query per URL. */
