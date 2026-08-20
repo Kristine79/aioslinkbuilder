@@ -32,7 +32,7 @@ Two different questions must be kept apart:
    and performs real HTTP page analysis — but it has **no real placement
    provider**, so no real external backlink/publication happens.
 
-The core logic is covered by **328 unit tests** (30 files), 13 E2E tests and 6
+The core logic is covered by **341 unit tests** (32 files), 13 E2E tests and 6
 integration tests (DB-gated).
 
 ## Capability matrix

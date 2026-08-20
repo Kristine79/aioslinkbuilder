@@ -1,512 +1,524 @@
 # AI Backlink OS
 
-AI-powered platform for discovering, evaluating and acquiring high-quality backlinks.
+AI-платформа для поиска, оценки и получения качественных обратных ссылок.
 
-**AI Backlink OS** is an AI link-building operations platform / copilot. It runs
-the end-to-end workflow:
+**AI Backlink OS** — операционная платформа (копайлот) для линк-билдинга. Она
+выполняет сквозной конвейер:
 
 ```text
 DISCOVER → QUALIFY → CREATE → OUTREACH → NEGOTIATE → PLACE → VERIFY
 ```
 
-AI performs the research, analysis, qualification, preparation and routine
-work. **Humans remain responsible for approval, negotiation, communication,
-and any case where external execution requires human involvement.** This is
-not a fully autonomous backlink bot — it is a serious operations system in
-which AI prepares decisions and humans make and execute them.
+AI выполняет исследование, анализ, квалификацию, подготовку и рутинную работу.
+**Ответственность за согласование, переговоры, коммуникацию и любые случаи, где
+внешнее исполнение требует участия человека, остаётся за людьми.** Это не
+полностью автономный бот для обратных ссылок — это серьёзная операционная
+система, в которой AI готовит решения, а люди принимают и исполняют их.
 
-The architecture is production-oriented (strict TypeScript, modular monolith,
-deterministic domain core, provider abstractions, schema-validated AI),
-but the current production state is honest about what is implemented and what
-is still missing — see [Production status](#production-status) and
+Архитектура ориентирована на production (строгий TypeScript, модульный монолит,
+детерминированное доменное ядро, абстракции провайдеров, схема-валидированный
+AI), но текущее производственное состояние честно описывает, что реализовано,
+а чего ещё нет — см. [Производственный статус](#производственный-статус) и
 [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md).
 
 ---
 
-## End-to-end workflow
+## Сквозной конвейер
 
-- **DISCOVER** — Find relevant backlink opportunities using the configured
-  discovery source (seeded catalog in demo mode; real web search in
+- **DISCOVER (поиск)** — найти релевантные возможности для размещения через
+  настроенный источник поиска (каталог-сид в демо-режиме; реальный веб-поиск в
   `DISCOVERY_MODE=real`).
-- **QUALIFY** — Analyze relevance, donor quality, risk, page quality,
-  placement type, provider availability and other deterministic signals.
-- **CREATE** — Prepare the actual placement: anchor, contextual text,
-  insertion point, rationale and confidence.
-- **OUTREACH** — Prepare personalized outreach messages. **Sending remains
-  human-triggered.**
-- **NEGOTIATE** — Analyze donor replies and prepare a negotiation strategy,
-  suggested response, price range, fallback and risks. **The human approves
-  and sends.**
-- **PLACE** — Execute the placement where a real execution provider exists.
-  Otherwise route the task through the human-in-the-loop / manual workflow.
-- **VERIFY** — Verify the resulting placement using evidence. **VERIFIED must
-  never mean merely "the action was attempted"** — it requires confirmed
-  evidence (`SUBMITTED` is not success).
+- **QUALIFY (квалификация)** — проанализировать релевантность, качество донора,
+  риск, качество страницы, тип размещения, доступность провайдера и другие
+  детерминированные сигналы.
+- **CREATE (создание)** — подготовить собственно размещение: анкор, контекстный
+  текст, точку вставки, обоснование и уверенность.
+- **OUTREACH (рассылка)** — подготовить персонализированные сообщения.
+  **Отправка остаётся человеческим действием.**
+- **NEGOTIATE (переговоры)** — проанализировать ответ донора и подготовить
+  стратегию переговоров, предлагаемый ответ, диапазон цены, запасной вариант и
+  риски. **Человек утверждает и отправляет.**
+- **PLACE (размещение)** — выполнить размещение там, где есть реальный
+  провайдер исполнения. В остальных случаях направить задачу через
+  человекоориентированный / ручной конвейер.
+- **VERIFY (проверка)** — подтвердить результат размещения доказательствами.
+  **VERIFIED никогда не означает просто «действие было совершено»** — требуется
+  подтверждающее доказательство (`SUBMITTED` — это не успех).
 
 ---
 
-## Real, AI, human and demo
+## Real, AI, human и demo
 
-One of the most important things to understand about the system is what each
-of these roles means:
+Одна из самых важных вещей, которую нужно понять о системе, — что означает
+каждая из этих ролей:
 
-| Role              | What happens                                                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **REAL**          | A real external/network operation or a real configured provider (real LLM call, real web search, real HTTP page fetch, real persistent writes). |
-| **AI**            | LLM-generated analysis / recommendations / drafts (zod-validated before they can influence state).                                              |
-| **DETERMINISTIC** | Domain rules, scoring, the state machine, validation, provider alignment, verification eligibility.                                             |
-| **HUMAN**         | Approval, outreach sending, negotiation decisions, manual placement actions.                                                                    |
-| **DEMO / MOCK**   | Synthetic/demo execution used to demonstrate the workflow (MockProvider); never a real external side effect and never presented as one.         |
+| Роль              | Что происходит                                                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **REAL**          | Реальная внешняя/сетевая операция или реально настроенный провайдер (реальный вызов LLM, реальный веб-поиск, реальное получение HTTP-страницы, реальные персистентные записи). |
+| **AI**            | Сгенерированные LLM анализ / рекомендации / черновики (zod-валидированные до того, как повлияют на состояние).                                                                 |
+| **DETERMINISTIC** | Доменные правила, скоринг, конечный автомат, валидация, выбор провайдера, допустимость проверки.                                                                               |
+| **HUMAN**         | Согласование, отправка outreach, решения по переговорам, ручные действия по размещению.                                                                                        |
+| **DEMO / MOCK**   | Синтетическое/демо-исполнение для демонстрации конвейера (MockProvider); никогда не реальный внешний эффект и не выдается за таковой.                                          |
 
-**AI does not directly control business state.** The domain, the state machine
-and deterministic rules remain the source of truth for:
+**AI не управляет бизнес-состоянием напрямую.** Домен, конечный автомат и
+детерминированные правила остаются источником истины для:
 
-- status transitions
-- permissions
-- scoring
-- provider alignment
-- verification eligibility
-- final workflow state
+- переходов статусов
+- разрешений
+- скоринга
+- выбора провайдера
+- допустимости проверки
+- итогового состояния конвейера
 
-AI interprets and prepares information but never silently mutates business
-state (ADR-002).
+AI интерпретирует и готовит информацию, но никогда молча не меняет бизнес-
+состояние (ADR-002).
 
 ---
 
 ## Link-building intelligence
 
-Every capability is described from the product operator's perspective; the
-technical implementation lives in [packages/domain](packages/domain) and
+Каждая возможность описана с точки зрения оператора продукта; техническая
+реализация живёт в [packages/domain](packages/domain) и
 [packages/application](packages/application).
 
-- **Donor quality / SEO intelligence** — traffic, geography, keyword profile,
-  backlink profile, authority, spam risk, indexation, topical relevance,
-  audience/geographic match, placement quality, automation potential. Every
-  external metric carries explicit provenance (see
-  [Page analysis and SEO data](#page-analysis-and-seo-data)).
-- **Page-level analysis** — a donor domain and the specific placement page are
-  separate entities (title, page type, topical relevance, link-insert
-  suitability, indexation, outbound-link signals, suggested placement).
-- **Placement types** — `LINK_INSERT`, `GUEST_POST`, `RESOURCE_PAGE`,
-  `PARTNER_PAGE` plus the classic profile/listing results, each with a
-  recommended workflow.
-- **Link insert assistant** — web-page-aware anchor + alternatives + insertion
-  point + contextual text + naturalness explanation + confidence.
-- **Anchor strategy** — explicit anchor classification (exact/partial match,
-  branded, generic, url, long-tail) with rationale; profile-aware when a
-  campaign anchor profile exists.
-- **Donor risk / spam analysis** — deterministic LOW/MEDIUM/HIGH signals.
-- **Opportunity Score 2.0** — separates relevance / donor quality / placement
-  quality / execution / risk into a transparent overall score (weights in
+- **Качество донора / SEO-интеллект** — трафик, география, ключевой профиль,
+  профиль ссылок, авторитетность, спам-риск, индексация, тематическая
+  релевантность, соответствие аудитории/географии, качество размещения,
+  потенциал автоматизации. Каждая внешняя метрика несёт явную атрибуцию (см.
+  [Анализ страниц и SEO-данные](#анализ-страниц-и-seo-данные)).
+- **Анализ на уровне страницы** — домен донора и конкретная страница
+  размещения — отдельные сущности (заголовок, тип страницы, тематическая
+  релевантность, пригодность для вставки ссылки, индексация, сигналы исходящих
+  ссылок, предлагаемое место размещения).
+- **Типы размещения** — `LINK_INSERT`, `GUEST_POST`, `RESOURCE_PAGE`,
+  `PARTNER_PAGE` плюс классические профильные/листинговые результаты, у каждого
+  — рекомендуемый конвейер.
+- **Ассистент вставки ссылок** — анкор + альтернативы + точка вставки +
+  контекстный текст + объяснение естественности + уверенность.
+- **Стратегия анкоров** — явная классификация анкоров (точное/частичное
+  совпадение, брендовый, общий, url, длиннохвостовой) с обоснованием;
+  учитывает анкор-профиль кампании, если он есть.
+- **Риск донора / спам-анализ** — детерминированные сигналы LOW/MEDIUM/HIGH.
+- **Opportunity Score 2.0** — разделяет релевантность / качество донора /
+  качество размещения / исполнение / риск в прозрачную итоговую оценку (веса в
   [SCORING.md](SCORING.md)).
-- **Opportunity filtering / sorting** — server-side filters (category, method,
-  status, source, placement type, risk, min score, min donor quality, min
-  traffic) and sorting (score / donor quality / traffic / relevance / lowest
-  risk / ease).
-- **Donor comparison** — side-by-side rows plus a deterministic "Почему AI
-  рекомендует №1" explanation.
-- **Links / anchor profile** — campaign links view and anchor profile overview,
-  plus a dashboard health overview funnel.
-- **Outreach assistant (HITL)** — subject, message, short version, opening,
-  value proposition, placement request, CTA. Sending is only ever
-  human-triggered.
-- **Negotiation copilot (HITL)** — paste a donor reply → AI classifies the
-  intent and prepares a suggested response, strategy, price range, fallback
-  and risks; the human approves and sends.
-- **Human-in-the-loop workspace** — «Требует действия» cards with WHY the
-  human is needed / WHAT the AI prepared / WHAT the human must do, plus a
-  primary action.
-- **AI placement plan** («План размещений») — see below.
+- **Фильтрация / сортировка возможностей** — серверные фильтры (категория,
+  метод, статус, источник, тип размещения, риск, мин. балл, мин. качество
+  донора, мин. трафик) и сортировка (балл / качество донора / трафик /
+  релевантность / наименьший риск / простота).
+- **Сравнение доноров** — параллельные строки плюс детерминированное
+  объяснение «Почему AI рекомендует №1».
+- **Ссылки / анкор-профиль** — просмотр ссылок кампании и обзор анкор-профиля,
+  а также дашборд с воронкой здоровья.
+- **Ассистент outreach (HITL)** — тема, сообщение, короткая версия, приветствие,
+  ценностное предложение, запрос на размещение, CTA. Отправка — всегда только
+  человеческое действие.
+- **Копайлот переговоров (HITL)** — вставьте ответ донора → AI классифицирует
+  намерение и готовит предлагаемый ответ, стратегию, диапазон цены, запасной
+  вариант и риски; человек утверждает и отправляет.
+- **Рабочее пространство human-in-the-loop** — карточки «Требует действия» с
+  объяснением, ЗАЧЕМ нужен человек / ЧТО подготовил AI / ЧТО должен сделать
+  человек, плюс основное действие.
+- **AI placement plan («План размещений»)** — см. ниже.
 
 ## AI placement plan
 
-The placement plan is a portfolio-level decision layer (ADR-013): one batched
-AI call interprets the deterministic signals (score, donor quality, risk,
-provider availability, method) into per-opportunity suggestions:
+План размещений — решающий слой уровня портфеля (ADR-013): один пакетный
+вызов AI интерпретирует детерминированные сигналы (балл, качество донора, риск,
+доступность провайдера, метод) в предложения по каждой возможности:
 
-- `RECOMMENDED` — with a next action and automation mode;
-- `REVIEW_REQUIRED` — with what to review;
-- `NOT_RECOMMENDED` — with a reason.
+- `RECOMMENDED` — со следующим действием и режимом автоматизации;
+- `REVIEW_REQUIRED` — с тем, что нужно пересмотреть;
+- `NOT_RECOMMENDED` — с причиной.
 
-The AI output is only a _proposal_. The domain **re-reconciles** the stored
-decision map against current state on every read (`reconcilePlanDecision`), so
-the final bucket/action/automation is always deterministic — the AI can never
-promote a low-scoring opportunity or bypass the state machine.
+Вывод AI — только _предложение_. Домен **ре-сверяет** сохранённую карту решений
+с текущим состоянием при каждом чтении (`reconcilePlanDecision`), поэтому
+итоговый бакет/действие/автоматизация всегда детерминированы — AI никогда не
+может продвинуть низкобалльную возможность или обойти конечный автомат.
 
-## Page analysis and SEO data
+## Анализ страниц и SEO-данные
 
-Provenance matters. Every external metric is classified with one of:
+Атрибуция имеет значение. Каждая внешняя метрика классифицируется одним из
+статусов:
 
-| Status         | Meaning                                                   |
-| -------------- | --------------------------------------------------------- |
-| `MEASURED`     | measured by a real external tool or real HTTP probe       |
-| `AI_ESTIMATED` | estimated by AI from available context, with a confidence |
-| `INTERNAL`     | derived deterministically inside the system               |
-| `SYNTHETIC`    | demo/mock data — never a real measurement                 |
-| `UNKNOWN`      | not available — never fabricated                          |
+| Статус         | Значение                                                           |
+| -------------- | ------------------------------------------------------------------ |
+| `MEASURED`     | измерено реальным внешним инструментом или реальным HTTP-пробом    |
+| `AI_ESTIMATED` | оценено AI на основе доступного контекста, с указанием уверенности |
+| `INTERNAL`     | получено детерминированно внутри системы                           |
+| `SYNTHETIC`    | демо/мок-данные — никогда не реальное измерение                    |
+| `UNKNOWN`      | недоступно — никогда не выдумывается                               |
 
-The rules:
+Правила:
 
-- Real HTTP page analysis (`HttpPageAnalysisProvider`) measures only what it
-  can (title, canonical, page type, indexation, outbound-link signals are
-  `MEASURED`); everything else stays `UNKNOWN`.
-- Traffic, backlinks, DR/DA-style authority and similar SEO metrics are NOT
-  real **unless** a real SEO-metrics provider is configured (none is shipped;
-  see [Production status](#production-status)). Without one they degrade
-  honestly to `UNKNOWN` — never to invented numbers.
-- `SYNTHETIC` and `AI_ESTIMATED` are clearly labeled in the UI
-  («демо-данные» / «оценка AI») and must never be presented as real external
-  SEO data. **`UNKNOWN` is preferable to fabricated data.**
+- Реальный HTTP-анализ страниц (`HttpPageAnalysisProvider`) измеряет только то,
+  что может (заголовок, канонический URL, тип страницы, индексация, сигналы
+  исходящих ссылок — `MEASURED`); всё остальное остаётся `UNKNOWN`.
+- Трафик, обратные ссылки, авторитетность в духе DR/DA и аналогичные SEO-метрики
+  НЕ реальны, **если** не настроен реальный провайдер SEO-метрик (такого не
+  поставляется; см. [Производственный статус](#производственный-статус)). Без
+  него они честно деградируют до `UNKNOWN` — но никогда не до выдуманных цифр.
+- `SYNTHETIC` и `AI_ESTIMATED` явно помечены в UI («демо-данные» / «оценка AI»)
+  и никогда не должны выдаваться за реальные внешние SEO-данные.
+  **`UNKNOWN` лучше сфабрикованных данных.**
 
-## Placement execution
+## Исполнение размещений
 
-`PlacementProvider` is the abstraction every platform integration implements.
-Provider alignment is deterministic: verified providers supporting
-`CREATE`+`VERIFY` are selected by type priority (`API > MOCK > BROWSER >
-MANUAL`), and unverified capabilities are never claimed.
+`PlacementProvider` — абстракция, которую реализует каждая интеграция с
+платформой. Выбор провайдера детерминирован: проверенные провайдеры,
+поддерживающие `CREATE`+`VERIFY`, выбираются по приоритету типа (`API > MOCK >
+BROWSER > MANUAL`), непроверенные возможности никогда не заявляются.
 
-**The execution engine is designed to support real placement providers, but
-only providers actually implemented and configured can perform real external
-placement.** Today:
+**Движок исполнения спроектирован для поддержки реальных провайдеров
+размещения, но реальное внешнее размещение могут выполнять только реально
+реализованные и настроенные провайдеры.** Сегодня:
 
-- `MockProvider` exists for **demo/test execution** (deterministic simulator,
-  synthetic ids and `https://mock.example/...` URLs).
-- **No real placement provider is implemented** — so no real external
-  publication occurs. The only way to reach `PUBLISHED` today is the manual
-  (human-in-the-loop) flow with proof, or a demo mock placement.
-- Real integrations for Yandex Business, 2GIS, editorial media, etc. must be
-  implemented and verified behind the same contract before any real placement
-  is possible.
+- `MockProvider` существует для **демо/тестового исполнения** (детерминированный симулятор,
+  синтетические id и URL вида `https://mock.example/...`).
+- **Ни один реальный провайдер размещения не реализован** — значит, никакого
+  реального внешнего опубликования не происходит. Единственный способ достичь
+  `PUBLISHED` сегодня — ручной (human-in-the-loop) конвейер с доказательством,
+  либо демо-мок размещение.
+- Реальные интеграции для Яндекс Бизнес, 2GIS, редакционных медиа и т.д. должны
+  быть реализованы и проверены за тем же контрактом, прежде чем станет возможно
+  реальное размещение.
 
-## Demo vs Production
+## Демо vs Production
 
-MockProvider is legitimate for demo/test scenarios; it must never leak into
-production execution:
+MockProvider легитимен для демо/тестовых сценариев; он никогда не должен
+протекать в производственное исполнение:
 
-- **Demo/test composition may enable MOCK providers** (`MOCK_PROVIDERS=allow`):
-  used by `pnpm demo`, unit fixtures and the E2E suite to demonstrate the
-  complete placement lifecycle without external side effects.
-- **Production composition must exclude MOCK providers** (`MOCK_PROVIDERS` is
-  `deny` by default, ADR-015): the provider registry excludes MOCK records
-  from listing and resolution (`ProviderUnavailableError`), so automated
-  placement execution against a synthetic provider is **impossible** in
-  production. An unrecognized value is a startup error.
-- **Production must never execute a MOCK provider**, and a synthetic/mock
-  placement must never be presented as a real backlink.
-- The domain still supports `MOCK` as a legitimate provider type, because
-  demo/test workflows require it; the demo-vs-production policy lives at the
-  composition/registry boundary, not in the domain.
-- UI provenance labels (provider label, «демо-провайдер», «Веб-поиск» source,
-  «измерено»/«оценка AI»/«демо-данные»/«нет данных» metric badges) keep
-  demo/synthetic data distinguishable from real data.
+- **Демо/тестовая композиция может включать MOCK-провайдеров**
+  (`MOCK_PROVIDERS=allow`): используется в `pnpm demo`, юнит-фикстурах и E2E —
+  для демонстрации полного жизненного цикла размещения без внешних эффектов.
+- **Производственная композиция обязана исключать MOCK-провайдеров**
+  (`MOCK_PROVIDERS` по умолчанию `deny`, ADR-015): реестр провайдеров исключает
+  MOCK-записи из листинга и резолва (`ProviderUnavailableError`), поэтому
+  автоматическое исполнение размещений на синтетическом провайдере в production
+  **невозможно**. Нераспознанное значение — ошибка при старте.
+- **Production никогда не должен исполнять MOCK-провайдера**, а синтетическое/
+  мок-размещение никогда не должно выдаваться за реальную обратную ссылку.
+- Домен по-прежнему поддерживает `MOCK` как легитимный тип провайдера — демо/
+  тестовые конвейеры этого требуют; политика «демо vs production» живёт на
+  границе композиции/реестра, а не в домене.
+- Метки атрибуции в UI (метка провайдера, «демо-провайдер», источник «Веб-поиск»,
+  бейджи метрик «измерено»/«оценка AI»/«демо-данные»/«нет данных») позволяют
+  отличать демо/синтетические данные от реальных.
 
-This policy is **implemented in the current code** (see
-[docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md) and
-ADR-015) — it is not a future plan.
+Эта политика **реализована в текущем коде** (см.
+[docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md) и ADR-015) —
+это не план на будущее.
 
-## Production status
+## Производственный статус
 
-### Already real / implemented
+### Уже реально / реализовано
 
-- **Real LLM integration** — `OpenCodeAIProvider` via `AI_MODE=real`
-  (OpenCode Go, OpenAI-compatible), schema-validated output, retries and
-  timeouts.
-- **Real HTTP page analysis** — `HttpPageAnalysisProvider` (MEASURED where
-  measurable, UNKNOWN otherwise).
-- **Real web discovery — two backends** — DuckDuckGo
-  (`DISCOVERY_PROVIDER=duckduckgo`, default, no key) and a search-capable AI
-  provider (`DISCOVERY_PROVIDER=ai-search`, needs `AI_SEARCH_*` credentials).
-  Found sites are real external URLs, persisted into the platform catalog.
-- **PostgreSQL (Neon) persistence** — Prisma-backed repositories behind the
-  shared environment contract (ADR-014).
-- **Persisted discovery state** — every discovery run is stored per campaign
-  (`DiscoveryRun`: RUNNING → COMPLETED_WITH_RESULTS / COMPLETED_EMPTY / FAILED
-  plus metadata) and served at `GET /api/discovery-state`; the UI uses the
-  backend as the source of truth instead of sessionStorage, so "search ran but
-  found nothing" survives a refresh.
-- **Deterministic scoring, state machine, validation** — the domain core.
-- **Human-in-the-loop workflow** — approval, outreach sending, negotiation
-  approval, manual placements.
-- **Evidence-based verification** — `VERIFIED` requires evidence
-  (`SUBMITTED` is not success).
-- **Production composition** — Vercel serverless + `pnpm start` run
-  `createPrismaEnvironment` (fail-fast, no silent fallback in production).
-- **MOCK-provider exclusion in production** — implemented (ADR-015).
+- **Реальная LLM-интеграция** — `OpenCodeAIProvider` через `AI_MODE=real`
+  (OpenCode Go, OpenAI-совместимый), схема-валидированный вывод, ретраи и
+  таймауты.
+- **Реальный HTTP-анализ страниц** — `HttpPageAnalysisProvider` (MEASURED там,
+  где измеримо, иначе UNKNOWN).
+- **Реальный веб-поиск — два бэкенда** — DuckDuckGo
+  (`DISCOVERY_PROVIDER=duckduckgo`, по умолчанию, без ключа) и search-способный
+  AI-провайдер (`DISCOVERY_PROVIDER=ai-search`, нужны креды `AI_SEARCH_*`).
+  Найденные сайты — реальные внешние URL, сохраняются в каталог платформ.
+- **Персистентность на PostgreSQL (Neon)** — репозитории на Prisma за общим
+  контрактом окружений (ADR-014).
+- **Персистентное состояние поиска** — каждый запуск поиска сохраняется по
+  кампании (`DiscoveryRun`: RUNNING → COMPLETED_WITH_RESULTS / COMPLETED_EMPTY /
+  FAILED плюс метаданные) и отдаётся через `GET /api/discovery-state`; UI
+  использует бэкенд как источник истины вместо sessionStorage, поэтому «поиск
+  прошёл, но ничего не найдено» переживает обновление страницы.
+- **Детерминированный скоринг, конечный автомат, валидация** — доменное ядро.
+- **Конвейер human-in-the-loop** — согласование, отправка outreach, согласование
+  переговоров, ручные размещения.
+- **Проверка на основе доказательств** — `VERIFIED` требует доказательства
+  (`SUBMITTED` — не успех).
+- **Производственная композиция** — Vercel serverless и `pnpm start` запускают
+  `createPrismaEnvironment` (fail-fast, без молчаливого фолбэка в production).
+- **Исключение MOCK-провайдеров в production** — реализовано (ADR-015).
 
-### Demo / synthetic
+### Демо / синтетика
 
-- `MockPlacementProvider` — demo/test placement execution (synthetic evidence).
-- Deterministic `ScenarioAIProvider` — demo AI; not a real LLM call.
-- Synthetic SEO metrics (`SYNTHETIC`) and demo fixtures/data (Nordhaus).
+- `MockPlacementProvider` — демо/тестовое исполнение размещений (синтетические
+  доказательства).
+- Детерминированный `ScenarioAIProvider` — демо-AI; не реальный вызов LLM.
+- Синтетические SEO-метрики (`SYNTHETIC`) и демо-данные (Nordhaus).
 
-### Still requires external integrations / credentials
+### Требует внешних интеграций / креденшелов
 
-- **No real placement provider** — no real external publication happens today.
-- **SEO metrics provider** (Ahrefs/Semrush/Similarweb/GSC) — port exists, no
-  real implementation or credentials.
-- **Real outreach/email integration** — the production composition binds the
-  scenario (synthetic) outreach provider; no real transport.
-- **Authentication / authorization** — no user model yet (single-tenant).
-- **Observability** — audit log + `/api/health` exist; structured metrics /
-  alerting not built.
-- **Queue / background processing** — deferred (ADR-013).
+- **Нет реального провайдера размещений** — реального внешнего опубликования
+  сегодня не происходит.
+- **Провайдер SEO-метрик** (Ahrefs/Semrush/Similarweb/GSC) — порт есть, нет
+  реальной реализации или креденшелов.
+- **Реальная email/outreach-интеграция** — производственная композиция
+  привязывает сценарный (синтетический) outreach-провайдер; нет реального
+  транспорта.
+- **Аутентификация / авторизация** — модели пользователей пока нет
+  (однотенантность).
+- **Наблюдаемость** — аудит-лог и `/api/health` есть; структурированные метрики
+  / алертинг не построены.
+- **Очереди / фоновая обработка** — отложено (ADR-013).
 
-See [docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md) for the full,
-per-item audit.
+Полный по-пунктный аудит — в
+[docs/PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md).
 
-## Quick start
+## Быстрый старт
 
-### Demo
+### Демо
 
 ```bash
 pnpm demo
 ```
 
-Deterministic, in-memory, no database and no network: the full Nordhaus
-journey — analysis → strategy → discovery → classification → approval →
-execution (incl. retry) → monitoring → manual flow → verification → AI
-placement plan — runs on the MockProvider and demo fixtures.
+Детерминированно, in-memory, без базы и без сети: полный путь Nordhaus —
+анализ → стратегия → поиск → классификация → согласование → исполнение (вкл.
+retry) → мониторинг → ручной конвейер → проверка → AI-план размещений —
+выполняется на MockProvider и демо-фикстурах.
 
-### Local development
+### Локальная разработка
 
 ```bash
 pnpm install
-pnpm db:generate      # generate Prisma Client
-pnpm db:migrate       # apply migrations (needs .env)
-pnpm db:seed          # idempotent catalog + synthetic Nordhaus demo records
-pnpm start            # whole product on one port (http://localhost:8787)
+pnpm db:generate      # сгенерировать Prisma Client
+pnpm db:migrate       # применить миграции (нужен .env)
+pnpm db:seed          # идемпотентный каталог + синтетические демо-записи Nordhaus
+pnpm start            # весь продукт на одном порту (http://localhost:8787)
 ```
 
-### Web / API development
+### Разработка web / API
 
 ```bash
-pnpm dev:web          # Vite dev server (http://localhost:5173, /api proxied to :8787)
-pnpm dev:api          # API dev server with watch
-pnpm build:web        # production web build into apps/web/dist
+pnpm dev:web          # Vite dev server (http://localhost:5173, /api проксируется на :8787)
+pnpm dev:api          # API dev server с watch
+pnpm build:web        # production-сборка web в apps/web/dist
 ```
 
-> Commands are intentionally unchanged from the project scripts; see
-> [Setup and commands](#setup-and-commands) for details.
+> Команды намеренно совпадают с проектаными скриптами; детали — в разделе
+> [Настройка и команды](#настройка-и-команды).
 
-## Real mode configuration
+## Конфигурация реального режима
 
-The default demo mode is deterministic and makes no network calls. To run real
-AI and real web discovery, set the mode variables (see also
-[INTEGRATIONS.md](INTEGRATIONS.md)):
+Демо-режим по умолчанию детерминирован и не делает сетевых вызовов. Чтобы
+запустить реальный AI и реальный веб-поиск, задайте переменные режимов (см.
+также [INTEGRATIONS.md](INTEGRATIONS.md)):
 
 ```bash
 AI_MODE=real DISCOVERY_MODE=real OPENCODE_API_KEY=sk-... pnpm start
 ```
 
-Environment variables:
+Переменные окружения:
 
-| Variable                                                                                                           | Default                         | Purpose                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `AI_MODE`                                                                                                          | `demo`                          | `real` uses `OpenCodeAIProvider` (real LLM) + `HttpPageAnalysisProvider` (real HTTP page analysis).   |
-| `DISCOVERY_MODE`                                                                                                   | `demo`                          | `real` enables real web discovery (`WebSearchPlatformDiscoverySource`).                               |
-| `DISCOVERY_PROVIDER`                                                                                               | `duckduckgo`                    | Real search backend: `duckduckgo` (HTML search, no key) or `ai-search` (search-capable AI citations). |
-| `OPENCODE_API_KEY`                                                                                                 | —                               | Required by any real mode; missing is a startup error (no silent fallback).                           |
-| `OPENCODE_BASE_URL`                                                                                                | `https://opencode.ai/zen/go/v1` | OpenCode Go endpoint.                                                                                 |
-| `OPENCODE_MODEL`                                                                                                   | `deepseek-v4-pro`               | Chat-completions model.                                                                               |
-| `OPENCODE_TIMEOUT_MS`                                                                                              | `30000`                         | Per-request AI timeout.                                                                               |
-| `AI_SEARCH_API_KEY` / `AI_SEARCH_BASE_URL` / `AI_SEARCH_MODEL` / `AI_SEARCH_CAPABILITIES` / `AI_SEARCH_TIMEOUT_MS` | —                               | `DISCOVERY_PROVIDER=ai-search` credentials & declared capabilities (e.g. `web_search,citations`).     |
-| `MOCK_PROVIDERS`                                                                                                   | `deny`                          | `allow` binds MOCK placement providers — **demo/test/preview only**, never production.                |
-| `DISCOVERY_MAX_QUERIES`, `DISCOVERY_MAX_RESULTS_PER_QUERY`, `DISCOVERY_MAX_CANDIDATES`, `DISCOVERY_CONCURRENCY`    | bounded defaults                | Cost/latency caps for real web discovery.                                                             |
+| Переменная                                                                                                         | По умолчанию                    | Назначение                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `AI_MODE`                                                                                                          | `demo`                          | `real` использует `OpenCodeAIProvider` (реальный LLM) + `HttpPageAnalysisProvider` (реальный HTTP-анализ страниц). |
+| `DISCOVERY_MODE`                                                                                                   | `demo`                          | `real` включает реальный веб-поиск (`WebSearchPlatformDiscoverySource`).                                           |
+| `DISCOVERY_PROVIDER`                                                                                               | `duckduckgo`                    | Реальный поисковый бэкенд: `duckduckgo` (HTML-поиск, без ключа) или `ai-search` (search-способный AI с цитатами).  |
+| `OPENCODE_API_KEY`                                                                                                 | —                               | Обязателен в любом реальном режиме; отсутствие — ошибка при старте (без молчаливого фолбэка).                      |
+| `OPENCODE_BASE_URL`                                                                                                | `https://opencode.ai/zen/go/v1` | Endpoint OpenCode Go.                                                                                              |
+| `OPENCODE_MODEL`                                                                                                   | `deepseek-v4-pro`               | Модель чат-комплетешн.                                                                                             |
+| `OPENCODE_TIMEOUT_MS`                                                                                              | `30000`                         | Таймаут AI-запроса.                                                                                                |
+| `AI_SEARCH_API_KEY` / `AI_SEARCH_BASE_URL` / `AI_SEARCH_MODEL` / `AI_SEARCH_CAPABILITIES` / `AI_SEARCH_TIMEOUT_MS` | —                               | Креденшелы и объявленные возможности `DISCOVERY_PROVIDER=ai-search` (например, `web_search,citations`).            |
+| `MOCK_PROVIDERS`                                                                                                   | `deny`                          | `allow` привязывает MOCK-провайдеров размещений — **только демо/тест/превью, никогда production**.                 |
+| `DISCOVERY_MAX_QUERIES`, `DISCOVERY_MAX_RESULTS_PER_QUERY`, `DISCOVERY_MAX_CANDIDATES`, `DISCOVERY_CONCURRENCY`    | ограниченные значения по умолч. | Ограничения стоимости/задержек реального веб-поиска.                                                               |
 
-Important behaviors:
+Важные особенности поведения:
 
-- **`AI_MODE=real`** — every AI capability runs on the configured model; page
-  analysis is real HTTP; without a paid SEO-metrics source all SEO metrics
-  stay honestly `UNKNOWN` («нет данных» in the UI).
-- **`DISCOVERY_MODE=real`** — the «Найти площадки» action plans search intents
-  via AI and searches real sites through the configured provider; found sites
-  are persisted into the platform catalog and labeled `web-search`.
-- Real modes without `OPENCODE_API_KEY` (or `AI_SEARCH_API_KEY` for
-  `DISCOVERY_PROVIDER=ai-search`) **fail fast at startup** — the product never
-  silently falls back to demo data.
-- Provider failures are loud (`DiscoverySearchFailedError`, HTTP 502); real
-  data is never replaced with fake results.
-- UI provenance is explicit: `OpenCode Go` provider label, `Веб-поиск` source
-  chip, `измерено` / `оценка AI` / `демо-данные` / `нет данных` metric badges.
+- **`AI_MODE=real`** — каждая AI-возможность работает на настроенной модели;
+  анализ страниц — реальный HTTP; без платного источника SEO-метрик все
+  SEO-метрики честно остаются `UNKNOWN` («нет данных» в UI).
+- **`DISCOVERY_MODE=real`** — действие «Найти площадки» планирует поисковые
+  интенты через AI и ищет реальные сайты через настроенного провайдера;
+  найденные сайты сохраняются в каталог платформ и помечаются `web-search`.
+- Реальные режимы без `OPENCODE_API_KEY` (или `AI_SEARCH_API_KEY` для
+  `DISCOVERY_PROVIDER=ai-search`) **падают при старте (fail-fast)** — продукт
+  никогда молча не откатывается к демо-данным.
+- Сбои провайдеров громкие (`DiscoverySearchFailedError`, HTTP 502); реальные
+  данные никогда не заменяются фейковыми результатами.
+- Атрибуция в UI явная: метка провайдера `OpenCode Go`, чип источника «Веб-поиск»,
+  бейджи метрик «измерено» / «оценка AI» / «демо-данные» / «нет данных».
 
-> Note: `DISCOVERY_PROVIDER` / `AI_SEARCH_*` are documented in `.env.example`
-> with placeholders. Never put real credentials in this repository — use
-> environment variables (Vercel project env vars) instead.
+> Примечание: `DISCOVERY_PROVIDER` / `AI_SEARCH_*` описаны в `.env.example`
+> с плейсхолдерами. Никогда не кладите реальные креденшелы в этот репозиторий —
+> используйте переменные окружения (env-переменные проекта Vercel).
 
-## Repository architecture
+## Архитектура репозитория
 
 ```text
 apps/
-  api/             delivery layer: Hono routes + request validation + error mapping
-                   + composition roots (Prisma production env, Nordhaus demo env)
-  web/             Russian UI: Vite + React + React Router; typed API client; labels only
+  api/             слой доставки: Hono-роуты + валидация запросов + маппинг ошибок
+                   + композиционные корни (Prisma production env, Nordhaus demo env)
+  web/             русский UI: Vite + React + React Router; типизированный API-клиент; только метки
 packages/
-  domain/          pure business logic: entities, enums, state machine, capabilities,
-                   scoring, alignment, strategy, validation — depends on nothing
-  application/     ports + use cases + command DTOs + application errors
-  infrastructure/  Prisma schema + migrations + Prisma/in-memory repositories + seed
-  ai/              AI provider abstraction + OpenAI-compatible client + zod output schemas
-  integrations/    provider contracts (placement / web-search / ai-search) + MockProvider
+  domain/          чистая бизнес-логика: сущности, энумы, конечный автомат, возможности,
+                   скоринг, выравнивание, стратегия, валидация — не зависит ни от чего
+  application/     порты + use case + командные DTO + ошибки приложения
+  infrastructure/  Prisma-схема + миграции + Prisma/in-memory репозитории + seed
+  ai/              абстракция AI-провайдера + OpenAI-совместимый клиент + zod-схемы вывода
+  integrations/    контракты провайдеров (placement / web-search / ai-search) + MockProvider
 tests/
-  unit/            unit tests (no database), incl. delivery-layer tests
-  integration/     database tests (need DATABASE_URL)
-  e2e/             full Nordhaus E2E over HTTP
-docs/decisions/    ADRs
+  unit/            юнит-тесты (без БД), вкл. тесты слоя доставки
+  integration/     тесты базы (нужен DATABASE_URL)
+  e2e/             полный E2E Nordhaus по HTTP
+docs/decisions/    ADR
 ```
 
-Dependency direction:
+Направление зависимостей:
 
 ```text
 apps (Presentation/Delivery) → Application → Domain ← Infrastructure
 ```
 
-`Domain` depends on nothing. `Application` depends only on ports/interfaces.
-`Infrastructure` and `integrations` implement those contracts. `apps/web` is a
-thin presentation layer — every value (status, allowed actions, ranking)
-comes from the API, and no state transition runs outside the application use
-cases and the domain state machine. `ai` is an intelligence provider, not the
-controller of business state.
+`Domain` ни от чего не зависит. `Application` зависит только от портов/
+интерфейсов. `Infrastructure` и `integrations` реализуют эти контракты.
+`apps/web` — тонкий презентационный слой: каждое значение (статус, разрешённые
+действия, ранжирование) приходит из API, и никакой переход состояния не
+происходит вне use case приложения и доменного конечного автомата. `ai` — это
+поставщик интеллекта, а не контроллер бизнес-состояния.
 
-## Database
+## База данных
 
-The project uses **Neon PostgreSQL**. There is no local PostgreSQL requirement.
+Проект использует **Neon PostgreSQL**. Локальный PostgreSQL не требуется.
 
-1. Copy `.env.example` to `.env` and fill in the two variables from the Neon
-   dashboard (Connect → Prisma):
-   - `DATABASE_URL` — pooled connection (pgbouncer transaction mode), runtime.
-   - `DIRECT_URL` — direct (unpooled) connection, used by Prisma Migrate.
-2. Do not commit `.env` (it is gitignored).
+1. Скопируйте `.env.example` в `.env` и заполните две переменные из дашборда
+   Neon (Connect → Prisma):
+   - `DATABASE_URL` — pooled-подключение (pgbouncer transaction mode), рантайм.
+   - `DIRECT_URL` — прямое (unpooled) подключение, используется Prisma Migrate.
+2. Не коммитьте `.env` (он в .gitignore).
 
-Local dev network note: on some networks the Neon direct endpoint is
-unreachable while the pooled endpoint works; if `prisma migrate dev` fails
-with `P1001`, point `DIRECT_URL` at the pooled endpoint for local work (see
-ADR-008). On Vercel/CI use the native direct endpoint.
+Заметка о локальной сети: на некоторых сетях прямой endpoint Neon недоступен,
+а pooled работает; если `prisma migrate dev` падает с `P1001`, укажите
+`DIRECT_URL` на pooled endpoint для локальной работы (см. ADR-008). На
+Vercel/CI используйте нативный прямой endpoint.
 
-The Prisma migrations (`init`, `link_building_intel`, `placement_plan`) must
-be applied when the database is reachable; on Vercel this happens automatically
-— the build command runs `npx prisma migrate deploy`. `pnpm db:seed` is
-idempotent and loads the catalog (8 categories, 20 platforms, 13 provider
-records, the Nordhaus demo company + campaign, all labeled synthetic).
+Миграции Prisma (`init`, `link_building_intel`, `placement_plan`,
+`add_discovery_run`) должны быть применены, когда база доступна; на Vercel это
+происходит автоматически — команда сборки запускает `npx prisma migrate
+deploy`. `pnpm db:seed` идемпотентен и загружает каталог (8 категорий,
+20 платформ, 13 записей провайдеров, демо-компания и кампания Nordhaus — всё
+помечено как синтетическое).
 
-## Setup and commands
+## Настройка и команды
 
 ```bash
 pnpm install
-pnpm db:generate      # generate Prisma Client
-pnpm db:migrate       # apply migrations (needs .env)
-pnpm db:seed          # idempotent seed: catalog + synthetic Nordhaus demo records
-pnpm demo             # deterministic end-to-end demo (in-memory, no DB)
-pnpm start            # run the whole product on one port (http://localhost:8787):
-                      # API + built web UI (apps/web/dist). Production:
-                      # Prisma-backed over PostgreSQL (Neon) — data persists.
-                      # Outside NODE_ENV=production with an unreachable database it
-                      # falls back to the in-memory Nordhaus demo with an explicit
-                      # warning (no persistence).
-pnpm dev:web          # Vite dev server (http://localhost:5173, /api proxied to :8787)
-pnpm dev:api          # API dev server with watch
-pnpm build:web        # production web build into apps/web/dist
+pnpm db:generate      # сгенерировать Prisma Client
+pnpm db:migrate       # применить миграции (нужен .env)
+pnpm db:seed          # идемпотентный seed: каталог + синтетические демо-записи Nordhaus
+pnpm demo             # детерминированное E2E-демо (in-memory, без БД)
+pnpm start            # запуск всего продукта на одном порту (http://localhost:8787):
+                      # API + собранный web UI (apps/web/dist). Production:
+                      # на Prisma поверх PostgreSQL (Neon) — данные сохраняются.
+                      # Вне NODE_ENV=production с недоступной базой — фолбэк на
+                      # in-memory демо Nordhaus с явным предупреждением (без персистентности).
+pnpm dev:web          # Vite dev server (http://localhost:5173, /api проксируется на :8787)
+pnpm dev:api          # API dev server с watch
+pnpm build:web        # production-сборка web в apps/web/dist
 ```
 
-In production (Vercel serverless, or `NODE_ENV=production`) the app is
-persistence-first: it fails fast when PostgreSQL is unreachable and never
-silently falls back to in-memory data (ADR-014). `pnpm db:seed` must have been
-run once so the platform catalog exists — users then create companies and
-campaigns via the UI, and they survive cold starts and multiple serverless
-instances.
+В production (Vercel serverless или `NODE_ENV=production`) приложение
+персистентно-ориентированное: оно быстро падает (fail-fast), когда PostgreSQL
+недоступен, и никогда молча не откатывается к in-memory данным (ADR-014).
+`pnpm db:seed` должен быть выполнен один раз, чтобы существовал каталог
+платформ — затем пользователи создают компании и кампании через UI, и они
+переживают холодные старты и множественные serverless-инстансы.
 
-## Testing and quality gates
+## Тестирование и контроль качества
 
 ```bash
-pnpm typecheck        # tsc --noEmit (strict), incl. apps
+pnpm typecheck        # tsc --noEmit (строгий), вкл. apps
 pnpm lint             # ESLint (typescript-eslint, type-checked)
-pnpm format:check     # Prettier check
-pnpm test:unit        # unit tests, incl. delivery-layer tests (tests/unit/apps/api.test.ts)
-pnpm test:integration # DB integration tests (skip when DATABASE_URL is missing)
+pnpm format:check     # проверка Prettier
+pnpm test:unit        # юнит-тесты, вкл. тесты слоя доставки (tests/unit/apps/api.test.ts)
+pnpm test:integration # интеграционные тесты БД (пропускаются без DATABASE_URL)
 pnpm test             # unit + integration
-pnpm test:e2e         # E2E: boots the production composition over HTTP and drives the full
-                      # Nordhaus journey (run pnpm build:web once first to also cover static UI serving)
+pnpm test:e2e         # E2E: поднимает production-композицию по HTTP и гоняет полный
+                      # путь Nordhaus (сначала соберите `pnpm build:web` — также покроет
+                      # раздачу статики)
 ```
 
-Overview: [TESTING.md](TESTING.md).
+Обзор: [TESTING.md](TESTING.md).
 
 ## Production / Vercel
 
-Vercel hosting (project `aioslinkbuilder`), Neon PostgreSQL, access
-provider-agnostic (only `DATABASE_URL` / `DIRECT_URL` env vars are required by
-the application). Deployment notes:
+Хостинг Vercel (проект `aioslinkbuilder`), Neon PostgreSQL, доступ без
+привязки к провайдеру (приложению нужны только `DATABASE_URL` / `DIRECT_URL`).
+Заметки по деплою:
 
-- `packageManager` pins `pnpm@11.9.0` (`allowBuilds`/`patchedDependencies` are
-  pnpm 11 features).
-- The Vercel build runs `npx prisma migrate deploy` and then
-  `pnpm build:vercel` (`build:web` + `build:vercel:api`); `vercel.json` serves
-  `apps/web/dist` and rewrites non-API routes to `/index.html` (SPA fallback)
-  and `/api/(.*)` to `/api/index`.
-- The API function is `scripts/vercel-entry.ts` bundled to `api/index.mjs`
-  (esbuild, committed): the bundle is required because Vercel leaves workspace
-  dependencies external and their package exports point at TypeScript sources.
-  Compose `createPrismaEnvironment` once per warm instance; `@prisma/client`
-  stays external so the generated client and query engine resolve from
-  `node_modules` at runtime (same proven path as `api/health.mjs`, ADR-014).
-- `api/health.mjs` reports DB reachability (stage-by-stage raw probe) and
-  Prisma initialization.
-- `prisma@6.19.3` is published with a broken `exports` map; it is patched via
-  pnpm `patchedDependencies` (`patches/prisma@6.19.3.patch`), and the `prisma`
-  CLI is a devDependency of `packages/infrastructure`.
-- Production env: `AI_MODE`/`DISCOVERY_MODE`/`DISCOVERY_PROVIDER`,
-  `OPENCODE_*`/`AI_SEARCH_*`, and `MOCK_PROVIDERS` (leave unset or `deny`,
-  never `allow`).
+- `packageManager` фиксирует `pnpm@11.9.0` (`allowBuilds`/`patchedDependencies` —
+  фичи pnpm 11).
+- Сборка Vercel запускает `npx prisma migrate deploy`, затем
+  `pnpm build:vercel` (`build:web` + `build:vercel:api`); `vercel.json` раздаёт
+  `apps/web/dist` и переписывает не-API маршруты на `/index.html` (SPA fallback),
+  а `/api/(.*)` — на `/api/index`.
+- API-функция — `scripts/vercel-entry.ts`, сборка в `api/index.mjs`
+  (esbuild, закоммичен): бандл обязателен, потому что Vercel оставляет
+  workspace-зависимости внешними, а их package exports указывают на TS-исходники.
+  Композируйте `createPrismaEnvironment` один раз на тёплый инстанс;
+  `@prisma/client` остаётся внешним, чтобы сгенерированный клиент и query engine
+  резолвились из `node_modules` в рантайме (тот же проверенный путь, что
+  `api/health.mjs`, ADR-014).
+- `api/health.mjs` сообщает о доступности БД (поэтапный сырой проб) и
+  инициализации Prisma.
+- `prisma@6.19.3` публикуется со сломанной картой `exports`; он патчится через
+  pnpm `patchedDependencies` (`patches/prisma@6.19.3.patch`), а CLI `prisma`
+  — devDependency пакета `packages/infrastructure`.
+- Производственные env: `AI_MODE`/`DISCOVERY_MODE`/`DISCOVERY_PROVIDER`,
+  `OPENCODE_*`/`AI_SEARCH_*`, и `MOCK_PROVIDERS` (оставить незаданным или
+  `deny`, никогда `allow`).
 
-## Phase status
+## Статус фаз
 
-For the implementation history (not product capability order):
+По истории реализации (не по порядку возможностей продукта):
 
-| Phase | Scope                                                                                                                            | Status |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| 0     | structure, domain model, DB schema, state machine, provider/AI abstractions, tests                                               | done   |
-| 1     | company and campaign domain/application flows                                                                                    | done   |
-| 2     | opportunity discovery (sources), AI classification, deterministic scoring, company analysis, placement strategy                  | done   |
-| 3     | provider abstraction + MockProvider + in-memory registry                                                                         | done   |
-| 4     | placement execution, monitoring, verification, evidence, audit log                                                               | done   |
-| 5     | Russian UI (apps/web + apps/api delivery layer)                                                                                  | done   |
-| 6     | E2E flow + quality pass                                                                                                          | done   |
-| 7     | link-building intelligence: donor quality, page analysis, anchor/link insert, outreach, negotiation, HITL, Score 2.0, comparison | done   |
-| 8     | AI placement plan: batched AI decision map + deterministic re-reconciliation + API + UI + tests + docs                           | done   |
-| 9     | real AI + web discovery modes, Vercel persistence, MOCK-provider production policy                                               | done   |
+| Фаза | Объём                                                                                                                               | Статус |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 0    | структура, доменная модель, схема БД, конечный автомат, абстракции провайдеров/AI, тесты                                            | done   |
+| 1    | доменные/прикладные потоки компании и кампании                                                                                      | done   |
+| 2    | поиск возможностей (источники), AI-классификация, детерминированный скоринг, анализ компании, стратегия размещений                  | done   |
+| 3    | абстракция провайдера + MockProvider + in-memory реестр                                                                             | done   |
+| 4    | исполнение размещений, мониторинг, проверка, доказательства, аудит-лог                                                              | done   |
+| 5    | русский UI (apps/web + слой доставки apps/api)                                                                                      | done   |
+| 6    | E2E-поток + проход качества                                                                                                         | done   |
+| 7    | link-building intelligence: качество донора, анализ страниц, анкор/вставка ссылок, outreach, переговоры, HITL, Score 2.0, сравнение | done   |
+| 8    | AI-план размещений: пакетная AI-карта решений + детерминированная ре-сверка + API + UI + тесты + docs                               | done   |
+| 9    | реальные режимы AI + веб-поиска, персистентность на Vercel, production-политика MOCK-провайдеров                                    | done   |
 
-## Key decisions
+## Ключевые решения
 
-See [docs/decisions/](docs/decisions/) for the full ADRs. Highlights:
+Полный список ADR — в [docs/decisions/](docs/decisions/). Основное:
 
-- Modular monolith (ADR-001); AI is an intelligence provider, not a controller
-  (ADR-002); provider-based integrations (ADR-003); human approval before
-  external actions (ADR-004); PostgreSQL as single source of truth (ADR-005).
-- Platform and PlacementProvider are separate entities (ADR-006); state
-  machine implements only documented transitions (ADR-007); tooling:
-  pnpm workspaces, strict TS, Vitest, Prisma, zod (ADR-008); application
-  layer: ports + use cases + command DTOs, delivery deferred (ADR-009).
-- Discovery is a port (ADR-010); link-building intelligence lives as typed
-  JSON on the opportunity with new provider ports and zod-validated AI methods
-  (ADR-011).
-- Real AI + web discovery are opt-in via env vars, never silent (ADR-012); the
-  AI placement plan is a read-side decision layer, AI never writes business
-  state (ADR-013); production runs Prisma over PostgreSQL/Neon behind a shared
-  environment contract (ADR-014); MOCK providers are excluded from production
-  by explicit opt-in (`MOCK_PROVIDERS=deny` default, ADR-015).
-- Failed attempts are retried with a fresh Placement record; manual placements
-  go through `NEEDS_MANUAL` and reach `PUBLISHED` only with proof
-  (human-in-the-loop path).
+- Модульный монолит (ADR-001); AI — поставщик интеллекта, а не контроллер
+  (ADR-002); интеграции на основе провайдеров (ADR-003); согласование человеком
+  перед внешними действиями (ADR-004); PostgreSQL — единый источник истины
+  (ADR-005).
+- Platform и PlacementProvider — отдельные сущности (ADR-006); конечный автомат
+  реализует только задокументированные переходы (ADR-007); инструментарий:
+  pnpm workspaces, строгий TS, Vitest, Prisma, zod (ADR-008); слой приложения:
+  порты + use case + командные DTO, доставка отложена (ADR-009).
+- Поиск — порт (ADR-010); link-building intelligence живёт как типизированный
+  JSON на возможности с новыми портами провайдеров и zod-валидированными
+  AI-методами (ADR-011).
+- Реальные AI и веб-поиск — опт-ин через env-переменные, никогда молча (ADR-012);
+  AI-план размещений — read-side решающий слой, AI никогда не пишет бизнес-состояние
+  (ADR-013); production работает на Prisma поверх PostgreSQL/Neon за общим
+  контрактом окружений (ADR-014); MOCK-провайдеры исключаются из production
+  явным опт-ином (`MOCK_PROVIDERS=deny` по умолчанию, ADR-015).
+- Неудачные попытки ретраятся с новой записью Placement; ручные размещения идут
+  через `NEEDS_MANUAL` и достигают `PUBLISHED` только с доказательством
+  (human-in-the-loop конвейер).
 
-## Deployment
+## Деплой
 
-For exact deployment commands and infrastructure steps, follow
-[docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) and
-[docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md). The core
-steps are: configure Vercel env vars, run a build (applies migrations), seed
-the catalog once, and verify `GET /api/health`.
+Точные команды деплоя и шаги инфраструктуры — в
+[docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md) и
+[docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md). Основные
+шаги: настроить env-переменные Vercel, запустить сборку (применяет миграции),
+один раз засеять каталог и проверить `GET /api/health`.
 
-## Further documentation
+## Дополнительная документация
 
-Product / domain:
+Продукт / домен:
 
 - [PRD.md](PRD.md)
 - [DOMAIN_MODEL.md](DOMAIN_MODEL.md)
@@ -514,14 +526,14 @@ Product / domain:
 - [SCORING.md](SCORING.md)
 - [LIMITATIONS.md](LIMITATIONS.md)
 
-Architecture:
+Архитектура:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)
 - [INTEGRATIONS.md](INTEGRATIONS.md)
 - [AI_WORKFLOWS.md](AI_WORKFLOWS.md)
-- [docs/decisions/](docs/decisions/) — ADRs
+- [docs/decisions/](docs/decisions/) — ADR
 
-Operations:
+Операции:
 
 - [docs/LINK_BUILDING_OPERATIONS.md](docs/LINK_BUILDING_OPERATIONS.md)
 - [docs/DEMO.md](docs/DEMO.md)
@@ -533,6 +545,6 @@ Production:
 - [docs/PRODUCTION_ARCHITECTURE.md](docs/PRODUCTION_ARCHITECTURE.md)
 - [docs/PRODUCTION_ROADMAP.md](docs/PRODUCTION_ROADMAP.md)
 
-Testing:
+Тестирование:
 
 - [TESTING.md](TESTING.md)

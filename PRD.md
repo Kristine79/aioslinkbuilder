@@ -1,68 +1,68 @@
-# AI OS — Link Building Module
-## Product Requirements Document
+# AI OS — Модуль линк-билдинга
+## Документ требований к продукту (PRD)
 
-**Status:** Prototype MVP  
-**UI language:** Russian  
-**Code and technical documentation:** English  
-**Synthetic demo company:** Nordhaus
+**Статус:** Прототип MVP  
+**Язык интерфейса:** русский  
+**Код и техническая документация:** английский  
+**Синтетическая демо-компания:** Nordhaus
 
-## 1. Product goal
+## 1. Цель продукта
 
-Build a prototype of a future AI OS module that helps businesses discover, evaluate, execute, and verify online placement opportunities.
+Создать прототип будущего модуля AI OS, который помогает бизнесу находить, оценивать, выполнять и проверять онлайн-размещения.
 
-The system must answer four questions:
+Система должна ответить на четыре вопроса:
 
-1. Which placement opportunities are relevant to this business?
-2. Why are they relevant?
-3. How can the placement be executed: API, semi-automated, browser, outreach, or manual?
-4. Was the expected result actually achieved?
+1. Какие возможности размещения релевантны для этого бизнеса?
+2. Почему они релевантны?
+3. Как можно выполнить размещение: API, полуавтоматически, через браузер, outreach или вручную?
+4. Был ли действительно достигнут ожидаемый результат?
 
-This is not a backlink database. A placement may produce a backlink, brand mention, business profile, product listing, editorial publication, social presence, or referral traffic.
+Это не база обратных ссылок. Размещение может дать обратную ссылку, упоминание бренда, бизнес-профиль, карточку товара, редакционную публикацию, присутствие в соцсетях или реферальный трафик.
 
-## 2. Core workflow
+## 2. Основной конвейер
 
-Company → AI Analysis → Placement Strategy → Opportunity Discovery → Classification → Scoring → Human Approval → Execution → Verification → Monitoring
+Компания → AI-анализ → Стратегия размещений → Поиск возможностей → Классификация → Скоринг → Согласование человеком → Исполнение → Проверка → Мониторинг
 
-## 3. Demo company
+## 3. Демо-компания
 
 ### Nordhaus
 
-Premium made-to-order furniture manufacturer.
+Производитель премиальной мебели на заказ.
 
-**Geography:** Moscow + Russia
+**География:** Москва + Россия
 
-**Products:**
-- kitchens
-- wardrobes
-- built-in furniture
-- upholstered furniture
-- furniture for premium interiors
+**Продукты:**
+- кухни
+- гардеробные
+- встроенная мебель
+- мягкая мебель
+- мебель для премиальных интерьеров
 
-**Target audiences:**
-- premium property owners
-- interior designers
-- architects
-- developers
+**Целевые аудитории:**
+- владельцы премиальной недвижимости
+- дизайнеры интерьеров
+- архитекторы
+- девелоперы
 - HoReCa
 
-Nordhaus is synthetic demo data and must never be represented as a real client.
+Nordhaus — синтетические демо-данные и никогда не должен выдаваться за реального клиента.
 
-## 4. Placement categories
+## 4. Категории размещений
 
-MVP categories:
+Категории MVP:
 
-1. Maps & local directories
-2. Furniture directories
-3. Interior & design
-4. Architecture
-5. Professional platforms
-6. Media & PR
-7. Social platforms
-8. B2B & regional platforms
+1. Карты и локальные каталоги
+2. Мебельные каталоги
+3. Интерьер и дизайн
+4. Архитектура
+5. Профессиональные платформы
+6. Медиа и PR
+7. Социальные платформы
+8. B2B и региональные платформы
 
-Categories are data, not hard-coded UI components.
+Категории — это данные, а не захардкоженные UI-компоненты.
 
-## 5. Placement result types
+## 5. Типы результатов размещения
 
 - BACKLINK
 - BRAND_MENTION
@@ -73,142 +73,142 @@ Categories are data, not hard-coded UI components.
 - SOCIAL_PROFILE
 - REFERRAL_TRAFFIC
 
-Do not classify every placement as a backlink.
+Не классифицируйте каждое размещение как обратную ссылку.
 
-## 6. Opportunity model
+## 6. Модель возможности
 
-Each discovered platform becomes a `PlacementOpportunity`.
+Каждая найденная платформа становится `PlacementOpportunity`.
 
-An opportunity describes a potential placement. It is not proof that a placement has happened.
+Возможность описывает потенциальное размещение. Это не доказательство того, что размещение произошло.
 
-A completed external action becomes a `Placement`.
+Завершённое внешнее действие становится `Placement`.
 
-A verified result becomes a `Verification`.
+Подтверждённый результат становится `Verification`.
 
-## 7. Scoring
+## 7. Скоринг
 
-Final score must be deterministic and transparent.
+Итоговый балл должен быть детерминированным и прозрачным.
 
-Initial weights:
+Начальные веса:
 
-- topical relevance: 30%
-- audience match: 20%
-- geographic relevance: 15%
-- authority: 15%
-- placement quality: 10%
-- automation potential: 10%
+- тематическая релевантность: 30%
+- соответствие аудитории: 20%
+- географическая релевантность: 15%
+- авторитетность: 15%
+- качество размещения: 10%
+- потенциал автоматизации: 10%
 
-The AI may produce semantic inputs and explanations, but it must not invent the final score.
+AI может давать семантические входные данные и объяснения, но не должен придумывать итоговый балл.
 
-Store the score breakdown.
+Сохраняйте разбивку балла.
 
-## 8. Automation
+## 8. Автоматизация
 
-Each opportunity must expose:
+Каждая возможность должна показывать:
 
-- placement method: API / semi-automated / browser / manual / outreach / unknown
-- provider capabilities: discover / validate / create / update / getStatus / verify
+- метод размещения: API / полуавтомат / браузер / вручную / outreach / неизвестно
+- возможности провайдера: discover / validate / create / update / getStatus / verify
 
-Never claim an API capability unless it has been verified.
+Никогда не заявляйте API-возможность, если она не проверена.
 
-Unsupported capabilities must be explicit.
+Неподдерживаемые возможности должны быть явными.
 
-## 9. Human approval
+## 9. Согласование человеком
 
-External actions must support human approval.
+Внешние действия должны поддерживать согласование человеком.
 
-Before execution, show:
-- platform
-- category
-- placement type
-- score
-- score breakdown
-- recommendation reason
-- integration method
-- expected cost, if known
-- company data to be submitted
+Перед исполнением покажите:
+- платформу
+- категорию
+- тип размещения
+- балл
+- разбивку балла
+- причину рекомендации
+- метод интеграции
+- ожидаемую стоимость, если известна
+- данные компании, которые будут отправлены
 
-## 10. Verification
+## 10. Проверка
 
-`SUBMITTED` is not success.
+`SUBMITTED` — это не успех.
 
-A placement can become `VERIFIED` only after evidence confirms the expected result.
+Размещение может стать `VERIFIED` только после того, как доказательства подтвердят ожидаемый результат.
 
-Evidence may include:
-- live URL
-- screenshot
-- matched company name
-- matched website
-- expected backlink
-- verification timestamp
+Доказательства могут включать:
+- живой URL
+- скриншот
+- совпавшее название компании
+- совпавший сайт
+- ожидаемую обратную ссылку
+- метку времени проверки
 
-## 10.1 Demo vs production execution
+## 10.1 Демо vs производственное исполнение
 
-The MVP vertical slice is demonstrated end-to-end using **mock execution**:
-`MockPlacementProvider` simulates a submission lifecycle so the full workflow
-can be shown without external credentials or side effects. Mock execution is a
-legitimate, explicit part of the demo/test vertical slice, but it is not real
-external placement.
+MVP-вертикальный срез демонстрируется сквозно с помощью **мок-исполнения**:
+`MockPlacementProvider` имитирует жизненный цикл отправки, чтобы показать полный
+конвейер без внешних креденшелов и побочных эффектов. Мок-исполнение —
+легитимная, явная часть демо/тестового вертикального среза, но это не реальное
+внешнее размещение.
 
-- MOCK providers are allowed **only** in explicit demo/test composition
-  (`MOCK_PROVIDERS=allow`). The default production composition excludes them
-  (`MOCK_PROVIDERS=deny`), so automated execution against a synthetic
-  provider is impossible in production.
-- A mock execution is **never presented as a real external placement**. UI
-  provenance labels keep demo/synthetic data distinct from real
-  measurements.
-- Real placement execution requires a real provider/integration, which is a
-  separate effort from this MVP slice.
-- The domain model still contains `MOCK` as a legitimate provider type because
-  demo/test workflows require it; the demo-vs-production policy is enforced
-  at the composition/registry boundary, not in the domain.
+- MOCK-провайдеры разрешены **только** в явной демо/тестовой композиции
+  (`MOCK_PROVIDERS=allow`). Производственная композиция по умолчанию исключает
+  их (`MOCK_PROVIDERS=deny`), поэтому автоматическое исполнение на
+  синтетическом провайдере в production невозможно.
+- Мок-исполнение **никогда не выдаётся за реальное внешнее размещение**. Метки
+  атрибуции в UI позволяют отличать демо/синтетические данные от реальных
+  измерений.
+- Реальное исполнение размещений требует реального провайдера/интеграции —
+  это отдельная работа, выходящая за рамки этого MVP-среза.
+- Доменная модель по-прежнему содержит `MOCK` как легитимный тип провайдера,
+  потому что демо/тестовые конвейеры этого требуют; политика «демо vs
+  production» применяется на границе композиции/реестра, а не в домене.
 
-The MVP itself is defined by §2–§13 below. Mock execution is one mechanism
-within the MVP to demonstrate one complete vertical slice, not an expansion of
-the product scope.
+Сам MVP определён разделами §2–§13 ниже. Мок-исполнение — один механизм внутри
+MVP для демонстрации одного полного вертикального среза, а не расширение
+объёма продукта.
 
-## 11. MVP screens
+## 11. Экраны MVP
 
-1. Campaign
-2. AI Analysis
-3. Placement Strategy
-4. Opportunities
-5. Opportunity details
-6. Placement execution/status
-7. Verification
-8. Audit Log
+1. Кампания
+2. AI-анализ
+3. Стратегия размещений
+4. Возможности
+5. Детали возможности
+6. Исполнение/статус размещения
+7. Проверка
+8. Аудит-лог
 
-The UI should be functional and restrained. Do not build a large dashboard for the sake of visuals.
+UI должен быть функциональным и сдержанным. Не стройте большой дашборд ради визуализации.
 
-## 12. MVP acceptance criteria
+## 12. Критерии приёмки MVP
 
-A reviewer must be able to:
+Рецензент должен иметь возможность:
 
-1. open the demo campaign for Nordhaus
-2. run company analysis
-3. view recommended categories
-4. view placement opportunities
-5. filter opportunities
-6. inspect score and explanation
-7. inspect integration capabilities
-8. approve a placement
-9. execute a mock placement
-10. see state changes
-11. run verification
-12. see `VERIFIED`
-13. inspect audit history
+1. открыть демо-кампанию Nordhaus
+2. запустить анализ компании
+3. просмотреть рекомендованные категории
+4. просмотреть возможности размещений
+5. отфильтровать возможности
+6. посмотреть балл и объяснение
+7. посмотреть возможности интеграции
+8. согласовать размещение
+9. выполнить мок-размещение
+10. увидеть изменения состояния
+11. запустить проверку
+12. увидеть `VERIFIED`
+13. просмотреть историю аудита
 
-## 13. Explicitly out of scope
+## 13. Явно вне объёма
 
-- authentication
-- billing
-- multi-tenancy
-- mass real-world submissions
-- dozens of real integrations
-- full outreach CRM
-- full SEO analytics platform
-- automated link purchasing
-- production-scale scraping
-- complex multi-agent orchestration
+- аутентификация
+- биллинг
+- мультитенантность
+- массовые реальные отправки
+- десятки реальных интеграций
+- полный outreach-CRM
+- полноценная SEO-аналитика-платформа
+- автоматическая покупка ссылок
+- скрапинг в производственных масштабах
+- сложная мультиагентная оркестрация
 
-The prototype should demonstrate one complete vertical slice rather than many incomplete features.
+Прототип должен демонстрировать один полный вертикальный срез, а не множество недоделанных функций.

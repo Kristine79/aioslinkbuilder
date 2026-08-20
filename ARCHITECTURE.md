@@ -161,7 +161,7 @@ Core entities:
 - Evidence
 - AIAnalysis
 - AuditLog
-- DiscoveryRun
+- DiscoveryRun (server-side discovery state, not UI state — see ADR-016)
 
 Important distinction:
 
@@ -288,10 +288,16 @@ All mock/demo providers live in `apps/api/src/scenario/nordhaus-intel.ts` and
 are clearly labeled. Real integrations plug into the same ports.
 
 Repository ports (`packages/application/src/ports/repositories/`) include
-`DiscoveryRunRepository` (findLatestForCampaign/save). `DiscoverOpportunities`
-opens a RUNNING run, then persists exactly one terminal state; a source/provider
-failure is stored as FAILED (never COMPLETED_EMPTY). NOT_RUN is derived from the
-absence of a run and is never stored as a row.
+`DiscoveryRunRepository` (findLatestForCampaign/save) with two implementations:
+in-memory for the demo/tests and Prisma-backed for production, which persists
+one discovery run per campaign. `DiscoverOpportunities` owns the lifecycle: it
+opens a RUNNING run, then stores exactly one terminal state (discovered > 0 →
+COMPLETED_WITH_RESULTS, else COMPLETED_EMPTY); a source/provider failure is
+stored as FAILED, never COMPLETED_EMPTY. NOT_RUN is derived from the absence of
+a run and is never stored as a row. DiscoveryRun is a server-side aggregate —
+the backend is the source of truth and the UI reads it via GET
+/api/discovery-state instead of session storage or audit heuristics. See
+ADR-016.
 
 ## 7. State machine
 
