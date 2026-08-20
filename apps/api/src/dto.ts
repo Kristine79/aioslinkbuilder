@@ -9,6 +9,7 @@ import type {
   AIAnalysis,
   AnchorRecommendation,
   AuditLogEntry,
+  Campaign,
   Company,
   DiscoveryRun,
   DonorQualityProfile,
@@ -222,6 +223,69 @@ export interface ApiManualActionDto {
   reason: string;
 }
 
+/**
+ * Current product stage of a campaign, derived by the delivery layer from
+ * persisted state (analysis, discovery run, opportunities/placements).
+ * Presentation semantics only — no new business statuses.
+ */
+export type CampaignStage =
+  | 'DRAFT'
+  | 'SEARCH'
+  | 'SEARCHING'
+  | 'SEARCH_EMPTY'
+  | 'SEARCH_FAILED'
+  | 'REVIEW'
+  | 'PREPARE'
+  | 'PLACEMENT'
+  | 'VERIFICATION'
+  | 'COMPLETED';
+
+export interface ApiCampaignCountsDto {
+  opportunities: number;
+  approved: number;
+  executed: number;
+  published: number;
+  verified: number;
+}
+
+export interface ApiCampaignProgressDto {
+  /** Valid company analysis exists for the campaign (strategy derives from it). */
+  analysisDone: boolean;
+  /** Placement plan was generated and persisted for the campaign. */
+  planDone: boolean;
+  discoveryStatus: ApiDiscoveryStateDto['status'];
+}
+
+export const EMPTY_CAMPAIGN_COUNTS: ApiCampaignCountsDto = {
+  opportunities: 0,
+  approved: 0,
+  executed: 0,
+  published: 0,
+  verified: 0,
+};
+
+/**
+ * Deterministic presentation mapping of persisted state to the current
+ * product stage of a campaign. Pure and side-effect free; the state machine
+ * and domain statuses remain the source of truth.
+ */
+export function deriveCampaignStage(
+  progress: ApiCampaignProgressDto,
+  counts: ApiCampaignCountsDto,
+  campaignStatus: string,
+): CampaignStage {
+  if (campaignStatus === 'COMPLETED') return 'COMPLETED';
+  if (!progress.analysisDone) return 'DRAFT';
+  if (progress.discoveryStatus === 'RUNNING') return 'SEARCHING';
+  if (progress.discoveryStatus === 'FAILED') return 'SEARCH_FAILED';
+  if (progress.discoveryStatus === 'COMPLETED_EMPTY') return 'SEARCH_EMPTY';
+  if (counts.opportunities === 0) return 'SEARCH';
+  if (counts.published > 0) return 'VERIFICATION';
+  if (counts.executed > 0) return 'PLACEMENT';
+  if (progress.planDone) return 'PREPARE';
+  return 'REVIEW';
+}
+
 export interface ApiCampaignListItemDto {
   id: string;
   companyId: string;
@@ -229,6 +293,13 @@ export interface ApiCampaignListItemDto {
   goals: string[];
   status: string;
   createdAt: string;
+  /** Valid company analysis exists (True after the analysis was generated). */
+  analysisDone: boolean;
+  /** Placement plan generated and persisted for the campaign. */
+  planDone: boolean;
+  discoveryStatus: ApiDiscoveryStateDto['status'];
+  stage: CampaignStage;
+  counts: ApiCampaignCountsDto;
 }
 
 export interface ApiCompanyListItemDto {
@@ -383,6 +454,35 @@ export function mapDiscoveryState(
     classifiedCount: run.classifiedCount,
     sources: [...run.sources],
     failure: run.failure,
+  };
+}
+
+/**
+ * Serializes a campaign for lists with its presentation progress. `progress`
+ * carries the persisted facts (analysis/plan/discovery); `null` means a fresh
+ * campaign that has none yet. Counts come from the delivery layer.
+ */
+export function mapCampaignListItem(
+  campaign: Campaign,
+  progress: Pick<ApiCampaignProgressDto, 'analysisDone' | 'planDone' | 'discoveryStatus'> | null,
+  counts: ApiCampaignCountsDto,
+): ApiCampaignListItemDto {
+  const normalized: ApiCampaignProgressDto =
+    progress === null
+      ? { analysisDone: false, planDone: false, discoveryStatus: 'NOT_RUN' }
+      : progress;
+  return {
+    id: campaign.id,
+    companyId: campaign.companyId,
+    name: campaign.name,
+    goals: [...campaign.goals],
+    status: campaign.status,
+    createdAt: toIso(campaign.createdAt),
+    analysisDone: normalized.analysisDone,
+    planDone: normalized.planDone,
+    discoveryStatus: normalized.discoveryStatus,
+    stage: deriveCampaignStage(normalized, counts, campaign.status),
+    counts,
   };
 }
 

@@ -55,6 +55,26 @@ export interface CompanyDto {
   analysis: CompanyAnalysisDto | null;
 }
 
+export type CampaignStage =
+  | 'DRAFT'
+  | 'SEARCH'
+  | 'SEARCHING'
+  | 'SEARCH_EMPTY'
+  | 'SEARCH_FAILED'
+  | 'REVIEW'
+  | 'PREPARE'
+  | 'PLACEMENT'
+  | 'VERIFICATION'
+  | 'COMPLETED';
+
+export interface CampaignCountsDto {
+  opportunities: number;
+  approved: number;
+  executed: number;
+  published: number;
+  verified: number;
+}
+
 export interface CampaignListItemDto {
   id: string;
   companyId: string;
@@ -62,6 +82,14 @@ export interface CampaignListItemDto {
   goals: string[];
   status: string;
   createdAt: string;
+  /** Valid company analysis exists (strategy derives from it). */
+  analysisDone: boolean;
+  /** Placement plan generated and persisted for the campaign. */
+  planDone: boolean;
+  discoveryStatus: DiscoveryStatus;
+  /** Current product stage derived by the backend from persisted state. */
+  stage: CampaignStage;
+  counts: CampaignCountsDto;
 }
 
 export interface CompanyListItemDto {

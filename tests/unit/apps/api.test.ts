@@ -463,4 +463,74 @@ describe('API delivery layer (generic company/campaign flow)', () => {
     const response = await app.request('/api/opportunities?campaignId=does-not-exist');
     expect(await errorShape(response)).toEqual({ status: 404, code: 'NOT_FOUND' });
   });
+
+  it('reports the campaign pipeline stage and counts on the companies list', async () => {
+    const { app } = await setup();
+    const company = await json<{ id: string }>(
+      await post(app, '/api/companies', {
+        name: 'Пайплайн-компания',
+        industry: 'it',
+        geography: ['Москва'],
+      }),
+    );
+    const campaign = await json<{ id: string }>(
+      await post(app, `/api/companies/${company.id}/campaigns`, {
+        name: 'Пайплайн-кампания',
+        goals: ['Каталоги'],
+      }),
+    );
+
+    const fresh = await findCampaignItem(app, company.id, 'Пайплайн-кампания');
+    expect(fresh.stage).toBe('DRAFT');
+    expect(fresh.analysisDone).toBe(false);
+    expect(fresh.planDone).toBe(false);
+    expect(fresh.discoveryStatus).toBe('NOT_RUN');
+    expect(fresh.counts).toEqual({
+      opportunities: 0,
+      approved: 0,
+      executed: 0,
+      published: 0,
+      verified: 0,
+    });
+
+    await post(app, `/api/company/analyze?campaignId=${campaign.id}`);
+    const analyzed = await findCampaignItem(app, company.id, 'Пайплайн-кампания');
+    expect(analyzed.analysisDone).toBe(true);
+    expect(analyzed.discoveryStatus).toBe('NOT_RUN');
+    expect(analyzed.stage).toBe('SEARCH');
+
+    const discovery = await post(app, `/api/discover?campaignId=${campaign.id}`);
+    const result = await json<{ discovered: number }>(discovery);
+    expect(result.discovered).toBeGreaterThan(0);
+
+    const found = await findCampaignItem(app, company.id, 'Пайплайн-кампания');
+    expect(found.discoveryStatus).toBe('COMPLETED_WITH_RESULTS');
+    expect(found.counts.opportunities).toBe(result.discovered);
+    expect(found.stage).toBe('REVIEW');
+  });
 });
+
+interface ApiCampaignListShape {
+  name: string;
+  stage: string;
+  analysisDone: boolean;
+  planDone: boolean;
+  discoveryStatus: string;
+  counts: Record<string, number>;
+}
+
+async function findCampaignItem(
+  app: ReturnType<typeof createApiApp>,
+  companyId: string,
+  name: string,
+): Promise<ApiCampaignListShape> {
+  const companies = await get<{
+    items: Array<{ id: string; campaigns: ApiCampaignListShape[] }>;
+  }>(app, '/api/companies');
+  const company = companies.items.find((entry) => entry.id === companyId);
+  const campaign = company?.campaigns.find((entry) => entry.name === name);
+  if (campaign === undefined) {
+    throw new Error(`no campaign "${name}" for company ${companyId}`);
+  }
+  return campaign;
+}

@@ -200,6 +200,43 @@ export const CAMPAIGN_STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Завершена',
 };
 
+/** Current product stage of a campaign (labels only; the stage comes from the backend). */
+export const CAMPAIGN_STAGE_LABELS: Record<string, string> = {
+  DRAFT: 'Черновик',
+  SEARCH: 'Поиск площадок',
+  SEARCHING: 'Поиск площадок выполняется…',
+  SEARCH_EMPTY: 'Поиск выполнен · возможностей нет',
+  SEARCH_FAILED: 'Поиск завершился ошибкой',
+  REVIEW: 'Оценка доноров',
+  PREPARE: 'Подготовка размещения',
+  PLACEMENT: 'Размещение',
+  VERIFICATION: 'Проверка',
+  COMPLETED: 'Завершено',
+};
+
+export const CAMPAIGN_STAGE_TONES: Record<string, string> = {
+  DRAFT: 'tone-gray',
+  SEARCH: 'tone-blue',
+  SEARCHING: 'tone-blue',
+  SEARCH_EMPTY: 'tone-amber',
+  SEARCH_FAILED: 'tone-red',
+  REVIEW: 'tone-indigo',
+  PREPARE: 'tone-indigo',
+  PLACEMENT: 'tone-blue',
+  VERIFICATION: 'tone-teal',
+  COMPLETED: 'tone-green',
+};
+
+/** Компактный pipeline кампании на карточке: этап, где кампания сейчас, и что впереди. */
+export const CAMPAIGN_STEPS: readonly string[] = [
+  'Анализ',
+  'Стратегия',
+  'Поиск',
+  'Оценка',
+  'Размещение',
+  'Проверка',
+];
+
 export const VERIFICATION_LABELS: Record<VerificationStatus, string> = {
   PENDING: 'Ожидает проверки',
   PASSED: 'Проверка пройдена',

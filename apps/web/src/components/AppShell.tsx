@@ -5,7 +5,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { api } from '../api/client';
 import type { CampaignListItemDto, CompanyListItemDto } from '../api/types';
@@ -35,6 +35,7 @@ function Icon({ name }: { name: string }) {
 
 export function AppShell() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [companies, setCompanies] = useState<CompanyListItemDto[]>([]);
   const [activeCampaignId, setActiveCampaign] = useState<string | null>(() =>
     getActiveCampaignId(),
@@ -80,6 +81,11 @@ export function AppShell() {
     company.campaigns.some((campaign) => campaign.id === activeCampaignId),
   );
 
+  // На странице «Компании» показана вся база компаний/кампаний — единый контекст
+  // «Все компании» вместо активной кампании, чтобы не создавать ложного впечатления,
+  // что пользователь внутри конкретной кампании.
+  const isCompaniesRoute = location.pathname === '/companies';
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -101,31 +107,38 @@ export function AppShell() {
       <div className="main">
         <div className="topbar">
           <div className="topbar-title">AI Backlink OS</div>
-          {companies.length > 0 && (
-            <div className="topbar-campaign">
-              <label className="topbar-label" htmlFor="campaign-switcher">
-                Кампания
-              </label>
-              <select
-                id="campaign-switcher"
-                className="select campaign-switch"
-                value={activeCampaign?.id ?? ''}
-                onChange={(event) => selectCampaign(event.target.value)}
-                aria-label="Выбор кампании"
-              >
-                {companies.map((company) => (
-                  <optgroup key={company.id} label={company.name}>
-                    {company.campaigns.map((campaign) => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </div>
-          )}
-          {activeCompany !== undefined && activeCampaign !== undefined && (
+          {companies.length > 0 &&
+            (isCompaniesRoute ? (
+              <div className="topbar-campaign">
+                <span className="text-tertiary" style={{ fontSize: 12 }}>
+                  Все компании
+                </span>
+              </div>
+            ) : (
+              <div className="topbar-campaign">
+                <label className="topbar-label" htmlFor="campaign-switcher">
+                  Кампания
+                </label>
+                <select
+                  id="campaign-switcher"
+                  className="select campaign-switch"
+                  value={activeCampaign?.id ?? ''}
+                  onChange={(event) => selectCampaign(event.target.value)}
+                  aria-label="Выбор кампании"
+                >
+                  {companies.map((company) => (
+                    <optgroup key={company.id} label={company.name}>
+                      {company.campaigns.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            ))}
+          {!isCompaniesRoute && activeCompany !== undefined && activeCampaign !== undefined && (
             <span className="text-tertiary topbar-company" style={{ fontSize: 12 }}>
               {activeCompany.name}
             </span>

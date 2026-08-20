@@ -62,14 +62,18 @@ import { ProviderError } from '@aios/integrations';
 
 import {
   buildLookupMaps,
+  EMPTY_CAMPAIGN_COUNTS,
   mapAuditEvent,
+  mapCampaignListItem,
   mapCompany,
   mapDiscoveryState,
   mapOpportunity,
   mapPlacementPlan,
   mapVerification,
   type ApiActivityDto,
+  type ApiCampaignCountsDto,
   type ApiCampaignListItemDto,
+  type ApiCampaignProgressDto,
   type ApiCategoryDto,
   type ApiCompanyListItemDto,
   type ApiOverviewDto,
@@ -364,7 +368,9 @@ export function createApiApp(services: ApiServices): Hono {
         website: company.website,
         description: company.description,
         createdAt: company.createdAt.toISOString(),
-        campaigns: campaigns.map(mapCampaignListItem),
+        campaigns: await Promise.all(
+          campaigns.map((campaign) => mapCampaignWithProgress(env, campaign)),
+        ),
       });
     }
     return c.json({ items });
@@ -385,7 +391,7 @@ export function createApiApp(services: ApiServices): Hono {
       name,
       goals: stringList(record.goals),
     });
-    return c.json(mapCampaignListItem(campaign), 201);
+    return c.json(mapCampaignListItem(campaign, null, EMPTY_CAMPAIGN_COUNTS), 201);
   });
 
   app.get('/api/campaigns', async (c) => {
@@ -394,7 +400,9 @@ export function createApiApp(services: ApiServices): Hono {
       return c.json({ items: [] });
     }
     const campaigns = await listCampaigns.execute(companyId);
-    return c.json({ items: campaigns.map(mapCampaignListItem) });
+    return c.json({
+      items: await Promise.all(campaigns.map((campaign) => mapCampaignWithProgress(env, campaign))),
+    });
   });
 
   app.get('/api/company', async (c) => {
@@ -1088,17 +1096,6 @@ function sourceOf(opportunity: PlacementOpportunity): string {
   return typeof metadata.discoverySource === 'string' ? metadata.discoverySource : 'unknown';
 }
 
-function mapCampaignListItem(campaign: Campaign): ApiCampaignListItemDto {
-  return {
-    id: campaign.id,
-    companyId: campaign.companyId,
-    name: campaign.name,
-    goals: [...campaign.goals],
-    status: campaign.status,
-    createdAt: campaign.createdAt.toISOString(),
-  };
-}
-
 /**
  * Entity ids whose audit events belong to a campaign: the campaign itself,
  * its opportunities and their placement attempts.
@@ -1156,4 +1153,65 @@ async function mapOpportunityWithRelations(
     evidenceByVerification,
     context,
   );
+}
+
+/**
+ * Presentation summary of a campaign's pipeline position: which milestones
+ * exist (analysis, placement plan), the discovery run state and the placement
+ * counts. All values come from persisted repositories — the delivery layer
+ * only serializes them, the stage itself is derived in dto.ts.
+ */
+async function campaignProgress(
+  env: ApiEnvironment,
+  campaign: Campaign,
+): Promise<{ progress: ApiCampaignProgressDto; counts: ApiCampaignCountsDto }> {
+  const [analysis, plan, run, opportunities] = await Promise.all([
+    env.analyses.findLatestValidCompanyAnalysis(campaign.id),
+    env.analyses.findLatestValidPlacementPlan(campaign.id),
+    env.discoveryRuns.findLatestForCampaign(campaign.id),
+    env.opportunities.findByCampaignId(campaign.id),
+  ]);
+
+  let executed = 0;
+  let published = 0;
+  let verified = 0;
+  for (const opportunity of opportunities) {
+    const placements = await env.placements.findByOpportunityId(opportunity.id);
+    if (placements.length > 0) executed++;
+    if (
+      placements.some(
+        (placement) => placement.status === 'PUBLISHED' || placement.status === 'VERIFIED',
+      )
+    ) {
+      published++;
+    }
+    if (placements.some((placement) => placement.status === 'VERIFIED')) verified++;
+  }
+
+  const approved = opportunities.filter((opportunity) =>
+    ['SELECTED', 'READY', 'NEEDS_MANUAL'].includes(opportunity.status),
+  ).length;
+
+  return {
+    progress: {
+      analysisDone: analysis !== null,
+      planDone: plan !== null,
+      discoveryStatus: mapDiscoveryState(run, campaign.id).status,
+    },
+    counts: {
+      opportunities: opportunities.length,
+      approved,
+      executed,
+      published,
+      verified,
+    },
+  };
+}
+
+async function mapCampaignWithProgress(
+  env: ApiEnvironment,
+  campaign: Campaign,
+): Promise<ApiCampaignListItemDto> {
+  const { progress, counts } = await campaignProgress(env, campaign);
+  return mapCampaignListItem(campaign, progress, counts);
 }

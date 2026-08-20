@@ -22196,6 +22196,25 @@ var GetPlacementPlanUseCase = class {
 };
 
 // apps/api/src/dto.ts
+var EMPTY_CAMPAIGN_COUNTS = {
+  opportunities: 0,
+  approved: 0,
+  executed: 0,
+  published: 0,
+  verified: 0
+};
+function deriveCampaignStage(progress, counts, campaignStatus) {
+  if (campaignStatus === "COMPLETED") return "COMPLETED";
+  if (!progress.analysisDone) return "DRAFT";
+  if (progress.discoveryStatus === "RUNNING") return "SEARCHING";
+  if (progress.discoveryStatus === "FAILED") return "SEARCH_FAILED";
+  if (progress.discoveryStatus === "COMPLETED_EMPTY") return "SEARCH_EMPTY";
+  if (counts.opportunities === 0) return "SEARCH";
+  if (counts.published > 0) return "VERIFICATION";
+  if (counts.executed > 0) return "PLACEMENT";
+  if (progress.planDone) return "PREPARE";
+  return "REVIEW";
+}
 function mapDiscoveryState(run, campaignId) {
   if (run === null) {
     return {
@@ -22216,6 +22235,22 @@ function mapDiscoveryState(run, campaignId) {
     classifiedCount: run.classifiedCount,
     sources: [...run.sources],
     failure: run.failure
+  };
+}
+function mapCampaignListItem(campaign, progress, counts) {
+  const normalized = progress === null ? { analysisDone: false, planDone: false, discoveryStatus: "NOT_RUN" } : progress;
+  return {
+    id: campaign.id,
+    companyId: campaign.companyId,
+    name: campaign.name,
+    goals: [...campaign.goals],
+    status: campaign.status,
+    createdAt: toIso(campaign.createdAt),
+    analysisDone: normalized.analysisDone,
+    planDone: normalized.planDone,
+    discoveryStatus: normalized.discoveryStatus,
+    stage: deriveCampaignStage(normalized, counts, campaign.status),
+    counts
   };
 }
 function buildLookupMaps(platforms, categories, providers) {
@@ -22794,7 +22829,9 @@ function createApiApp(services) {
         website: company.website,
         description: company.description,
         createdAt: company.createdAt.toISOString(),
-        campaigns: campaigns.map(mapCampaignListItem)
+        campaigns: await Promise.all(
+          campaigns.map((campaign) => mapCampaignWithProgress(env, campaign))
+        )
       });
     }
     return c.json({ items });
@@ -22814,7 +22851,7 @@ function createApiApp(services) {
       name,
       goals: stringList2(record2.goals)
     });
-    return c.json(mapCampaignListItem(campaign), 201);
+    return c.json(mapCampaignListItem(campaign, null, EMPTY_CAMPAIGN_COUNTS), 201);
   });
   app.get("/api/campaigns", async (c) => {
     const companyId = c.req.query("companyId");
@@ -22822,7 +22859,9 @@ function createApiApp(services) {
       return c.json({ items: [] });
     }
     const campaigns = await listCampaigns.execute(companyId);
-    return c.json({ items: campaigns.map(mapCampaignListItem) });
+    return c.json({
+      items: await Promise.all(campaigns.map((campaign) => mapCampaignWithProgress(env, campaign)))
+    });
   });
   app.get("/api/company", async (c) => {
     const campaign = await resolveCampaign(c);
@@ -23327,16 +23366,6 @@ function sourceOf(opportunity) {
   const metadata = opportunity.metadata ?? {};
   return typeof metadata.discoverySource === "string" ? metadata.discoverySource : "unknown";
 }
-function mapCampaignListItem(campaign) {
-  return {
-    id: campaign.id,
-    companyId: campaign.companyId,
-    name: campaign.name,
-    goals: [...campaign.goals],
-    status: campaign.status,
-    createdAt: campaign.createdAt.toISOString()
-  };
-}
 function campaignScopeIds(campaign, mapped) {
   const ids = /* @__PURE__ */ new Set([campaign.id]);
   for (const item of mapped) {
@@ -23376,6 +23405,48 @@ async function mapOpportunityWithRelations(env, opportunity, context) {
     evidenceByVerification,
     context
   );
+}
+async function campaignProgress(env, campaign) {
+  const [analysis, plan, run, opportunities] = await Promise.all([
+    env.analyses.findLatestValidCompanyAnalysis(campaign.id),
+    env.analyses.findLatestValidPlacementPlan(campaign.id),
+    env.discoveryRuns.findLatestForCampaign(campaign.id),
+    env.opportunities.findByCampaignId(campaign.id)
+  ]);
+  let executed = 0;
+  let published = 0;
+  let verified = 0;
+  for (const opportunity of opportunities) {
+    const placements = await env.placements.findByOpportunityId(opportunity.id);
+    if (placements.length > 0) executed++;
+    if (placements.some(
+      (placement) => placement.status === "PUBLISHED" || placement.status === "VERIFIED"
+    )) {
+      published++;
+    }
+    if (placements.some((placement) => placement.status === "VERIFIED")) verified++;
+  }
+  const approved = opportunities.filter(
+    (opportunity) => ["SELECTED", "READY", "NEEDS_MANUAL"].includes(opportunity.status)
+  ).length;
+  return {
+    progress: {
+      analysisDone: analysis !== null,
+      planDone: plan !== null,
+      discoveryStatus: mapDiscoveryState(run, campaign.id).status
+    },
+    counts: {
+      opportunities: opportunities.length,
+      approved,
+      executed,
+      published,
+      verified
+    }
+  };
+}
+async function mapCampaignWithProgress(env, campaign) {
+  const { progress, counts } = await campaignProgress(env, campaign);
+  return mapCampaignListItem(campaign, progress, counts);
 }
 
 // packages/infrastructure/src/db.ts
