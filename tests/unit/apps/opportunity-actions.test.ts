@@ -1,15 +1,18 @@
 /**
  * Presentation gate tests: `opportunityActions` must never offer `execute`
  * for an opportunity whose platform has no provider capable of CREATE+VERIFY
- * (real web-discovered platforms in production, ADR-015). The domain layer
- * remains the real guard (NoProviderAvailableError) — this only keeps the UI
- * from leading the user into a guaranteed 422.
+ * resolvable in the current environment (real web-discovered platforms in
+ * production, ADR-015). When automatic execution is impossible, the platform
+ * stays a valid manual target: `requestManual` is offered instead of a dead
+ * end. The domain layer remains the real guard (NoProviderAvailableError) —
+ * this only keeps the UI from leading the user into a guaranteed 422.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import type { PlacementOpportunity } from '@aios/domain';
-import { opportunityActions } from '@aios/api';
+import type { PlacementOpportunity, PlacementProvider } from '@aios/domain';
+import { EXECUTION_REQUIRED_CAPABILITIES, selectBestProvider } from '@aios/domain';
+import { opportunityActions, type OpportunityAction } from '@aios/api';
 
 const BASE: PlacementOpportunity = {
   id: 'opp-1',
@@ -30,26 +33,76 @@ const BASE: PlacementOpportunity = {
   updatedAt: new Date('2026-08-20T00:00:00.000Z'),
 };
 
+function provider(
+  id: string,
+  platformId: string,
+  providerType: 'API' | 'BROWSER' | 'MANUAL' | 'MOCK',
+  capabilities: PlacementProvider['capabilities'],
+  capabilitiesVerified = true,
+): PlacementProvider {
+  return {
+    id,
+    platformId,
+    name: `${id} ${providerType}`,
+    providerType,
+    capabilities: [...capabilities],
+    capabilitiesVerified,
+    notes: null,
+  };
+}
+
+/** Builds a context whose provider list reflects the live registry policy. */
+function contextFor(
+  providers: PlacementProvider[],
+): { envProviders: readonly PlacementProvider[] } {
+  return { envProviders: providers };
+}
+
 function withCapabilities(
   capabilities: PlacementOpportunity['providerCapabilities'],
 ): PlacementOpportunity {
   return { ...BASE, providerCapabilities: capabilities };
 }
 
-describe('opportunityActions — execute gate (presentation)', () => {
+describe('opportunityActions — execute gate (presentation, live registry)', () => {
+  const fullProvider = provider(
+    'provider-auto',
+    BASE.platformId,
+    'MOCK',
+    EXECUTION_REQUIRED_CAPABILITIES,
+  );
+  const verifyOnlyProvider = provider('provider-verify', BASE.platformId, 'MANUAL', ['VERIFY']);
+
   it('offers execute for a SELECTED platform with a CREATE+VERIFY provider', () => {
     const opportunity = withCapabilities(['CREATE', 'VERIFY']);
-    expect(opportunityActions(opportunity)).toEqual(['execute']);
+    const context = contextFor([fullProvider]);
+    expect(opportunityActions(opportunity, undefined, context)).toEqual(['execute'] as OpportunityAction[]);
   });
 
-  it('does not offer execute for a SELECTED platform with no provider capabilities', () => {
+  it('does not offer execute for a SELECTED web platform without a provider; offers manual instead', () => {
     const opportunity = withCapabilities([]);
-    expect(opportunityActions(opportunity)).toEqual([]);
+    const context = contextFor([]);
+    const actions = opportunityActions(opportunity, undefined, context);
+    expect(actions).not.toContain('execute');
+    expect(actions).toContain('requestManual');
   });
 
-  it('does not offer execute without VERIFY (CREATE only)', () => {
+  it('does not offer execute when the only provider record is excluded by policy (e.g. MOCK denied)', () => {
+    // The registry provider list already excludes MOCKs (ADR-015): the gate
+    // must not resolve the raw recorded capabilities instead.
+    const opportunity = withCapabilities(['CREATE', 'VERIFY']);
+    const context = contextFor([]);
+    const actions = opportunityActions(opportunity, undefined, context);
+    expect(actions).not.toContain('execute');
+    expect(actions).toContain('requestManual');
+  });
+
+  it('does not offer execute without VERIFY (CREATE only), manual remains the fallback', () => {
     const opportunity = withCapabilities(['CREATE']);
-    expect(opportunityActions(opportunity)).toEqual([]);
+    const context = contextFor([provider('provider-no-verify', BASE.platformId, 'API', ['CREATE'])]);
+    const actions = opportunityActions(opportunity, undefined, context);
+    expect(actions).not.toContain('execute');
+    expect(actions).toContain('requestManual');
   });
 
   it('keeps requestManual for MANUAL method even without auto-execution', () => {
@@ -58,7 +111,8 @@ describe('opportunityActions — execute gate (presentation)', () => {
       placementMethod: 'MANUAL' as const,
       providerCapabilities: [] as const,
     };
-    expect(opportunityActions(opportunity)).toEqual(['requestManual']);
+    const context = contextFor([verifyOnlyProvider]);
+    expect(opportunityActions(opportunity, undefined, context)).toEqual(['requestManual'] as OpportunityAction[]);
   });
 
   it('offers execute alongside requestManual for MANUAL method with CREATE+VERIFY', () => {
@@ -67,7 +121,11 @@ describe('opportunityActions — execute gate (presentation)', () => {
       placementMethod: 'MANUAL' as const,
       providerCapabilities: ['CREATE', 'VERIFY'] as const,
     };
-    expect(opportunityActions(opportunity)).toEqual(['requestManual', 'execute']);
+    const context = contextFor([fullProvider]);
+    expect(opportunityActions(opportunity, undefined, context)).toEqual([
+      'requestManual',
+      'execute',
+    ] as OpportunityAction[]);
   });
 
   it('never offers execute for OUTREACH method before the negotiation is agreed', () => {
@@ -76,17 +134,61 @@ describe('opportunityActions — execute gate (presentation)', () => {
       placementMethod: 'OUTREACH' as const,
       providerCapabilities: ['CREATE', 'VERIFY'] as const,
     };
-    expect(opportunityActions(opportunity)).toEqual([]);
+    const context = contextFor([fullProvider]);
+    expect(opportunityActions(opportunity, undefined, context)).toEqual([] as OpportunityAction[]);
   });
 });
 
-describe('opportunityActions — READY retry keeps execute', () => {
-  it('offers execute when a previous placement exists and can be retried', () => {
+describe('opportunityActions — READY retry', () => {
+  const fullProvider = provider(
+    'provider-auto',
+    BASE.platformId,
+    'MOCK',
+    EXECUTION_REQUIRED_CAPABILITIES,
+  );
+
+  it('offers execute for a retry while the automatic provider is still resolvable', () => {
     const opportunity = {
       ...BASE,
       status: 'READY' as const,
       providerCapabilities: ['CREATE', 'VERIFY'] as const,
     };
-    expect(opportunityActions(opportunity)).toEqual(['execute']);
+    const context = contextFor([fullProvider]);
+    expect(opportunityActions(opportunity, undefined, context)).toEqual(['execute'] as OpportunityAction[]);
+  });
+
+  it('does not offer execute for a retry when the automatic provider is no longer resolvable', () => {
+    const opportunity = {
+      ...BASE,
+      status: 'READY' as const,
+      providerCapabilities: ['CREATE', 'VERIFY'] as const,
+    };
+    const context = contextFor([]);
+    const actions = opportunityActions(opportunity, undefined, context);
+    expect(actions).not.toContain('execute');
+    expect(actions).toEqual([] as OpportunityAction[]);
+  });
+
+  it('falls back to recorded capabilities when no context is supplied (backwards compatible)', () => {
+    const opportunity = withCapabilities([]);
+    expect(opportunityActions(opportunity)).toEqual(['requestManual'] as OpportunityAction[]);
+  });
+});
+
+describe('canExecuteAutomatically helper follows selectBestProvider semantics', () => {
+  it('requires capabilitiesVerified, otherwise the platform cannot run automatically', () => {
+    const unverified = provider(
+      'provider-unverified',
+      BASE.platformId,
+      'MOCK',
+      EXECUTION_REQUIRED_CAPABILITIES,
+      false,
+    );
+    const selected = selectBestProvider([unverified], EXECUTION_REQUIRED_CAPABILITIES);
+    expect(selected).toBeNull();
+    const context = contextFor([unverified]);
+    const actions = opportunityActions(BASE, undefined, context);
+    expect(actions).not.toContain('execute');
+    expect(actions).toContain('requestManual');
   });
 });

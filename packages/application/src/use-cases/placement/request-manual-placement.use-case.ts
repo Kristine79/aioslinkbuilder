@@ -1,7 +1,9 @@
 import type { Placement, PlacementOpportunity } from '@aios/domain';
 import {
+  EXECUTION_REQUIRED_CAPABILITIES,
   ValidationError,
   assertTransitionPlacement,
+  selectBestProvider,
   validateManualPlacementRequest,
   validatePlacement,
 } from '@aios/domain';
@@ -18,12 +20,17 @@ import type { PlacementProviderRegistry } from '../../ports/provider-registry.js
  * Human-in-the-loop gate for manual placement execution: SELECTED ->
  * NEEDS_MANUAL.
  *
- * Two paths reach this gate:
+ * Three paths reach this gate:
  * - opportunities aligned to a verified MANUAL provider (placementMethod
  *   MANUAL);
  * - outreach-driven placements (LINK_INSERT / GUEST_POST / …) after the
  *   negotiation reached AGREED — the human executes the placement on the
- *   donor site and records the proof here.
+ *   donor site and records the proof here;
+ * - any SELECTED platform that cannot execute automatically right now (no
+ *   provider with CREATE+VERIFY is resolvable in the current environment,
+ *   e.g. a web-discovered platform without a registered provider). The
+ *   platform stays a valid manual target: a placement record is created in
+ *   NEEDS_MANUAL without a provider id and the human completes it off-app.
  *
  * A placement record is created in NEEDS_MANUAL so the manual attempt is
  * tracked like any other attempt; the human completes the work off-app and
@@ -51,24 +58,28 @@ export class RequestManualPlacementUseCase {
     const isAgreedOutreach =
       opportunity.placementMethod === 'OUTREACH' && intel.outreach?.status === 'AGREED';
 
-    if (!isManual && !isAgreedOutreach) {
+    const providers = await this.providers.listByPlatformId(opportunity.platformId);
+    // Manual execution is the fallback for platforms that cannot run
+    // automatically right now: a web-discovered platform without a registered
+    // provider (placementMethod UNKNOWN) is still a valid manual target — a
+    // human places the link off-app and records the proof. The platform is
+    // neither lost nor treated as an error. Automatic execution stays the
+    // preferred path whenever a capable provider is resolvable.
+    const automatic = selectBestProvider(providers, EXECUTION_REQUIRED_CAPABILITIES);
+    const manualFallback = automatic === null;
+
+    if (!isManual && !isAgreedOutreach && !manualFallback) {
       throw new ValidationError(
-        `Opportunity ${opportunity.id} is not aligned for manual placement (method ${opportunity.placementMethod}, outreach ${intel.outreach?.status ?? 'none'})`,
+        `Opportunity ${opportunity.id} cannot be routed to manual placement (method ${opportunity.placementMethod}, outreach ${intel.outreach?.status ?? 'none'})`,
       );
     }
 
     let providerId: string | null = null;
     if (isManual) {
-      const providers = await this.providers.listByPlatformId(opportunity.platformId);
       const manualProvider = providers.find(
         (provider) => provider.providerType === 'MANUAL' && provider.capabilitiesVerified,
       );
-      if (manualProvider === undefined) {
-        throw new ValidationError(
-          `No verified manual provider available for platform ${opportunity.platformId}`,
-        );
-      }
-      providerId = manualProvider.id;
+      providerId = manualProvider?.id ?? null;
     }
 
     validatePlacement({

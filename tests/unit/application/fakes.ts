@@ -62,6 +62,10 @@ export class InMemoryPlacementProviderRegistry implements PlacementProviderRegis
     return Promise.resolve(this.entities.filter((provider) => provider.platformId === platformId));
   }
 
+  listProviders(): Promise<PlacementProvider[]> {
+    return Promise.resolve([...this.entities]);
+  }
+
   resolve(providerId: string): Promise<PlacementProviderContract> {
     const implementation = this.implementations.get(providerId);
     if (implementation === undefined) {

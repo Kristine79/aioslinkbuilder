@@ -1123,7 +1123,11 @@ async function opportunityContext(env: ApiEnvironment): Promise<OpportunityConte
   const [categories, platforms, providers] = await Promise.all([
     env.lookups.listCategories(),
     env.lookups.listPlatforms(),
-    env.lookups.listProviders(),
+    // The registry applies the environment policy (e.g. MOCK_PROVIDERS=deny
+    // in production, ADR-015). The display/alignment gate must read the same
+    // provider set the execution use cases resolve from, so it can never
+    // offer an action the backend cannot honor.
+    env.registry.listProviders(),
   ]);
   return { maps: buildLookupMaps(platforms, categories, providers), envProviders: providers };
 }

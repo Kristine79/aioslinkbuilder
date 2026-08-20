@@ -473,6 +473,71 @@ describe('RequestManualPlacementUseCase / CompleteManualPlacementUseCase', () =>
   });
 });
 
+describe('Web-discovered platform without a provider (execution fallback)', () => {
+  it('routes a SELECTED web platform to manual placement instead of a dead end', async () => {
+    const harness = await createHarness();
+
+    // A web-discovered platform persists with NO provider record at all.
+    const webPlatform = await harness.opportunities.create({
+      campaignId: harness.campaignId,
+      platformId: 'platform-ws-dyatkovo-ru-7plrn2',
+      placementType: 'DIRECTORY_LISTING',
+      placementMethod: 'UNKNOWN',
+      metadata: { discoverySource: 'web-search' },
+    });
+    const webOpportunity = await harness.opportunities.update({
+      ...webPlatform,
+      status: 'QUALIFIED',
+      score: 79,
+      providerCapabilities: [],
+      updatedAt: new Date(),
+    });
+
+    // Approval stays open: a relevant platform can be useful for manual work
+    // even without automation (the plan already refuses to recommend it for
+    // automatic execution — NO_PROVIDER).
+    const selected = await harness.approve.execute({ opportunityId: webOpportunity.id });
+    expect(selected.status).toBe('SELECTED');
+    expect(selected.placementMethod).toBe('UNKNOWN');
+
+    // Automatic execution is impossible and must fail explicitly (the domain
+    // guard stays the real backstop).
+    await expect(harness.execute.execute({ opportunityId: selected.id })).rejects.toThrow(
+      NoProviderAvailableError,
+    );
+
+    // The manual fallback works without any provider record: the human places
+    // the link off-app and records the proof.
+    const manual = await harness.requestManual.execute({
+      opportunityId: selected.id,
+      reason: 'Площадка найдена через веб-поиск, автоматизации нет, выполняем вручную',
+    });
+    expect(manual.status).toBe('NEEDS_MANUAL');
+    expect(manual.providerId).toBeNull();
+
+    const completed = await harness.completeManual.execute({
+      placementId: manual.id,
+      externalId: 'dyatkovo-ru/furniture-studio',
+      liveUrl: 'https://dyatkovo.ru/furniture-studio',
+      notes: 'Размещение выполнено вручную',
+    });
+    expect(completed.status).toBe('PUBLISHED');
+    expect(completed.liveUrl).toBe('https://dyatkovo.ru/furniture-studio');
+    expect(harness.opportunities.opportunities.get(selected.id)?.status).toBe('NEEDS_MANUAL');
+  });
+
+  it('still rejects manual routing when an automatic provider is resolvable', async () => {
+    const harness = await createHarness();
+    const approved = await harness.approve.execute({
+      opportunityId: harness.classifiedOpportunityId,
+    });
+
+    await expect(
+      harness.requestManual.execute({ opportunityId: approved.id, reason: 'nope' }),
+    ).rejects.toThrow(ValidationError);
+  });
+});
+
 describe('MonitorPlacementUseCase', () => {
   it('transitions SUBMITTED to PUBLISHED when the provider reports publication', async () => {
     const harness = await createHarness({ provider1: { alwaysPublish: false } });

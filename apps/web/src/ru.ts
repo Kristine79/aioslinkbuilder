@@ -30,7 +30,7 @@ export const METHOD_LABELS: Record<string, string> = {
   API: 'API',
   SEMI_AUTOMATED: 'Полуавтомат',
   BROWSER: 'Браузер',
-  MANUAL: 'Вручную',
+  MANUAL: 'Ручное размещение',
   OUTREACH: 'Аутрич',
   UNKNOWN: 'Недоступно',
 };
@@ -257,7 +257,7 @@ export const ACTION_LABELS: Record<string, string> = {
   execute: 'Запустить',
   monitor: 'Проверить статус',
   verify: 'Проверить',
-  requestManual: 'Оформить вручную',
+  requestManual: 'Подготовить размещение',
   completeManual: 'Подтвердить публикацию',
 };
 

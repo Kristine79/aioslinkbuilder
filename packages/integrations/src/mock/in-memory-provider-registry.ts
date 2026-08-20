@@ -42,6 +42,10 @@ export class InMemoryPlacementProviderRegistry implements PlacementProviderRegis
     );
   }
 
+  listProviders(): Promise<PlacementProviderEntity[]> {
+    return Promise.resolve(this.entities.filter((provider) => this.isUsable(provider)));
+  }
+
   resolve(providerId: string): Promise<PlacementProvider> {
     const entity = this.entities.find((provider) => provider.id === providerId);
     if (entity !== undefined && !this.isUsable(entity)) {

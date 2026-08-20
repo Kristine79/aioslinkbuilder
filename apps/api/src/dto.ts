@@ -508,7 +508,17 @@ export function buildLookupMaps(
 export function opportunityActions(
   opportunity: PlacementOpportunity,
   intel?: OpportunityIntel,
+  context?: Pick<OpportunityMapContext, 'envProviders'>,
 ): OpportunityAction[] {
+  // Automatic execution is possible only when a provider capable of
+  // CREATE+VERIFY is resolvable in the CURRENT environment. When the context
+  // is available the check is resolved against the registry (which applies
+  // the policy, e.g. MOCK_PROVIDERS=deny in production) so the UI can never
+  // offer an action the backend — which resolves providers from the same
+  // registry — would reject with NoProviderAvailableError. Without a context
+  // the recorded classification capabilities are used (backwards compatible).
+  const autoExecution = canExecuteAutomatically(opportunity, context);
+
   if (opportunity.status === 'QUALIFIED') {
     return ['approve'];
   }
@@ -519,16 +529,25 @@ export function opportunityActions(
       return intel?.outreach?.status === 'AGREED' ? ['requestManual'] : [];
     }
     if (opportunity.placementMethod === 'MANUAL') {
+      // Manual method: the manual gate is always available; automatic
+      // execution is offered in addition when a CREATE+VERIFY provider is
+      // resolvable in the current environment.
       const actions: OpportunityAction[] = ['requestManual'];
-      if (hasExecutionProvider(opportunity)) actions.push('execute');
+      if (autoExecution) actions.push('execute');
       return actions;
     }
-    return hasExecutionProvider(opportunity) ? ['execute'] : [];
+    // API/BROWSER/SEMI_AUTOMATED/UNKNOWN methods: automatic execution when a
+    // provider exists; otherwise the platform is still a valid manual target —
+    // a human places it off-app and records the proof (NEEDS_MANUAL). The
+    // platform is neither lost nor treated as an error.
+    if (autoExecution) return ['execute'];
+    return ['requestManual'];
   }
-  // READY: a retry after a failed attempt is possible (a fresh placement is
-  // created; failed attempts stay in the audit trail).
+  // READY: a retry after a failed attempt is possible only while the automatic
+  // provider is still resolvable; without it, offering execute would be a
+  // guaranteed NO_PROVIDER error (failed attempts stay in the audit trail).
   if (opportunity.status === 'READY') {
-    return ['execute'];
+    return autoExecution ? ['execute'] : [];
   }
   if (opportunity.status === 'NEEDS_MANUAL' && intel?.outreach?.status === 'AGREED') {
     return [];
@@ -537,16 +556,26 @@ export function opportunityActions(
 }
 
 /**
- * Presentation gate: automatic execution is offered only when a provider
- * capable of CREATE+VERIFY was recorded for the platform at classification
- * time. Discovered platforms without a registered provider (real integrations
- * or, in production, MOCK excluded by ADR-015) therefore never offer execute —
- * the domain layer stays the real guard (NoProviderAvailableError).
+ * Resolves whether automatic execution is possible for the platform right now.
+ *
+ * Single source of truth: when the delivery context is provided, the same
+ * provider set the execution use cases resolve from is used (registry policy
+ * applied). When omitted, the capabilities recorded at classification time are
+ * used so direct callers keep working.
  */
-function hasExecutionProvider(opportunity: PlacementOpportunity): boolean {
-  return EXECUTION_REQUIRED_CAPABILITIES.every((capability) =>
-    supportsCapability(opportunity.providerCapabilities, capability),
+function canExecuteAutomatically(
+  opportunity: PlacementOpportunity,
+  context?: Pick<OpportunityMapContext, 'envProviders'>,
+): boolean {
+  if (context === undefined) {
+    return EXECUTION_REQUIRED_CAPABILITIES.every((capability) =>
+      supportsCapability(opportunity.providerCapabilities, capability),
+    );
+  }
+  const platformProviders = context.envProviders.filter(
+    (provider) => provider.platformId === opportunity.platformId,
   );
+  return selectBestProvider(platformProviders, EXECUTION_REQUIRED_CAPABILITIES) !== null;
 }
 
 /** Presentation gate: which placement-level actions the UI may offer. */
@@ -679,7 +708,7 @@ export function mapOpportunity(
     status: opportunity.status,
     createdAt: toIso(opportunity.createdAt),
     updatedAt: toIso(opportunity.updatedAt),
-    allowedActions: opportunityActions(opportunity, intel),
+    allowedActions: opportunityActions(opportunity, intel, context),
     placements: placements.map((placement) =>
       mapPlacement(placement, verificationsByPlacement, evidenceByVerification, context.maps),
     ),

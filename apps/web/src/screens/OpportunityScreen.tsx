@@ -37,11 +37,56 @@ import {
   CAPABILITY_LABELS,
   DISCOVERY_SOURCE_LABELS,
   EVIDENCE_LABELS,
-  METHOD_LABELS,
   PROVIDER_TYPE_LABELS,
   TYPE_LABELS,
   formatDateTime,
 } from '../ru';
+
+/**
+ * Derives how this opportunity can be executed for the UI. Mirrors the
+ * backend gate (`opportunityActions`) so the display can never contradict
+ * what the backend will actually honor.
+ *
+ * - provider matching the execution method -> automatic execution;
+ * - no provider but manual work is possible (SELECTED) -> ручное размещение;
+ * - otherwise -> execution unavailable.
+ */
+function executionMode(opportunity: OpportunityDto): {
+  label: string;
+  note: string | null;
+  mode: 'auto' | 'manual' | 'unavailable';
+} {
+  const method = opportunity.placementMethod;
+  if (method === 'OUTREACH') {
+    return {
+      label: 'Ручной охват',
+      note: 'Размещение через переговоры с площадкой — выполняется человеком.',
+      mode: 'manual',
+    };
+  }
+  if (opportunity.provider !== null) {
+    if (method === 'MANUAL') {
+      return {
+        label: 'Ручное размещение',
+        note: `Провайдер: ${opportunity.provider.name}. Публикацию подтверждает человек (есть провайдер проверки).`,
+        mode: 'manual',
+      };
+    }
+    return { label: 'Автоматически', note: opportunity.provider.name, mode: 'auto' };
+  }
+  if (opportunity.allowedActions.includes('requestManual')) {
+    return {
+      label: 'Ручное размещение',
+      note: 'Автоматическое выполнение пока недоступно — размещение можно подготовить и выполнить вручную.',
+      mode: 'manual',
+    };
+  }
+  return {
+    label: 'Недоступно',
+    note: 'Нет способа выполнения для этой площадки (нет подходящего провайдера).',
+    mode: 'unavailable',
+  };
+}
 
 export function OpportunityScreen() {
   const { id } = useParams<{ id: string }>();
@@ -125,6 +170,7 @@ export function OpportunityScreen() {
   const canExecute = opportunity.allowedActions.includes('execute');
   const canApprove = opportunity.allowedActions.includes('approve');
   const isDemoProvider = opportunity.provider?.type === 'MOCK';
+  const execMode = executionMode(opportunity);
 
   const placementIds = new Set(opportunity.placements.map((placement) => placement.id));
   const opportunityAudit = audit.filter(
@@ -333,7 +379,12 @@ export function OpportunityScreen() {
             <div className="kv">
               <span className="kv-key">Способ выполнения</span>
               <span className="kv-value">
-                {METHOD_LABELS[opportunity.placementMethod] ?? opportunity.placementMethod}
+                {execMode.label}
+                {execMode.mode === 'manual' && (
+                  <div className="text-tertiary" style={{ fontSize: 12, marginTop: 4 }}>
+                    {execMode.note}
+                  </div>
+                )}
               </span>
             </div>
             <div className="kv">
@@ -472,28 +523,36 @@ export function OpportunityScreen() {
               </>
             )}
             {canRequestManual && (
-              <button
-                className="btn btn-secondary"
-                type="button"
-                disabled={busy}
-                onClick={() =>
-                  void runAction(
-                    () =>
-                      api.requestManual(opportunity.id, 'Завершить заявку партнёра на площадке'),
-                    'Размещение переведено в ручной режим.',
-                  )
-                }
-              >
-                {ACTION_LABELS.requestManual}
-              </button>
+              <>
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    void runAction(
+                      () =>
+                        api.requestManual(opportunity.id, 'Завершить заявку партнёра на площадке'),
+                      'Размещение переведено в ручной режим.',
+                    )
+                  }
+                >
+                  {ACTION_LABELS.requestManual}
+                </button>
+                {execMode.mode === 'manual' && (
+                  <div className="text-tertiary" style={{ fontSize: 12, marginTop: 6 }}>
+                    {execMode.note}
+                  </div>
+                )}
+              </>
             )}
             {!canApprove &&
               !canExecute &&
               !canRequestManual &&
               opportunity.placements.length === 0 && (
                 <div className="empty-note">
-                  Для этой возможности сейчас нет доступных действий — способ выполнения недоступен
-                  (нет подходящего провайдера).
+                  {execMode.mode === 'unavailable'
+                    ? execMode.note ?? 'Способ выполнения недоступен.'
+                    : 'Для этой возможности сейчас нет доступных действий.'}
                 </div>
               )}
           </Card>
