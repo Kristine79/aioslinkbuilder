@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DiscoverySourceInput } from '@aios/application';
+import type { GenerateSearchQueriesInput, DiscoverySourceInput } from '@aios/application';
 import {
   DiscoverySearchFailedError,
   WebSearchPlatformDiscoverySource,
@@ -42,6 +42,7 @@ const INPUT: DiscoverySourceInput = {
   companyName: 'Nordhaus',
   geography: ['Москва', 'Россия'],
   goals: ['Профили в мебельных каталогах'],
+  strategyDirections: [],
 };
 
 function stubGenerator(queries: string[]) {
@@ -93,6 +94,46 @@ describe('WebSearchPlatformDiscoverySource', () => {
       discoveredVia: 'web-search',
       searchEngine: 'stub-search',
     });
+  });
+
+  it('passes strategy directions (catalog-backed and AI-derived) into the search-intent generator', async () => {
+    const lookups = makeEnv();
+    const search = new StubSearchProvider();
+    const received: GenerateSearchQueriesInput[] = [];
+    const spyGenerator = {
+      name: 'spy-generator',
+      generate: (input: GenerateSearchQueriesInput) => {
+        received.push(input);
+        return Promise.resolve({
+          intents: [{ intent: 'Направление', categoryCode: 'media-pr', queries: ['q'] }],
+        });
+      },
+    };
+    const source = new WebSearchPlatformDiscoverySource(lookups, search, spyGenerator);
+
+    await source.discover({
+      ...INPUT,
+      strategyDirections: [
+        {
+          categoryId: 'cat-media',
+          categoryCode: 'media-pr',
+          categoryName: 'Media',
+          placementType: 'EDITORIAL_PUBLICATION',
+        },
+        {
+          categoryId: null,
+          categoryCode: 'chatbot-development',
+          categoryName: 'chatbot-development',
+          placementType: 'DIRECTORY_LISTING',
+        },
+      ],
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]?.relevantCategoryCodes).toEqual(['media-pr', 'chatbot-development']);
+    // The available list stays the catalog — the generator must not be told
+    // that AI-derived codes are catalog categories.
+    expect(received[0]?.availableCategoryCodes).toEqual(['furniture-directories', 'media-pr']);
   });
 
   it('reuses already-registered platforms instead of duplicating them', async () => {

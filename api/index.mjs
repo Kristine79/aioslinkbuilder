@@ -3507,18 +3507,24 @@ var DiscoverOpportunitiesUseCase = class {
   }
   async runSources(command, company, campaign, categoryCodes, run) {
     const categories = await this.lookups.listCategories();
-    const categoryIdsByCode = new Map(categories.map((category) => [category.code, category.id]));
-    const allowedCategoryCodes = categoryCodes.length === 0 ? null : new Set(categoryCodes.map((code) => code.trim().toLowerCase()));
+    const categoryIdsByCode = new Map(
+      categories.map((category) => [category.code.trim().toLowerCase(), category.id])
+    );
+    const catalogCodes = new Set(categories.map((category) => category.code.trim().toLowerCase()));
+    const overlapping = categoryCodes.map((code) => code.trim().toLowerCase()).filter((code) => catalogCodes.has(code));
+    const allowedCategoryCodes = overlapping.length === 0 ? null : new Set(overlapping);
     const existing = await this.opportunities.findByCampaignId(command.campaignId);
     const existingPlatformIds = new Set(existing.map((opportunity) => opportunity.platformId));
     const createdPlatformIds = /* @__PURE__ */ new Set();
     const opportunities = [];
     const sourceNames = [];
+    const strategyDirections = command.strategyDirections ?? [];
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
         geography: company.geography,
-        goals: campaign.goals
+        goals: campaign.goals,
+        strategyDirections
       });
       for (const candidate of result.candidates) {
         if (allowedCategoryCodes !== null && (candidate.categoryCode === null || !allowedCategoryCodes.has(candidate.categoryCode.trim().toLowerCase()))) {
@@ -19348,18 +19354,46 @@ var GeneratePlacementStrategyUseCase = class {
     }
     const validated = await this.loadCompanyAnalysis(command.campaignId);
     const categories = await this.lookups.listCategories();
-    const relevantCodes = new Set(
-      validated.relevantCategories.map((code) => code.trim().toLowerCase())
+    const catalogByCode = new Map(
+      categories.map((category) => [category.code.toLowerCase(), category])
     );
-    return {
-      campaignId: campaign.id,
-      generatedAt: /* @__PURE__ */ new Date(),
-      items: categories.filter((category) => relevantCodes.has(category.code.toLowerCase())).map((category) => ({
+    const relevantEntries = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const entry of validated.relevantCategories) {
+      const raw2 = entry.trim();
+      const code = raw2.toLowerCase();
+      if (code === "" || seen.has(code)) continue;
+      seen.add(code);
+      relevantEntries.push({ code, raw: raw2 });
+    }
+    const catalogItems = [];
+    const aiDerivedItems = [];
+    for (const { code, raw: raw2 } of relevantEntries) {
+      const category = catalogByCode.get(code);
+      if (category === void 0) {
+        aiDerivedItems.push({
+          categoryId: null,
+          categoryCode: raw2,
+          categoryName: raw2,
+          placementType: DEFAULT_PLACEMENT_TYPE
+        });
+        continue;
+      }
+      catalogItems.push({
         categoryId: category.id,
         categoryCode: category.code,
         categoryName: category.name,
         placementType: placementTypeForCategory(category)
-      })),
+      });
+    }
+    return {
+      campaignId: campaign.id,
+      generatedAt: /* @__PURE__ */ new Date(),
+      // Catalog-backed directions come first; AI-derived directions follow so
+      // every relevant direction stays active — a missing catalog category
+      // never removes a strategy direction. Catalog matching remains useful
+      // for normalization, known placement types and provider alignment.
+      items: [...catalogItems, ...aiDerivedItems],
       recommendations: validated.strategicRecommendations
     };
   }
@@ -19465,7 +19499,10 @@ var WebSearchPlatformDiscoverySource = class {
         targetAudience: []
       },
       campaignGoals: input.goals,
-      relevantCategoryCodes: categories.map((category) => category.code),
+      // Search context comes from the campaign's real strategy directions
+      // (catalog-backed or AI-derived) — never from "every catalog category".
+      // The generator decides which directions are worth researching.
+      relevantCategoryCodes: input.strategyDirections.map((direction) => direction.categoryCode),
       availableCategoryCodes: categories.map((category) => category.code)
     });
     const availableCodes = new Set(categories.map((category) => category.code));
@@ -22196,7 +22233,12 @@ function opportunityActions(opportunity, intel) {
     if (opportunity.placementMethod === "OUTREACH") {
       return intel?.outreach?.status === "AGREED" ? ["requestManual"] : [];
     }
-    return opportunity.placementMethod === "MANUAL" ? ["requestManual", "execute"] : ["execute"];
+    if (opportunity.placementMethod === "MANUAL") {
+      const actions = ["requestManual"];
+      if (hasExecutionProvider(opportunity)) actions.push("execute");
+      return actions;
+    }
+    return hasExecutionProvider(opportunity) ? ["execute"] : [];
   }
   if (opportunity.status === "READY") {
     return ["execute"];
@@ -22205,6 +22247,11 @@ function opportunityActions(opportunity, intel) {
     return [];
   }
   return [];
+}
+function hasExecutionProvider(opportunity) {
+  return EXECUTION_REQUIRED_CAPABILITIES.every(
+    (capability) => supportsCapability(opportunity.providerCapabilities, capability)
+  );
 }
 function placementActions(placement) {
   const actions = [];
@@ -22807,9 +22854,9 @@ function createApiApp(services) {
     const items = result.items.map((item) => ({
       categoryId: item.categoryId,
       categoryCode: item.categoryCode,
-      categoryName: categoryNameById.get(item.categoryId) ?? item.categoryName,
+      categoryName: item.categoryId === null ? item.categoryName : categoryNameById.get(item.categoryId) ?? item.categoryName,
       placementType: item.placementType,
-      opportunityCount: countByCategoryId.get(item.categoryId) ?? 0
+      opportunityCount: item.categoryId === null ? 0 : countByCategoryId.get(item.categoryId) ?? 0
     }));
     return c.json({ items });
   });
@@ -23030,18 +23077,12 @@ function createApiApp(services) {
   });
   app.post("/api/discover", async (c) => {
     const campaign = await resolveCampaign(c);
-    const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
-    if (analysis === null) {
-      throw new NoCompanyAnalysisError(campaign.id);
-    }
-    const output = analysis.structuredOutput;
-    const categoryCodes = Array.isArray(output.relevantCategories) ? output.relevantCategories.filter(
-      (entry) => typeof entry === "string" && entry.trim() !== ""
-    ) : [];
+    const strategyResult = await strategy.execute({ campaignId: campaign.id });
     const discovered = await discover.execute({
       campaignId: campaign.id,
       placementType: "BUSINESS_PROFILE",
-      categoryCodes
+      categoryCodes: strategyResult.items.map((item) => item.categoryCode),
+      strategyDirections: strategyResult.items
     });
     const classified = [];
     for (const opportunity of discovered) {

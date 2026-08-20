@@ -43,6 +43,24 @@ A reusable classification such as:
 
 Categories are reusable platform data.
 
+## PlacementStrategy
+
+A derived (not persisted) deterministic strategy for a campaign, built from a
+validated company analysis. It is a list of **strategy directions**, each with
+a `categoryCode`, `categoryName` and a placement type (default
+`DIRECTORY_LISTING` when no category-specific default applies), plus the
+analysis' strategic recommendations.
+
+A direction is either:
+
+- **catalog-backed** — `categoryId` set; the direction matches a
+  `PlacementCategory` that exists in the catalog (used for normalization,
+  known placement types and provider alignment);
+- **AI-derived** — `categoryId === null`; the analysis named a topic the
+  catalog has no category for. It stays an active strategy direction and can
+  participate in discovery — a missing catalog category never removes a
+  direction and never blocks real search results.
+
 ## Platform
 
 A catalog record of an external platform (name, URL, country, category, notes). Reusable research data; a platform being listed does not imply that automated publication is supported.

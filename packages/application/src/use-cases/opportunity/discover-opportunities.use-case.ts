@@ -26,8 +26,12 @@ import type { PlacementOpportunityRepository } from '../../ports/repositories/op
  * campaign. The placement type is campaign-scoped; per-platform refinement
  * happens later during classification. Candidates without a registered
  * catalog platformId are ignored for now. Discovery sources receive the real
- * company profile (name, geography, campaign goals) so future sources can
- * match platforms against the actual company.
+ * company profile (name, geography, campaign goals) and the campaign's
+ * strategy directions (catalog-backed or AI-derived) as search context.
+ * Category filtering only applies to categories that exist in the catalog;
+ * an AI-derived direction without a catalog category never blocks real
+ * search results — the catalog is a normalization/enrichment anchor, not a
+ * precondition for discovery.
  *
  * The use case also owns the campaign's discovery run state: it opens the
  * RUNNING run, then writes exactly one terminal state. A source/provider
@@ -82,11 +86,19 @@ export class DiscoverOpportunitiesUseCase {
     run: Awaited<ReturnType<typeof startDiscoveryRun>>,
   ): Promise<PlacementOpportunity[]> {
     const categories = await this.lookups.listCategories();
-    const categoryIdsByCode = new Map(categories.map((category) => [category.code, category.id]));
-    const allowedCategoryCodes =
-      categoryCodes.length === 0
-        ? null
-        : new Set(categoryCodes.map((code) => code.trim().toLowerCase()));
+    const categoryIdsByCode = new Map(
+      categories.map((category) => [category.code.trim().toLowerCase(), category.id]),
+    );
+    // Catalog categories are anchors for normalization and known placement
+    // types — never a precondition for discovery. When none of the passed
+    // categories is a known catalog category (e.g. purely AI-derived
+    // directions), the filter is disabled instead of silently dropping every
+    // real candidate that happens to carry a catalog-agnostic code.
+    const catalogCodes = new Set(categories.map((category) => category.code.trim().toLowerCase()));
+    const overlapping = categoryCodes
+      .map((code) => code.trim().toLowerCase())
+      .filter((code) => catalogCodes.has(code));
+    const allowedCategoryCodes = overlapping.length === 0 ? null : new Set(overlapping);
 
     const existing = await this.opportunities.findByCampaignId(command.campaignId);
     const existingPlatformIds = new Set(existing.map((opportunity) => opportunity.platformId));
@@ -94,11 +106,13 @@ export class DiscoverOpportunitiesUseCase {
 
     const opportunities: PlacementOpportunity[] = [];
     const sourceNames: string[] = [];
+    const strategyDirections = command.strategyDirections ?? [];
     for (const source of this.sources) {
       const result = await source.discover({
         companyName: company.name,
         geography: company.geography,
         goals: campaign.goals,
+        strategyDirections,
       });
       for (const candidate of result.candidates) {
         if (

@@ -22,6 +22,7 @@ export { runNordhausDemo } from './scenario/nordhaus-demo.js';
 export type { NordhausDemoReport } from './scenario/nordhaus-demo.js';
 export { createApiApp } from './app.js';
 export type { ApiServices } from './app.js';
+export { opportunityActions } from './dto.js';
 export { createServerApp } from './server.js';
 export type {
   ApiActivityDto,

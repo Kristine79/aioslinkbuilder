@@ -34,6 +34,7 @@ import {
   EXECUTION_REQUIRED_CAPABILITIES,
   deriveHumanActions,
   selectBestProvider,
+  supportsCapability,
   workflowCurrentStageKind,
   workflowForType,
 } from '@aios/domain';
@@ -74,7 +75,8 @@ export interface ApiCompanyDto {
 }
 
 export interface ApiStrategyItemDto {
-  categoryId: string;
+  /** Catalog category id; null for AI-derived directions outside the catalog. */
+  categoryId: string | null;
   categoryCode: string;
   categoryName: string;
   placementType: string;
@@ -416,7 +418,12 @@ export function opportunityActions(
       // negotiation reached AGREED; automatic execution never applies.
       return intel?.outreach?.status === 'AGREED' ? ['requestManual'] : [];
     }
-    return opportunity.placementMethod === 'MANUAL' ? ['requestManual', 'execute'] : ['execute'];
+    if (opportunity.placementMethod === 'MANUAL') {
+      const actions: OpportunityAction[] = ['requestManual'];
+      if (hasExecutionProvider(opportunity)) actions.push('execute');
+      return actions;
+    }
+    return hasExecutionProvider(opportunity) ? ['execute'] : [];
   }
   // READY: a retry after a failed attempt is possible (a fresh placement is
   // created; failed attempts stay in the audit trail).
@@ -427,6 +434,19 @@ export function opportunityActions(
     return [];
   }
   return [];
+}
+
+/**
+ * Presentation gate: automatic execution is offered only when a provider
+ * capable of CREATE+VERIFY was recorded for the platform at classification
+ * time. Discovered platforms without a registered provider (real integrations
+ * or, in production, MOCK excluded by ADR-015) therefore never offer execute —
+ * the domain layer stays the real guard (NoProviderAvailableError).
+ */
+function hasExecutionProvider(opportunity: PlacementOpportunity): boolean {
+  return EXECUTION_REQUIRED_CAPABILITIES.every((capability) =>
+    supportsCapability(opportunity.providerCapabilities, capability),
+  );
 }
 
 /** Presentation gate: which placement-level actions the UI may offer. */

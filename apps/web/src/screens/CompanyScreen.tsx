@@ -344,6 +344,9 @@ export function CompanyScreen() {
                 {strategy.items.map((item) => (
                   <div className="strategy-card" key={item.categoryCode}>
                     <div className="strategy-card-name">{item.categoryName}</div>
+                    {item.categoryId === null && (
+                      <div className="strategy-card-outside">вне каталога</div>
+                    )}
                     <div className="strategy-card-type">
                       {TYPE_LABELS[item.placementType] ?? item.placementType}
                     </div>

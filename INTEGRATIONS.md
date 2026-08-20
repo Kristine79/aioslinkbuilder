@@ -187,6 +187,15 @@ discovery pipeline (`WebSearchPlatformDiscoverySource`) plans search intents
 search backend, normalizes/dedupes results, and persists brand-new sites into
 the platform catalog (`discoveredVia: "web-search"`).
 
+Discovery context comes from the campaign's **strategy directions**:
+`DiscoverySourceInput.strategyDirections` carries both catalog-backed
+(`categoryId` set) and AI-derived (`categoryId === null`) directions, and the
+intent generator receives their codes as `relevantCategoryCodes` (the
+`availableCategoryCodes` list always stays the catalog). The discovery use
+case only filters candidates by codes that actually exist in the catalog —
+a company whose AI analysis names topics outside the catalog still gets real
+web discovery instead of a silently empty result.
+
 ### DuckDuckGoHTML
 
 `DuckDuckGoSearchProvider` (default, `DISCOVERY_PROVIDER=duckduckgo`) is a

@@ -182,7 +182,7 @@ export interface GenerateSearchQueriesInput {
     targetAudience: string[];
   };
   campaignGoals: string[];
-  /** Catalog category codes the company analysis flagged as relevant. */
+  /** Strategy direction codes for this campaign (catalog-backed or AI-derived). */
   relevantCategoryCodes: string[];
   /** Every catalog category code the system knows about. */
   availableCategoryCodes: string[];

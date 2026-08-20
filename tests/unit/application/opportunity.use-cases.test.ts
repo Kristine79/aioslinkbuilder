@@ -194,6 +194,66 @@ describe('DiscoverOpportunitiesUseCase', () => {
     expect(discovered[0]?.platformId).toBe('platform-1');
   });
 
+  it('keeps candidates when the requested categories are not in the catalog', async () => {
+    const harness = await createHarness();
+
+    // An AI-derived direction (e.g. 'chatbot-development') is not a catalog
+    // category — it must not silently filter away every real candidate.
+    const discovered = await harness.discover.execute({
+      campaignId: harness.campaignId,
+      placementType: 'DIRECTORY_LISTING',
+      categoryCodes: ['chatbot-development'],
+    });
+
+    expect(discovered).toHaveLength(2);
+    expect(discovered.map((item) => item.platformId).sort()).toEqual(['platform-1', 'platform-2']);
+  });
+
+  it('passes the campaign strategy directions into discovery sources', async () => {
+    const harness = await createHarness();
+    const received: DiscoverySourceInput[] = [];
+    const spySource: PlatformDiscoverySource = {
+      name: 'spy-directions',
+      discover: (input) => {
+        received.push(input);
+        return Promise.resolve({ candidates: [] });
+      },
+    };
+    const discover = new DiscoverOpportunitiesUseCase(
+      harness.campaigns,
+      harness.companies,
+      harness.lookups,
+      harness.opportunities,
+      harness.auditLog,
+      [spySource],
+      new InMemoryDiscoveryRunRepository(),
+    );
+
+    await discover.execute({
+      campaignId: harness.campaignId,
+      placementType: 'BACKLINK',
+      strategyDirections: [
+        {
+          categoryId: 'cat-1',
+          categoryCode: 'WEB_DIRECTORIES',
+          categoryName: 'Web directories',
+          placementType: 'DIRECTORY_LISTING',
+        },
+        {
+          categoryId: null,
+          categoryCode: 'chatbot-development',
+          categoryName: 'chatbot-development',
+          placementType: 'DIRECTORY_LISTING',
+        },
+      ],
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]?.strategyDirections).toHaveLength(2);
+    expect(received[0]?.strategyDirections[0]?.categoryId).toBe('cat-1');
+    expect(received[0]?.strategyDirections[1]?.categoryId).toBeNull();
+  });
+
   it('throws NotFoundError for an unknown campaign without persisting', async () => {
     const harness = await createHarness();
 

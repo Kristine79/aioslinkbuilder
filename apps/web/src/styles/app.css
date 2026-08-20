@@ -2887,6 +2887,11 @@ a.wf-step:hover {
   color: var(--text-secondary);
 }
 
+.strategy-card-outside {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
 .strategy-card-state {
   margin-top: 2px;
 }

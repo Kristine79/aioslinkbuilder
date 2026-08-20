@@ -32,8 +32,8 @@ const DEFAULT_OPTIONS: Required<WebSearchDiscoveryOptions> = {
 };
 
 /**
- * Real web discovery source: company → search intents → web search → real
- * URLs → dedupe → register platforms → candidates.
+ * Real web discovery source: strategy directions → search intents → web
+ * search → real URLs → dedupe → register platforms → candidates.
  *
  * Implements the existing PlatformDiscoverySource port. Every result is real
  * external data (MEASURED); the source never invents platforms. Brand-new
@@ -69,7 +69,10 @@ export class WebSearchPlatformDiscoverySource implements PlatformDiscoverySource
         targetAudience: [],
       },
       campaignGoals: input.goals,
-      relevantCategoryCodes: categories.map((category) => category.code),
+      // Search context comes from the campaign's real strategy directions
+      // (catalog-backed or AI-derived) — never from "every catalog category".
+      // The generator decides which directions are worth researching.
+      relevantCategoryCodes: input.strategyDirections.map((direction) => direction.categoryCode),
       availableCategoryCodes: categories.map((category) => category.code),
     });
 

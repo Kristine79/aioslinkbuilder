@@ -36,6 +36,13 @@ built web UI with SPA fallback — the Vercel function is the same
   `ai-search` (search-capable AI provider citations; needs `AI_SEARCH_*`
   credentials). Both return real external URLs; failures are loud, never
   replaced with fake results.
+- The discovery source receives the campaign's **strategy directions**
+  (catalog-backed and AI-derived alike) as search context via
+  `DiscoverySourceInput.strategyDirections`, not the raw AI categories and
+  not "every catalog category". Catalog categories are a
+  normalization/enrichment anchor (category filtering only applies to codes
+  that exist in the catalog) — a company whose analysis names topics outside
+  the catalog still gets real web discovery instead of an empty result.
 - MOCK placement providers are gated by `MOCK_PROVIDERS` (default `deny`):
   the registry excludes MOCK records from listing and resolution
   (`ProviderUnavailableError`), so automated execution against synthetic

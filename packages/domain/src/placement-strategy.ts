@@ -28,7 +28,12 @@ export function placementTypeForCategory(category: PlacementCategory): Placement
 }
 
 export interface PlacementStrategyItem {
-  categoryId: string;
+  /**
+   * Catalog category id. `null` means the direction is AI-derived and has no
+   * catalog category yet — it is still a valid strategy direction and can
+   * participate in discovery (catalog-matching is not a precondition).
+   */
+  categoryId: string | null;
   categoryCode: string;
   categoryName: string;
   placementType: PlacementType;
@@ -38,6 +43,9 @@ export interface PlacementStrategyItem {
  * Deterministic placement strategy derived from a validated company
  * analysis. The AI contributes the relevant categories and strategic
  * recommendations; category-to-placement-type mapping is deterministic.
+ * Directions may be catalog-backed (categoryId set) or AI-derived
+ * (categoryId null) when the analysis names topics the catalog has no
+ * category for — those directions never disappear from the strategy.
  */
 export interface PlacementStrategy {
   campaignId: string;

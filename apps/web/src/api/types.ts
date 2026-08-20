@@ -75,7 +75,8 @@ export interface CompanyListItemDto {
 }
 
 export interface StrategyItemDto {
-  categoryId: string;
+  /** Catalog category id; null for AI-derived directions outside the catalog. */
+  categoryId: string | null;
   categoryCode: string;
   categoryName: string;
   placementType: string;

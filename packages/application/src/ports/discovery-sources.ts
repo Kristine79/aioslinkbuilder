@@ -8,10 +8,20 @@
  * in the platform catalog first and return its platformId; candidates
  * without a known platformId are ignored by the discovery use case for now.
  */
+import type { PlacementStrategyItem } from '@aios/domain';
+
 export interface DiscoverySourceInput {
   companyName: string;
   geography: string[];
   goals: string[];
+  /**
+   * The campaign's real strategy directions (catalog-backed with
+   * `categoryId` set, or AI-derived with `categoryId === null`). This is the
+   * source of search context for real web discovery — not the raw AI topics
+   * and not "every catalog category". Sources that only match the seeded
+   * catalog may ignore it.
+   */
+  strategyDirections: ReadonlyArray<PlacementStrategyItem>;
 }
 
 export interface DiscoveryCandidate {

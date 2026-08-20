@@ -103,7 +103,7 @@ describe('GeneratePlacementStrategyUseCase', () => {
     expect(strategy.recommendations).toEqual(['List on local maps', 'Pitch industry media']);
   });
 
-  it('ignores analysis category references that are not in the catalog', async () => {
+  it('keeps AI-derived directions when no analysis category is in the catalog', async () => {
     const harness = await createHarness();
     await harness.analyses.create({
       campaignId: harness.campaignId,
@@ -121,7 +121,46 @@ describe('GeneratePlacementStrategyUseCase', () => {
 
     const strategy = await harness.strategy.execute({ campaignId: harness.campaignId });
 
-    expect(strategy.items).toHaveLength(0);
+    // The direction stays active even though the catalog has no category for
+    // it — the catalog must not erase strategy directions.
+    expect(strategy.items).toHaveLength(1);
+    expect(strategy.items[0]).toMatchObject({
+      categoryId: null,
+      categoryCode: 'NOT_IN_CATALOG',
+      categoryName: 'NOT_IN_CATALOG',
+      placementType: 'DIRECTORY_LISTING',
+    });
+  });
+
+  it('combines catalog-backed and AI-derived directions', async () => {
+    const harness = await createHarness();
+    await harness.analyses.create({
+      campaignId: harness.campaignId,
+      analysisType: 'COMPANY_ANALYSIS',
+      provider: 'stub',
+      model: null,
+      inputReference: null,
+      structuredOutput: {
+        ...COMPANY_ANALYSIS,
+        relevantCategories: ['maps-local', 'custom-topic'],
+      },
+      schemaVersion: '1',
+      validationStatus: 'VALID',
+    });
+
+    const strategy = await harness.strategy.execute({ campaignId: harness.campaignId });
+
+    expect(strategy.items).toHaveLength(2);
+    expect(strategy.items[0]).toMatchObject({
+      categoryId: 'cat-maps',
+      categoryCode: 'maps-local',
+      placementType: 'BUSINESS_PROFILE',
+    });
+    expect(strategy.items[1]).toMatchObject({
+      categoryId: null,
+      categoryCode: 'custom-topic',
+      placementType: 'DIRECTORY_LISTING',
+    });
   });
 
   it('throws NotFoundError for an unknown campaign', async () => {

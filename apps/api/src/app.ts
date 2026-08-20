@@ -429,9 +429,13 @@ export function createApiApp(services: ApiServices): Hono {
     const items: ApiStrategyItemDto[] = result.items.map((item) => ({
       categoryId: item.categoryId,
       categoryCode: item.categoryCode,
-      categoryName: categoryNameById.get(item.categoryId) ?? item.categoryName,
+      categoryName:
+        item.categoryId === null
+          ? item.categoryName
+          : (categoryNameById.get(item.categoryId) ?? item.categoryName),
       placementType: item.placementType,
-      opportunityCount: countByCategoryId.get(item.categoryId) ?? 0,
+      opportunityCount:
+        item.categoryId === null ? 0 : (countByCategoryId.get(item.categoryId) ?? 0),
     }));
     return c.json({ items });
   });
@@ -744,21 +748,16 @@ export function createApiApp(services: ApiServices): Hono {
    */
   app.post('/api/discover', async (c) => {
     const campaign = await resolveCampaign(c);
-    const analysis = await env.analyses.findLatestValidCompanyAnalysis(campaign.id);
-    if (analysis === null) {
-      throw new NoCompanyAnalysisError(campaign.id);
-    }
-    const output = analysis.structuredOutput as { relevantCategories?: unknown };
-    const categoryCodes = Array.isArray(output.relevantCategories)
-      ? output.relevantCategories.filter(
-          (entry): entry is string => typeof entry === 'string' && entry.trim() !== '',
-        )
-      : [];
+    // The discovery input comes from the campaign's real strategy
+    // directions (catalog-backed or AI-derived) — the raw AI categories are
+    // never passed straight into discovery, bypassing the strategy layer.
+    const strategyResult = await strategy.execute({ campaignId: campaign.id });
 
     const discovered = await discover.execute({
       campaignId: campaign.id,
       placementType: 'BUSINESS_PROFILE',
-      categoryCodes,
+      categoryCodes: strategyResult.items.map((item) => item.categoryCode),
+      strategyDirections: strategyResult.items,
     });
 
     const classified: PlacementOpportunity[] = [];

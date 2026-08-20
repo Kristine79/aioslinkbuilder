@@ -1,4 +1,4 @@
-import type { PlacementType } from '@aios/domain';
+import type { PlacementStrategyItem, PlacementType } from '@aios/domain';
 
 export interface DiscoverOpportunitiesCommand {
   campaignId: string;
@@ -9,6 +9,12 @@ export interface DiscoverOpportunitiesCommand {
   placementType: PlacementType;
   /** Restricts discovery to platforms whose category code is listed. */
   categoryCodes?: string[];
+  /**
+   * The campaign's strategy directions (catalog-backed or AI-derived).
+   * Passed into discovery sources as search context; the use case only uses
+   * them to decide whether catalog filtering applies (see runSources).
+   */
+  strategyDirections?: ReadonlyArray<PlacementStrategyItem>;
 }
 
 export interface DeterministicScoreInputs {
